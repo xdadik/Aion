@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/banner.png" alt="Aion Hand Banner" width="100%">
+</p>
+
 <!--
   ╔══════════════════════════════════════════════════════════════╗
   ║  AION HAND — The Ultimate Autonomous AI Agent Framework     ║
