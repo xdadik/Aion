@@ -1,0 +1,92 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "aion-hand"
+version = "0.1.0"
+description = "A modular, extensible AI agent framework with tool-use, memory, orchestration, and messaging integrations."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [
+    { name = "Aion Hand Contributors" },
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = []
+
+[project.optional-dependencies]
+all = [
+    "aion-hand[web,messaging]",
+    "rich>=13.0",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=5.0",
+    "black>=24.0",
+    "ruff>=0.4",
+    "mypy>=1.10",
+]
+messaging = [
+    "aiohttp>=3.9",
+]
+web = [
+    "aiohttp>=3.9",
+    "rich>=13.0",
+]
+tui = [
+    "rich>=13.0",
+]
+
+[project.scripts]
+aion-hand = "aion_hand_cli.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["aion_core", "aion_hand_cli"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.black]
+target-version = ["py311"]
+line-length = 88
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+select = [
+    "E",
+    "W",
+    "F",
+    "I",
+    "N",
+    "UP",
+    "B",
+    "A",
+    "SIM",
+]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.coverage.run]
+source = ["aion_core"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
