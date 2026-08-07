@@ -27,10 +27,14 @@ Combining the best of OpenClaw, Hermes Agent, NullClaw, CrewAI, AutoGPT & LangGr
 
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Version 0.1.0](https://img.shields.io/badge/Version-0.1.0-orange.svg)](https://github.com/aion-hand/aion-hand/releases)
-[![Alpha](https://img.shields.io/badge/Status-Alpha-yellow.svg)]()
+[![Version 0.4.0](https://img.shields.io/badge/Version-0.4.0-orange.svg)](https://github.com/xdadik/Aion/releases)
+[![Tests](https://img.shields.io/badge/Tests-600%2B-brightgreen.svg)](https://github.com/xdadik/Aion/actions)
+[![Skills](https://img.shields.io/badge/Skills-93-blueviolet.svg)](skills/library/)
+[![Personas](https://img.shields.io/badge/Personas-26-ff69b4.svg)](aion_core/persona/templates/)
+[![Status-Alpha](https://img.shields.io/badge/Status-Alpha-yellow.svg)]()
+[![Discord](https://img.shields.io/badge/Discord-coming_soon-7289da.svg)](https://github.com/xdadik/Aion/discussions)
 
-[Features](#-features) · [Quick Start](#-quick-start) · [Architecture](#-architecture) · [Configuration](#-configuration) · [Documentation](#-core-modules)
+[Features](#-features) · [Quick Start](#-quick-start) · [Architecture](#-architecture) · [Configuration](#-configuration) · [Documentation](#-core-modules) · [Roadmap](./ROADMAP.md) · [FAQ](./docs/FAQ.md)
 
 </div>
 

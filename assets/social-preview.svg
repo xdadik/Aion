@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- GitHub social preview (1280x640) -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0e1a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="brand" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00E5FF"/>
+      <stop offset="100%" stop-color="#A78BFA"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1280" height="640" fill="url(#bg)"/>
+
+  <!-- Logo (left) -->
+  <g transform="translate(180, 200)">
+    <polygon points="160,0 280,64 280,192 160,256 40,192 40,64"
+             fill="none" stroke="url(#brand)" stroke-width="6" filter="url(#glow)"/>
+    <circle cx="160" cy="128" r="20" fill="url(#brand)" filter="url(#glow)"/>
+    <line x1="160" y1="128" x2="160" y2="0" stroke="url(#brand)" stroke-width="3" opacity="0.6"/>
+    <line x1="160" y1="128" x2="280" y2="64" stroke="url(#brand)" stroke-width="3" opacity="0.6"/>
+    <line x1="160" y1="128" x2="280" y2="192" stroke="url(#brand)" stroke-width="3" opacity="0.6"/>
+    <line x1="160" y1="128" x2="160" y2="256" stroke="url(#brand)" stroke-width="3" opacity="0.6"/>
+    <line x1="160" y1="128" x2="40" y2="192" stroke="url(#brand)" stroke-width="3" opacity="0.6"/>
+    <line x1="160" y1="128" x2="40" y2="64" stroke="url(#brand)" stroke-width="3" opacity="0.6"/>
+  </g>
+
+  <!-- Title -->
+  <text x="600" y="240" font-family="system-ui, -apple-system, sans-serif" font-size="84" font-weight="800" fill="url(#brand)">
+    Aion Hand
+  </text>
+
+  <!-- Tagline -->
+  <text x="600" y="310" font-family="system-ui, -apple-system, sans-serif" font-size="32" fill="#94a3b8">
+    The self-improving autonomous AI agent framework
+  </text>
+
+  <!-- Sub-tagline -->
+  <text x="600" y="360" font-family="system-ui, -apple-system, sans-serif" font-size="22" fill="#64748b">
+    Combining OpenClaw · Hermes · NullClaw · CrewAI · AutoGPT · LangGraph
+  </text>
+
+  <!-- Badges row -->
+  <g transform="translate(600, 420)">
+    <rect x="0" y="0" width="120" height="32" rx="6" fill="#1e293b" stroke="#334155"/>
+    <text x="60" y="21" font-family="monospace" font-size="14" fill="#00E5FF" text-anchor="middle">Python 3.11+</text>
+
+    <rect x="130" y="0" width="90" height="32" rx="6" fill="#1e293b" stroke="#334155"/>
+    <text x="175" y="21" font-family="monospace" font-size="14" fill="#10B981" text-anchor="middle">MIT</text>
+
+    <rect x="230" y="0" width="140" height="32" rx="6" fill="#1e293b" stroke="#334155"/>
+    <text x="300" y="21" font-family="monospace" font-size="14" fill="#FBBF24" text-anchor="middle">600+ tests</text>
+
+    <rect x="380" y="0" width="160" height="32" rx="6" fill="#1e293b" stroke="#334155"/>
+    <text x="460" y="21" font-family="monospace" font-size="14" fill="#A78BFA" text-anchor="middle">93 skills · 26 personas</text>
+  </g>
+
+  <!-- Bottom URL -->
+  <text x="640" y="560" font-family="monospace" font-size="22" fill="#64748b" text-anchor="middle">
+    github.com/xdadik/Aion
+  </text>
+</svg>

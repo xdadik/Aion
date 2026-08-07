@@ -1,454 +1,249 @@
 # Contributing to Aion Hand
 
-First off — thank you for taking the time to contribute. 🙏
+Thanks for your interest in contributing! Aion Hand is a community-driven
+project — every contribution matters.
 
-Aion Hand is built in the open by a small team and we welcome
-contributions of every size: bug reports, doc fixes, new tools, new
-verifiers, performance work, or entirely new subsystems. This document
-explains how to do all of that without friction.
-
-> **TL;DR** — fork the repo, branch off `main`, run `make dev`, code
-> with `ruff` + `black`, write a test, open a PR with a clear
-> description. That's 90% of it.
-
----
-
-## Table of Contents
-
-1. [Getting Started](#1-getting-started)
-2. [Development Workflow](#2-development-workflow)
-3. [Code Style](#3-code-style)
-4. [Commit Messages](#4-commit-messages)
-5. [Pull Request Template](#5-pull-request-template)
-6. [Issue Templates](#6-issue-templates)
-7. [Testing Requirements](#7-testing-requirements)
-8. [Review Process](#8-review-process)
-9. [Security Contributions](#9-security-contributions)
-
----
-
-## 1. Getting Started
-
-### Prerequisites
-
-- **Python 3.11+** (we test on 3.11, 3.12, 3.13)
-- **Git 2.30+**
-- **make** (optional but convenient)
-- An LLM provider API key for live testing (OpenAI, Anthropic, OpenRouter,
-  or local Ollama). Not required for unit tests.
-
-### Fork and clone
+## 🚀 Quick start for contributors
 
 ```bash
-# 1. Fork via the GitHub UI, then:
-git clone https://github.com/<your-username>/aion-hand.git
-cd aion-hand
+# 1. Fork the repo on GitHub, then clone your fork
+git clone https://github.com/YOUR_USERNAME/Aion.git
+cd Aion
 
 # 2. Add the upstream remote
-git remote add upstream https://github.com/aion-hand/aion-hand.git
-git fetch upstream
+git remote add upstream https://github.com/xdadik/Aion.git
 
 # 3. Create a virtual environment
 python -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
+source .venv/bin/activate  # on Windows: .venv\Scripts\activate
 
-# 4. Install in editable mode with all dev dependencies
-make dev
-# equivalent to: pip install -e ".[all,dev]"
+# 4. Install in editable mode with dev dependencies
+pip install -e ".[all,dev]"
+
+# 5. Verify everything works
+pytest --tb=short -q
+aion-hand doctor
+
+# 6. Create a feature branch
+git checkout -b feat/my-awesome-feature
 ```
 
-### Verify your setup
+## 🧑‍💻 Ways to contribute
+
+You don't have to write code to help! Here are ways to contribute:
+
+### Code
+- **Bug fixes** — see [issues labeled `bug`](https://github.com/xdadik/Aion/labels/bug)
+- **New features** — see [issues labeled `enhancement`](https://github.com/xdadik/Aion/labels/enhancement)
+- **New skills** — add a `SKILL.md` to `skills/library/`
+- **New personas** — add a `SOUL.md` to `aion_core/persona/templates/`
+- **New messaging adapters** — extend `aion_core/messaging/real_adapters/`
+- **New tools** — extend `aion_core/tools/registry.py`
+
+### Documentation
+- Improve the README, ARCHITECTURE.md, COOKBOOK.md
+- Write tutorials / blog posts
+- Translate docs to other languages
+- Improve docstrings
+
+### Testing
+- Write tests for untested code paths
+- Add integration tests for messaging platforms
+- Run the benchmark suite on different hardware
+
+### Community
+- Answer questions in [GitHub Discussions](https://github.com/xdadik/Aion/discussions)
+- Triage issues
+- Review pull requests
+- Report bugs with clear repro steps
+
+## 📋 Development workflow
+
+### 1. Pick an issue
+
+Browse [open issues](https://github.com/xdadik/Aion/issues) and comment on
+the one you want to work on. We'll assign it to you so others don't duplicate
+work.
+
+No issue for what you want to do? Open one first.
+
+### 2. Write code
+
+Follow the existing style:
+- `ruff check aion_core/ tests/` should pass (warnings OK, errors not)
+- Type hints on all public functions
+- Docstrings on all public classes and functions
+- Lines ≤ 88 chars (black default)
+
+### 3. Write tests
+
+Every bug fix and new feature MUST include tests:
+
+```python
+# tests/test_my_feature.py
+import pytest
+from aion_core.my_module import my_function
+
+class TestMyFeature:
+    def test_basic_case(self):
+        result = my_function("input")
+        assert result == "expected"
+
+    def test_edge_case(self):
+        with pytest.raises(ValueError):
+            my_function("")
+
+    @pytest.mark.asyncio
+    async def test_async_case(self):
+        result = await my_function_async("input")
+        assert result is not None
+```
+
+Run tests locally:
+```bash
+pytest tests/test_my_feature.py -v
+pytest --tb=short -q  # full suite
+```
+
+### 4. Update docs
+
+If your change is user-facing:
+- Update `README.md`
+- Update `CHANGELOG.md` under `[Unreleased]`
+- Update `docs/INSTALL.md` if install steps changed
+- Update `docs/examples/COOKBOOK.md` if new use case
+
+### 5. Commit (Conventional Commits)
 
 ```bash
-make test          # should pass all tests
-make lint          # should report no issues
-python -m aion_hand_cli --version
+git add .
+git commit -m "feat(memory): add vector similarity search
+
+Adds a new MemoryManager.search_similar() method that uses cosine
+similarity over embedded memory content. Falls back to FTS5 keyword
+search when embeddings are unavailable.
+
+Closes #123"
 ```
 
-If any of those fail, please open an issue with the full output — it's
-likely an environment problem worth fixing for everyone.
+**Commit types:**
+- `feat:` — new feature
+- `fix:` — bug fix
+- `docs:` — documentation only
+- `style:` — formatting, lint, no code change
+- `refactor:` — code restructure, no behavior change
+- `test:` — adding tests
+- `chore:` — tooling, deps, configs
+- `perf:` — performance improvement
 
----
-
-## 2. Development Workflow
-
-### Branch strategy
-
-```text
-main              ← always green, always releasable
-└── feature/foo   ← your work lives here
-└── fix/bar       ← bug fixes
-└── docs/baz      ← documentation only
-```
-
-- Branch from `main`: `git checkout -b feature/my-feature upstream/main`.
-- Rebase onto `main` before opening a PR if `main` has moved.
-- Keep branches short-lived (days, not weeks).
-- One logical change per branch — if you find yourself writing "and also
-  …" in the PR description, consider splitting it.
-
-### The loop
-
-1. **Plan** — open an issue or comment on an existing one saying you're
-   working on it. This avoids duplicated effort.
-2. **Code** — write the change, following the [Code Style](#3-code-style)
-   below.
-3. **Test** — add or update tests. See [Testing Requirements](#7-testing-requirements).
-4. **Lint** — `make lint && make format`.
-5. **Commit** — small, well-described commits following
-   [Commit Messages](#4-commit-messages).
-6. **Push** — push to your fork.
-7. **PR** — open a pull request against `main` using the
-   [PR template](#5-pull-request-template).
-8. **Review** — respond to review comments, push fixes, re-request
-   review when ready.
-9. **Merge** — a maintainer merges once CI is green and at least one
-   reviewer has approved.
-
-### Keeping your fork up to date
+### 6. Push and open a PR
 
 ```bash
-git fetch upstream
-git checkout main
-git rebase upstream/main
-git push origin main --force-with-lease
+git push -u origin feat/my-awesome-feature
 ```
 
----
+Then open a PR against `main`. The PR template will guide you.
 
-## 3. Code Style
+### 7. Address review feedback
 
-We use **`ruff`** for linting and **`black`** for formatting. Both are
-already configured in `pyproject.toml`.
+- Make changes as new commits (don't force-push during review)
+- Reply to every comment (even with "👍")
+- Mark conversations "resolved" once addressed
 
-### Format and lint
+### 8. Squash-merge
 
-```bash
-make format    # runs black + ruff --fix
-make lint      # runs ruff check (non-fixing)
-```
+Once approved, a maintainer will squash-merge your PR. The commit message
+will be your PR title.
 
-### Style rules
+## 🏗️ Architecture overview
 
-- **Line length:** 88 characters ( enforced by `black` and `ruff`).
-- **Target Python:** 3.11 — do not use 3.12-only syntax.
-- **Imports:** sorted by `ruff` (`isort` rules). Use `from __future__
-  import annotations` at the top of every module so type hints can
-  reference forward declarations.
-- **Typing:** all public functions and classes must have type
-  annotations. Run `mypy aion_core/` to verify.
-- **Docstrings:** every public class and function gets a docstring.
-  Module-level docstrings explain what the module does and which
-  classes it exposes.
-- **Async-first:** all I/O-bound code must be `async`. Sync wrappers
-  are acceptable only at the CLI boundary.
-- **No `print()` in library code** — use the `logging` module. `print`
-  is reserved for the CLI.
-- **No bare `except:`** — catch `Exception` at minimum, ideally the
-  specific exception type.
-- **Tests live in `tests/`** and mirror the source layout
-  (`aion_core/security/sandbox.py` → `tests/test_security.py`).
+Before contributing, please read:
+- [`ARCHITECTURE.md`](../ARCHITECTURE.md) — system overview
+- [`docs/adr/`](../docs/adr/) — Architecture Decision Records
+- [`CHANGELOG.md`](../CHANGELOG.md) — recent changes
 
-### Type checking
+Key principles:
+- **Async throughout** — see ADR-0001
+- **Zero hard dependencies** — core runs on Python stdlib
+- **SKILL.md format** — see ADR-0002
+- **SOUL.md format** — see ADR-0003
+- **No circular imports** — `agent.core` may import subsystems; subsystems may not import `agent.loop`
 
-```bash
-mypy aion_core/ aion_hand_cli/     # strict
-```
+## 🧪 Testing guidelines
 
-If `mypy` complains about third-party code, add `# type: ignore[<code>]`
-with a comment explaining why. Blind `# type: ignore` is a code smell.
+### Unit tests
+- One test class per public class
+- Test the happy path AND edge cases (empty, null, very large, very small)
+- Mock external dependencies (network, filesystem, time)
+- Use `tmp_path` fixture for filesystem tests
 
----
-
-## 4. Commit Messages
-
-We follow a lightweight version of [Conventional Commits](https://www.conventionalcommits.org/).
-
-### Format
-
-```text
-<type>(<scope>): <subject>
-
-<body>
-
-<footer>
-```
-
-### Types
-
-| Type       | When to use                                                |
-|------------|------------------------------------------------------------|
-| `feat`     | A new feature                                              |
-| `fix`      | A bug fix                                                  |
-| `docs`     | Documentation only                                         |
-| `style`    | Formatting, whitespace, no code change                     |
-| `refactor` | Code restructuring with no behaviour change                |
-| `perf`     | Performance improvement                                    |
-| `test`     | Adding or fixing tests                                     |
-| `chore`    | Build, CI, tooling, dependencies                           |
-| `security` | Security fix — also see [Security Contributions](#9-security-contributions) |
-
-### Scope
-
-Optional. Use the module name: `security`, `memory`, `tools`, `mcp`,
-`pipeline`, `orchestration`, `cli`, `docs`.
-
-### Examples
-
-```text
-feat(mcp): add SSE transport reconnection with backoff
-
-Adds exponential backoff to the SSE transport's reconnect logic so
-that flaky MCP servers don't cause permanent client teardown.
-
-Closes #142.
-```
-
-```text
-fix(security): block `pathlib` in sandbox runner
-
-`pathlib.Path` could be used to traverse the filesystem without
-`open()`, bypassing the restricted builtins. Added `pathlib` to the
-deny-list.
-```
-
-```text
-docs: clarify sandbox limitations in SECURITY.md
-```
-
-### Rules
-
-- Subject line ≤ 72 characters, imperative mood ("add", not "added").
-- Body wrapped at 80 chars, explains **why** not **what**.
-- Reference issues with `Closes #N`, `Fixes #N`, or `Refs #N`.
-- Sign your commits (`git commit -s`) if you want them attributable.
-  We don't require DCO, but we appreciate it.
-
----
-
-## 5. Pull Request Template
-
-Copy this into your PR description. The GitHub repo has it saved as a
-`.github/pull_request_template.md` so it auto-populates.
-
-```markdown
-## What does this PR do?
-
-<!-- One-paragraph summary, plus a bullet list of changes -->
-
-## Why is this change needed?
-
-<!-- Link to issue, or explain the problem -->
-
-## How was it tested?
-
-- [ ] Unit tests added / updated
-- [ ] `make test` passes locally
-- [ ] `make lint` passes locally
-- [ ] Manually tested (describe below)
-
-## Checklist
-
-- [ ] Code follows the style guide (`make format` is clean)
-- [ ] Public API changes are documented
-- [ ] Changelog updated (if applicable)
-- [ ] No new dependencies without justification
-- [ ] No secrets, API keys, or tokens in the diff
-
-## Breaking changes
-
-<!-- If yes, describe migration path. If no, write "None". -->
-
-## Screenshots / logs
-
-<!-- For CLI / UI changes only -->
-```
-
----
-
-## 6. Issue Templates
-
-### Bug report
-
-```markdown
-**Describe the bug**
-A clear description of what the bug is.
-
-**To reproduce**
-Steps that trigger the bug:
-1. Run `aion-hand chat`
-2. Type `...`
-3. See error
-
-**Expected behaviour**
-What you expected to happen.
-
-**Actual behaviour**
-What actually happened, including stack traces and logs.
-
-**Environment**
-- Aion Hand version: [e.g. 0.1.0]
-- Python version: [e.g. 3.12.1]
-- OS: [e.g. macOS 14.2]
-- Provider: [e.g. OpenAI gpt-4o]
-- Were you running in Docker / firejail / bare metal?
-
-**Configuration**
-Redact API keys. Paste your `~/.aion-hand/config.json` if relevant.
-```
-
-### Feature request
-
-```markdown
-**Is your feature request related to a problem?**
-A description of the problem.
-
-**Proposed solution**
-A clear description of what you want to happen.
-
-**Alternatives considered**
-Other solutions you've considered.
-
-**Additional context**
-Anything else. Screenshots, links, prior art.
-```
-
-### Security report
-
-**Do not file a public issue for security vulnerabilities.** See
-[`SECURITY.md`](SECURITY.md#5-reporting-vulnerabilities) for the
-private disclosure process.
-
----
-
-## 7. Testing Requirements
-
-### Layout
-
-```
-tests/
-├── __init__.py
-├── test_core.py              # agent.core, agent.loop
-├── test_memory.py            # memory.manager
-├── test_tools.py             # tools.registry
-├── test_security.py          # security.sandbox
-├── test_orchestration.py     # orchestration.engine
-├── test_cron.py              # cron.scheduler
-├── test_skills.py            # skills.engine
-└── test_providers.py         # providers.factory
-```
-
-### Running tests
-
-```bash
-make test                  # full suite, verbose
-pytest tests/ -k security  # only tests matching "security"
-pytest --cov=aion_core     # with coverage report
-```
-
-### What we require in a PR
-
-- **Bug fix:** a regression test that fails before your fix and passes
-  after.
-- **New feature:** tests covering the happy path and at least one edge
-  case.
-- **Security change:** tests for every new blacklist/whitelist pattern,
-  every new module block, every new verifier rule. See
-  `tests/test_security.py` for the existing pattern.
-- **Refactor:** existing tests still pass. If they don't, the refactor
-  is changing behaviour and should be split into a fix + a refactor.
-
-### Coverage
-
-We don't enforce a hard coverage threshold, but we aim for ≥80% on
-`aion_core/`. Run `pytest --cov=aion_core --cov-report=html` and open
-`htmlcov/index.html` to see what's missing.
+### Integration tests
+- Mark with `@pytest.mark.integration`
+- Skip when env vars not set (e.g., `TG_BOT_TOKEN`)
+- Don't actually call paid APIs in CI
 
 ### Async tests
+- `pytest-asyncio` is configured with `asyncio_mode = "auto"`
+- Just write `async def test_...` and it works
 
-We use `pytest-asyncio` in auto mode. Mark async tests with `async def`
-and they'll be run automatically — no `@pytest.mark.asyncio` needed.
+### Test naming
+- `test_<thing>_<condition>` — e.g., `test_chat_returns_response_on_valid_input`
+- `test_<thing>_raises_<error>_on_<condition>` — e.g., `test_connect_raises_on_invalid_token`
 
-### Live integration tests
+## 🎨 Code style
 
-Tests that hit a real LLM API are tagged `@pytest.mark.live` and skipped
-by default. Run them with `pytest --run-live` after setting
-`OPENAI_API_KEY` (or your provider's equivalent). These are not required
-for PR approval but are appreciated for provider-related changes.
+### Python
+- Black formatting (line length 88)
+- Type hints on all public functions
+- Docstrings (Google style) on all public classes and functions
+- No `print()` in library code — use `logging`
+- No bare `except:` — catch specific exceptions
 
----
+### Imports
+```python
+# Standard library
+import asyncio
+from pathlib import Path
 
-## 8. Review Process
+# Third party
+import pytest
+from aiohttp import web
 
-### Who reviews
+# Aion
+from aion_core.agent.core import AionHand
+```
 
-- **Small PRs** (docs, typo, single-file fix): one maintainer review.
-- **Medium PRs** (new tool, new verifier, refactors): two maintainer
-  reviews, one from a subsystem owner.
-- **Large PRs** (new subsystem, breaking changes): two maintainer
-  reviews plus a 72-hour waiting period for community comment.
+### Naming
+- `snake_case` for functions and variables
+- `PascalCase` for classes
+- `UPPER_SNAKE` for constants
+- `_prefix` for private
 
-### What reviewers look for
+## 📦 Releasing
 
-1. **Correctness** — does it do what the PR says?
-2. **Tests** — are they meaningful, not just coverage padding?
-3. **Security** — does it weaken any boundary? If yes, is it justified
-   and documented?
-4. **API stability** — does it break existing public APIs? If yes, is
-   the breakage worth it and is migration documented?
-5. **Performance** — does it add O(n²) loops in hot paths?
-6. **Docs** — are docstrings and user-facing docs updated?
-7. **Style** — does `make lint` pass?
+Maintainers only:
 
-### Response times
+1. Update `CHANGELOG.md` with the new version and date
+2. Bump version in `pyproject.toml` and `aion_core/__init__.py`
+3. Commit: `chore(release): v0.5.0`
+4. Tag: `git tag v0.5.0 && git push origin v0.5.0`
+5. The `release.yml` GitHub Action will build and publish automatically
 
-- First response from a maintainer: **within 3 business days**.
-- Review turnaround after you push fixes: **within 2 business days**.
-- If a PR has been silent for >7 days, ping us in `#development` on
-  Discord or comment `@aion-hand/maintainers` on the PR.
+## 🤝 Code of conduct
 
-### Disagreements
+By participating, you agree to abide by the [Code of Conduct](./CODE_OF_CONDUCT.md).
+Be kind. Be patient. Be excellent to each other.
 
-We discuss, we don't argue. If you disagree with a review comment:
-explain your reasoning once, clearly. If we still disagree, we'll
-explain why. If we can't agree, the final call rests with the subsystem
-owner — but we will always explain the reasoning in the PR thread.
+## ❓ Questions?
 
----
+- **Bug reports** → [GitHub Issues](https://github.com/xdadik/Aion/issues)
+- **Questions / discussion** → [GitHub Discussions](https://github.com/xdadik/Aion/discussions)
+- **Security reports** → see [SECURITY.md](./SECURITY.md) (don't open a public issue)
+- **Real-time chat** → coming soon
 
-## 9. Security Contributions
+## 🙏 Recognition
 
-Security-related contributions are held to a higher bar:
+All contributors are listed in the [Contributors page](https://github.com/xdadik/Aion/graphs/contributors).
+Significant contributions may be recognized with a mention in the README.
 
-- **Sandbox changes** (anything in `aion_core/security/`) require two
-  maintainer reviews, one of which must be from a security-focused
-  maintainer.
-- **New blacklist/whitelist patterns** must come with a regression test
-  demonstrating the pattern blocks a real exploit payload.
-- **New verifiers** must include both a passing and failing test case.
-- **Changes to `SECURITY.md`** are treated like code: they need a PR,
-  review, and the same commit-message conventions.
-
-If you're contributing a security fix that you'd rather not discuss
-publicly, see [Reporting Vulnerabilities](SECURITY.md#5-reporting-vulnerabilities)
-in `SECURITY.md`.
-
----
-
-## License
-
-By contributing to Aion Hand, you agree that your contributions will be
-licensed under the [MIT License](LICENSE). You retain copyright to your
-own contributions; we just need the right to distribute them under the
-project's license.
-
----
-
-## Questions?
-
-- 💬 **Discord:** [Aion Hand community](https://discord.gg/aion-hand)
-- 📧 **Email:** contributors@aion-hand.dev
-- 🐛 **Issues:** [github.com/aion-hand/aion-hand/issues](https://github.com/aion-hand/aion-hand/issues)
-
-Thanks again for being here. Every contribution makes Aion Hand better
-for everyone who runs it.
+Thank you for making Aion Hand better! 💚
