@@ -47,6 +47,7 @@ from aion_core.security.redact import SecretRedactor, redact_string, redact_dict
 from aion_core.security.filesafety import FileSafetyChecker
 from aion_core.messaging.platforms import PlatformType, PlatformAdapter, PlatformRegistry, create_platform
 from aion_core.runtime.production import RuntimeStatus, build_provider, provider_health_check, resolve_api_key, runtime_diagnostics
+from aion_core.runtime.agent import create_production_agent
 from aion_core.automation.autonomous import AutonomousRunner, AutomationResult, AutomationTask
 
 __all__ = [
@@ -60,5 +61,5 @@ __all__ = [
     "BackgroundReviewer", "SecretRedactor", "redact_string", "redact_dict", "detect_secrets", "FileSafetyChecker",
     "PlatformType", "PlatformAdapter", "PlatformRegistry", "create_platform",
     "RuntimeStatus", "build_provider", "provider_health_check", "resolve_api_key", "runtime_diagnostics",
-    "AutonomousRunner", "AutomationResult", "AutomationTask",
+    "create_production_agent", "AutonomousRunner", "AutomationResult", "AutomationTask",
 ]
