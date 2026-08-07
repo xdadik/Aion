@@ -29,6 +29,7 @@ Design notes:
 from __future__ import annotations
 
 import asyncio
+import inspect
 import logging
 import time
 import uuid
@@ -275,7 +276,7 @@ class SubAgent:
             raise RuntimeError(
                 "The agent object provided to SubAgent must have a 'chat()' method"
             )
-        result = chat_fn(prompt) if not asyncio.iscoroutinefunction(chat_fn) else await chat_fn(prompt)
+        result = chat_fn(prompt) if not inspect.iscoroutinefunction(chat_fn) else await chat_fn(prompt)
         if not isinstance(result, dict):
             result = {"content": str(result)}
         return result

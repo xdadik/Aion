@@ -245,6 +245,10 @@ _GENERIC_PATTERNS: List[re.Pattern] = [
     re.compile(r"(Basic\s+[A-Za-z0-9+/=]{20,})", re.IGNORECASE),
     # JWT tokens (three base64url segments separated by dots)
     re.compile(r"(eyJ[A-Za-z0-9_\-]+\.eyJ[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+)"),
+    # Truncated keys (logs: sk-pro...9jkl, sk-proj-abc...def)
+    re.compile(r"(sk-[A-Za-z0-9_\-]{1,16}\.\.\.[A-Za-z0-9_\-]{1,16})", re.IGNORECASE),
+    # Truncated JWTs (logs: eyJhbG...ef)
+    re.compile(r"(eyJ[A-Za-z0-9_\-]{2,}\.\.\.[A-Za-z0-9_\-]{2,})"),
     # Generic Token header value
     re.compile(r"(Token\s+[A-Za-z0-9_\-\.]{20,})", re.IGNORECASE),
     # Long hex strings (32+ chars) that are likely secrets / hashes
@@ -259,29 +263,29 @@ _GENERIC_PATTERNS: List[re.Pattern] = [
 # ---------------------------------------------------------------------------
 
 _ENV_ASSIGNMENT_PATTERNS: List[re.Pattern] = [
-    re.compile(r"(API_KEY\s*=\s*)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(API_SECRET\s*=\s*)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(API_TOKEN\s*=\s*)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(PASSWORD\s*=\s*)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(PASSWD\s*=\s*)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(SECRET\s*=\s*)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(SECRET_KEY\s*=\s*)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(TOKEN\s*=\s*)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(ACCESS_TOKEN\s*=\s*)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(REFRESH_TOKEN\s*=\s*)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(AUTH_TOKEN\s*=\s*)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(CREDENTIAL\s*=\s*)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(PRIVATE_KEY\s*=\s*)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(DB_PASSWORD\s*=\s*)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(DATABASE_URL\s*=\s*)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(MONGODB_URI\s*=\s*)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(REDIS_URL\s*=\s*)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(SLACK_TOKEN\s*=\s*)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(DISCORD_TOKEN\s*=\s*)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(TELEGRAM_TOKEN\s*=\s*)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(GITHUB_TOKEN\s*=\s*)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(OPENAI_API_KEY\s*=\s*)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(ANTHROPIC_API_KEY\s*=\s*)([^\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(API_KEY\s*=\s*)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(API_SECRET\s*=\s*)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(API_TOKEN\s*=\s*)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(PASSWORD\s*=\s*)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(PASSWD\s*=\s*)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(SECRET\s*=\s*)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(SECRET_KEY\s*=\s*)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(TOKEN\s*=\s*)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(ACCESS_TOKEN\s*=\s*)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(REFRESH_TOKEN\s*=\s*)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(AUTH_TOKEN\s*=\s*)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(CREDENTIAL\s*=\s*)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(PRIVATE_KEY\s*=\s*)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(DB_PASSWORD\s*=\s*)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(DATABASE_URL\s*=\s*)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(MONGODB_URI\s*=\s*)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(REDIS_URL\s*=\s*)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(SLACK_TOKEN\s*=\s*)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(DISCORD_TOKEN\s*=\s*)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(TELEGRAM_TOKEN\s*=\s*)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(GITHUB_TOKEN\s*=\s*)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(OPENAI_API_KEY\s*=\s*)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(ANTHROPIC_API_KEY\s*=\s*)([^&\s'\"]+)", re.IGNORECASE),
 ]
 
 # ---------------------------------------------------------------------------
@@ -289,22 +293,22 @@ _ENV_ASSIGNMENT_PATTERNS: List[re.Pattern] = [
 # ---------------------------------------------------------------------------
 
 _CONFIG_FILE_PATTERNS: List[re.Pattern] = [
-    re.compile(r"(password\s*[=: ]+)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(secret_key\s*[=: ]+)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(api_key\s*[=: ]+)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(apikey\s*[=: ]+)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(access_token\s*[=: ]+)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(refresh_token\s*[=: ]+)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(client_secret\s*[=: ]+)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(client_id\s*[=: ]+)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(auth_key\s*[=: ]+)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(encryption_key\s*[=: ]+)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(signing_key\s*[=: ]+)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(private_key\s*[=: ]+)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(db_password\s*[=: ]+)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(database_password\s*[=: ]+)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(token\s*[=: ]+)([^\s'\"]+)", re.IGNORECASE),
-    re.compile(r"(secret\s*[=: ]+)([^\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(password\s*[=: ]+)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(secret_key\s*[=: ]+)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(api_key\s*[=: ]+)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(apikey\s*[=: ]+)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(access_token\s*[=: ]+)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(refresh_token\s*[=: ]+)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(client_secret\s*[=: ]+)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(client_id\s*[=: ]+)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(auth_key\s*[=: ]+)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(encryption_key\s*[=: ]+)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(signing_key\s*[=: ]+)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(private_key\s*[=: ]+)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(db_password\s*[=: ]+)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(database_password\s*[=: ]+)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(token\s*[=: ]+)([^&\s'\"]+)", re.IGNORECASE),
+    re.compile(r"(secret\s*[=: ]+)([^&\s'\"]+)", re.IGNORECASE),
 ]
 
 # ---------------------------------------------------------------------------
@@ -357,9 +361,9 @@ _MISC_PATTERNS: List[re.Pattern] = [
     re.compile(r"(aws_access_key_id\s*=\s*)(AKIA[A-Z0-9]{16})"),
     re.compile(r"(aws_secret_access_key\s*=\s*)([A-Za-z0-9/+=]{40})"),
     # Generic credential exports
-    re.compile(r"(export\s+[A-Z_]*(?:SECRET|KEY|TOKEN|PASSWORD|CREDENTIAL)[A-Z_]*\s*=\s*)([^\s'\"]+)"),
-    re.compile(r"(export\s+[A-Z_]*(?:SECRET|KEY|TOKEN|PASSWORD|CREDENTIAL)[A-Z_]*\s*=\s*')([^']+)(')"),
-    re.compile(r'(export\s+[A-Z_]*(?:SECRET|KEY|TOKEN|PASSWORD|CREDENTIAL)[A-Z_]*\s*=\s*")([^"]+)(")'),
+    re.compile(r"(export\s+[A-Z_]*(?:SECRET|KEY|TOKEN|PASSWORD|CREDENTIAL)[A-Z_]*\s*=\s*)([^&\s'\"]+)"),
+    re.compile(r"(export\s+[A-Z_]*(?:SECRET|KEY|TOKEN|PASSWORD|CREDENTIAL)[A-Z_]*\s*=\s*')([^&']+)(')"),
+    re.compile(r'(export\s+[A-Z_]*(?:SECRET|KEY|TOKEN|PASSWORD|CREDENTIAL)[A-Z_]*\s*=\s*")([^&"]+)(")'),
 ]
 
 # ---------------------------------------------------------------------------
