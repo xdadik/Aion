@@ -92,7 +92,8 @@ class TestGetAionHome(unittest.TestCase):
         with _EnvPatcher(AION_HOME=None, AION_PROFILE="testprofile"):
             home = get_aion_home()
             self.assertIn("testprofile", str(home))
-            self.assertTrue(str(home).endswith("profiles/testprofile"))
+            self.assertTrue(str(home).replace('\\', '/').endswith("profiles/testprofile"))
+
 
 
 class TestEnvHelpers(unittest.TestCase):

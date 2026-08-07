@@ -34,7 +34,10 @@ class TestBackgroundReviewer(TestCase):
         self.assertIsInstance(stats, dict)
 
     def test_shutdown(self):
-        self.reviewer.shutdown()
+        res = self.reviewer.shutdown()
+        if hasattr(res, '__await__'):
+            asyncio.run(res)
+
 
 if __name__ == "__main__":
     unittest.main()
