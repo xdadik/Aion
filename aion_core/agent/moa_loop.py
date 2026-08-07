@@ -84,13 +84,13 @@ class PIIFilter:
 
     def __init__(
         self,
-        replacement_map: Optional[Dict[str, str]] = None,
+        replacement_map: dict[str, str] | None = None,
         include_ipv4: bool = False,
     ) -> None:
         self._replacements = {**self.DEFAULT_REPLACEMENTS}
         if replacement_map:
             self._replacements.update(replacement_map)
-        self._patterns: List[re.Pattern[str]] = [
+        self._patterns: list[re.Pattern[str]] = [
             (self._EMAIL_RE, self._replacements["email"]),
             (self._PHONE_RE, self._replacements["phone"]),
             (self._SSN_RE, self._replacements["ssn"]),
@@ -108,9 +108,9 @@ class PIIFilter:
             result = pattern.sub(replacement, result)
         return result
 
-    def detect(self, text: str) -> List[Dict[str, Any]]:
+    def detect(self, text: str) -> list[dict[str, Any]]:
         """Return a list of dicts describing each PII match."""
-        findings: List[Dict[str, Any]] = []
+        findings: list[dict[str, Any]] = []
         type_names = ["email", "phone", "ssn", "credit_card"]
         if len(self._patterns) > 4:
             type_names.append("ipv4")
@@ -137,11 +137,11 @@ class PIIFilter:
 class MOAConfig:
     """Configuration for a Mixture-of-Agents run."""
 
-    advisors: List[str] = field(default_factory=lambda: ["advisor_a", "advisor_b"])
+    advisors: list[str] = field(default_factory=lambda: ["advisor_a", "advisor_b"])
     aggregator: str = "aggregator"
     max_tokens: int = 4096
     timeout: float = 30.0
-    pii_filter: Optional[PIIFilter] = field(default_factory=PIIFilter)
+    pii_filter: PIIFilter | None = field(default_factory=PIIFilter)
 
 
 @dataclass
@@ -149,8 +149,8 @@ class MOAResult:
     """Result of a single MOA execution."""
 
     final_response: str
-    advisor_responses: Dict[str, str]
-    tokens: Dict[str, int] = field(default_factory=dict)
+    advisor_responses: dict[str, str]
+    tokens: dict[str, int] = field(default_factory=dict)
     elapsed: float = 0.0
     pii_scrubbed: bool = False
 
@@ -189,12 +189,12 @@ class MixtureOfAgents:
     def __init__(
         self,
         advisor_fn: AdvisorFn,
-        aggregator_fn: Optional[AdvisorFn] = None,
+        aggregator_fn: AdvisorFn | None = None,
     ) -> None:
         self._advisor_fn = advisor_fn
         self._aggregator_fn = aggregator_fn or advisor_fn
-        self._config: Optional[MOAConfig] = None
-        self._stats: Dict[str, Any] = {
+        self._config: MOAConfig | None = None
+        self._stats: dict[str, Any] = {
             "total_executions": 0,
             "total_advisor_calls": 0,
             "total_aggregator_calls": 0,
@@ -265,7 +265,7 @@ class MixtureOfAgents:
             pii_scrubbed=pii_scrubbed,
         )
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Return aggregate execution statistics."""
         return dict(self._stats)
 
@@ -274,10 +274,10 @@ class MixtureOfAgents:
     async def _run_advisors(
         self,
         prompt: str,
-        advisors: List[str],
+        advisors: list[str],
         max_tokens: int,
         timeout: float,
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """Execute all advisors concurrently."""
 
         async def _single(name: str) -> tuple[str, str]:
@@ -302,7 +302,7 @@ class MixtureOfAgents:
     async def _aggregate(
         self,
         prompt: str,
-        advisor_responses: Dict[str, str],
+        advisor_responses: dict[str, str],
         aggregator: str,
         max_tokens: int,
         timeout: float,
@@ -345,9 +345,9 @@ class MixtureOfAgents:
     @staticmethod
     def _estimate_tokens(
         prompt: str,
-        advisor_responses: Dict[str, str],
+        advisor_responses: dict[str, str],
         final: str,
-    ) -> Dict[str, int]:
+    ) -> dict[str, int]:
         """Rough token estimate (~4 chars per token)."""
         def _est(text: str) -> int:
             return max(1, len(text) // 4)

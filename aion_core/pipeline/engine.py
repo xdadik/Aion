@@ -33,20 +33,20 @@ class PipelineResult:
     success: bool = False
     output: Any = None
     confidence: float = 0.0
-    mission: Optional[MissionAnalysis] = None
-    plan: Optional[ExecutionPlan] = None
-    execution_results: Dict[str, ExecutionResult] = field(default_factory=dict)
-    verifications: List[VerificationResult] = field(default_factory=list)
-    critique: Optional[CritiqueResult] = None
-    repairs: Optional[RepairResult] = None
+    mission: MissionAnalysis | None = None
+    plan: ExecutionPlan | None = None
+    execution_results: dict[str, ExecutionResult] = field(default_factory=dict)
+    verifications: list[VerificationResult] = field(default_factory=list)
+    critique: CritiqueResult | None = None
+    repairs: RepairResult | None = None
     tokens_total: int = 0
     time_total: float = 0.0
-    lessons_learned: List[str] = field(default_factory=list)
-    lessons_applied: List[str] = field(default_factory=list)
-    stages_completed: List[str] = field(default_factory=list)
-    error: Optional[str] = None
+    lessons_learned: list[str] = field(default_factory=list)
+    lessons_applied: list[str] = field(default_factory=list)
+    stages_completed: list[str] = field(default_factory=list)
+    error: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "success": self.success,
             "output": self._safe_output(),
@@ -78,7 +78,7 @@ class PipelineResult:
             return output_str[:10000] + f"... [truncated, total {len(output_str)} chars]"
         return self.output
 
-    def _execution_summary(self) -> Dict[str, Any]:
+    def _execution_summary(self) -> dict[str, Any]:
         if not self.execution_results:
             return {"total": 0}
         statuses = {}
@@ -118,10 +118,10 @@ class PipelineEngine:
     def __init__(
         self,
         agent: Any,
-        config: Optional[Any] = None,
+        config: Any | None = None,
         confidence_threshold: float = DEFAULT_CONFIDENCE_THRESHOLD,
         max_workers: int = 5,
-        learning_path: Optional[str] = None,
+        learning_path: str | None = None,
         enable_learning: bool = True,
         max_repair_cycles: int = MAX_REPAIR_CYCLES,
     ):
@@ -177,7 +177,7 @@ class PipelineEngine:
     async def execute(
         self,
         task: str,
-        context: Optional[Dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
     ) -> PipelineResult:
         """Run the FULL pipeline: analyze -> plan -> execute -> verify -> critique -> repair -> learn.
 
@@ -360,7 +360,7 @@ class PipelineEngine:
     async def execute_simple(
         self,
         task: str,
-        context: Optional[Dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
     ) -> PipelineResult:
         """Light pipeline for simple tasks: chat -> verify -> return.
 
@@ -461,7 +461,7 @@ class PipelineEngine:
     def _extract_primary_output(
         self,
         plan: ExecutionPlan,
-        results: Dict[str, ExecutionResult],
+        results: dict[str, ExecutionResult],
     ) -> Any:
         """Extract the primary output from execution results.
 
@@ -511,7 +511,7 @@ class PipelineEngine:
                 outputs.append(str(r.output))
         return "\n\n".join(outputs) if outputs else None
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get pipeline statistics including learning stats."""
         stats = {
             "confidence_threshold": self._confidence_threshold,

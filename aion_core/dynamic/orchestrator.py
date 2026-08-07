@@ -63,17 +63,17 @@ class DynamicOrchestrationPlan:
     """
 
     task: str
-    topology: Optional[AgentTopology]
-    agents_to_create: List[Dict[str, Any]]
-    execution_order: List[str]
-    parallel_groups: List[List[str]]
+    topology: AgentTopology | None
+    agents_to_create: list[dict[str, Any]]
+    execution_order: list[str]
+    parallel_groups: list[list[str]]
     estimated_tokens: int = 0
     estimated_time: float = 0.0
     created_at: str = field(
         default_factory=lambda: time.strftime("%Y-%m-%dT%H:%M:%S")
     )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "task": self.task,
             "topology_name": self.topology.name if self.topology else None,
@@ -91,7 +91,7 @@ class DynamicOrchestrationPlan:
 # Role-specific task transformers
 # ============================================================================
 
-_ROLE_TASK_PREFIXES: Dict[str, str] = {
+_ROLE_TASK_PREFIXES: dict[str, str] = {
     "planner": "Create a detailed execution plan for the following task. "
                "Break it into ordered sub-tasks with roles and dependencies:\n\n",
     "researcher": "Research the following topic thoroughly. "
@@ -134,9 +134,9 @@ class DynamicOrchestrator:
 
     def __init__(
         self,
-        factory: Optional[DynamicAgentFactory] = None,
-        topology_manager: Optional[TopologyManager] = None,
-        base_agent: Optional[Any] = None,
+        factory: DynamicAgentFactory | None = None,
+        topology_manager: TopologyManager | None = None,
+        base_agent: Any | None = None,
     ) -> None:
         """Initialize the orchestrator.
 
@@ -150,8 +150,8 @@ class DynamicOrchestrator:
         self._factory = factory or DynamicAgentFactory(base_agent=base_agent)
         self._topology_mgr = topology_manager or TopologyManager()
         self._base_agent = base_agent
-        self._active_plans: Dict[str, DynamicOrchestrationPlan] = {}
-        self._execution_history: List[Dict[str, Any]] = []
+        self._active_plans: dict[str, DynamicOrchestrationPlan] = {}
+        self._execution_history: list[dict[str, Any]] = []
         logger.info("DynamicOrchestrator initialized")
 
     # ------------------------------------------------------------------
@@ -163,7 +163,7 @@ class DynamicOrchestrator:
         task: str,
         complexity: int = 5,
         task_type: str = "general",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Run the full orchestration lifecycle in one call.
 
         Steps:
@@ -200,7 +200,7 @@ class DynamicOrchestrator:
             )
 
         # Step 2: create agents based on topology
-        agents: List[DynamicAgent] = []
+        agents: list[DynamicAgent] = []
         for role in topology.agents:
             agent = self._factory.create_agent(
                 role=role,  # type: ignore[arg-type]
@@ -215,7 +215,7 @@ class DynamicOrchestrator:
 
         # Step 4: execute groups sequentially, agents within a group in parallel
         total_tokens = 0
-        all_results: List[Dict] = []
+        all_results: list[dict] = []
 
         for group in parallel_groups:
             if len(group) == 1:
@@ -349,7 +349,7 @@ class DynamicOrchestrator:
     # Plan execution
     # ------------------------------------------------------------------
 
-    async def execute_plan(self, plan: DynamicOrchestrationPlan) -> Dict[str, Any]:
+    async def execute_plan(self, plan: DynamicOrchestrationPlan) -> dict[str, Any]:
         """Execute a previously created plan.
 
         Creates agents from the plan spec, runs them according to
@@ -365,7 +365,7 @@ class DynamicOrchestrator:
         start = time.time()
 
         # Create agents
-        agents: List[DynamicAgent] = []
+        agents: list[DynamicAgent] = []
         for spec in plan.agents_to_create:
             agent = self._factory.create_agent(
                 role=spec["role"],  # type: ignore[arg-type]
@@ -375,13 +375,13 @@ class DynamicOrchestrator:
             agents.append(agent)
 
         # Build lookup: pre-assigned ID -> actual agent
-        id_to_agent: Dict[str, DynamicAgent] = {}
+        id_to_agent: dict[str, DynamicAgent] = {}
         for i, agent in enumerate(agents):
             id_to_agent[f"agent_{i}"] = agent
 
         # Execute in parallel groups
         total_tokens = 0
-        all_results: List[Dict] = []
+        all_results: list[dict] = []
 
         for group in plan.parallel_groups:
             if len(group) == 1:
@@ -434,8 +434,8 @@ class DynamicOrchestrator:
 
     async def execute_parallel(
         self,
-        agent_tasks: List[Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        agent_tasks: list[dict[str, Any]],
+    ) -> dict[str, Any]:
         """Execute multiple agents in parallel and return combined results.
 
         Args:
@@ -460,8 +460,8 @@ class DynamicOrchestrator:
 
     async def execute_sequential(
         self,
-        agent_tasks: List[Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        agent_tasks: list[dict[str, Any]],
+    ) -> dict[str, Any]:
         """Execute multiple agents one after another, forwarding context.
 
         Each agent receives the results of all prior agents as context,
@@ -474,7 +474,7 @@ class DynamicOrchestrator:
             Dict with success, results, tokens, time, strategy.
         """
         start = time.time()
-        all_results: List[Dict] = []
+        all_results: list[dict] = []
         total_tokens = 0
 
         for task_spec in agent_tasks:
@@ -499,9 +499,9 @@ class DynamicOrchestrator:
 
     async def _execute_single(
         self,
-        task_spec: Dict[str, Any],
-        prior_results: List[Dict],
-    ) -> Dict[str, Any]:
+        task_spec: dict[str, Any],
+        prior_results: list[dict],
+    ) -> dict[str, Any]:
         """Execute a single agent, passing prior results as context.
 
         Builds a context string from the last 3 prior agent results
@@ -534,9 +534,9 @@ class DynamicOrchestrator:
 
     async def _execute_parallel_group(
         self,
-        task_specs: List[Dict[str, Any]],
-        prior_results: List[Dict],
-    ) -> List[Dict[str, Any]]:
+        task_specs: list[dict[str, Any]],
+        prior_results: list[dict],
+    ) -> list[dict[str, Any]]:
         """Execute a group of agents concurrently using asyncio.gather.
 
         All agents in the group receive the same prior context but
@@ -556,9 +556,9 @@ class DynamicOrchestrator:
 
     def _build_agent_tasks(
         self,
-        agents: List[DynamicAgent],
+        agents: list[DynamicAgent],
         task: str,
-    ) -> Dict[str, Dict[str, Any]]:
+    ) -> dict[str, dict[str, Any]]:
         """Map agent IDs to role-specific task descriptions.
 
         Each role gets a tailored prompt prefix so the agent knows
@@ -581,9 +581,9 @@ class DynamicOrchestrator:
 
     def _compute_parallel_groups(
         self,
-        agents: List[DynamicAgent],
+        agents: list[DynamicAgent],
         topology: AgentTopology,
-    ) -> List[List[str]]:
+    ) -> list[list[str]]:
         """Determine which agents can run in parallel based on DAG connections.
 
         Uses topological sort to group agents by dependency level.
@@ -602,7 +602,7 @@ class DynamicOrchestrator:
             return [[a.id for a in agents]]
 
         # Build dependency graph: agent -> set of prerequisite agents
-        deps: Dict[str, set] = {a.id: set() for a in agents}
+        deps: dict[str, set] = {a.id: set() for a in agents}
         role_to_id = {a.profile.role: a.id for a in agents}
 
         for conn in topology.connections:
@@ -616,9 +616,9 @@ class DynamicOrchestrator:
 
     def _compute_parallel_groups_pre(
         self,
-        ids: List[str],
+        ids: list[str],
         topology: AgentTopology,
-    ) -> List[List[str]]:
+    ) -> list[list[str]]:
         """Same as _compute_parallel_groups but uses pre-assigned IDs.
 
         Used by create_plan() which works with placeholder IDs
@@ -627,7 +627,7 @@ class DynamicOrchestrator:
         if not topology.connections:
             return [ids]
 
-        deps: Dict[str, set] = {aid: set() for aid in ids}
+        deps: dict[str, set] = {aid: set() for aid in ids}
         role_to_id = {}
         for i, role in enumerate(topology.agents):
             if i < len(ids):
@@ -642,7 +642,7 @@ class DynamicOrchestrator:
         return self._topological_groups(deps)
 
     @staticmethod
-    def _topological_groups(deps: Dict[str, set]) -> List[List[str]]:
+    def _topological_groups(deps: dict[str, set]) -> list[list[str]]:
         """Group items into parallel execution layers via topological sort.
 
         Items with all dependencies satisfied are in the same layer.
@@ -654,7 +654,7 @@ class DynamicOrchestrator:
         Returns:
             List of layers, each layer being a list of item IDs.
         """
-        groups: List[List[str]] = []
+        groups: list[list[str]] = []
         completed: set = set()
         remaining = set(deps.keys())
 
@@ -675,11 +675,11 @@ class DynamicOrchestrator:
     # Queries
     # ------------------------------------------------------------------
 
-    def get_active_plans(self) -> Dict[str, DynamicOrchestrationPlan]:
+    def get_active_plans(self) -> dict[str, DynamicOrchestrationPlan]:
         """Return all stored plans."""
         return dict(self._active_plans)
 
-    def get_history(self, limit: int = 20) -> List[Dict[str, Any]]:
+    def get_history(self, limit: int = 20) -> list[dict[str, Any]]:
         """Return recent execution history.
 
         Args:
@@ -690,7 +690,7 @@ class DynamicOrchestrator:
         """
         return list(reversed(self._execution_history[-limit:]))
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Return orchestrator statistics."""
         total = len(self._execution_history)
         successes = sum(1 for h in self._execution_history if h["success"])

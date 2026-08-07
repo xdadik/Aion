@@ -8,12 +8,14 @@ full CRUD, graph traversal (BFS/DFS), clustering, persistence, and search.
 from __future__ import annotations
 
 import json
+import os
 import uuid
 from collections import defaultdict, deque
-from dataclasses import asdict, dataclass, field
-from datetime import UTC, datetime
+from dataclasses import dataclass, field, asdict
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
+
 
 # ---------------------------------------------------------------------------
 # Data classes
@@ -38,25 +40,25 @@ class Entity:
     id: str = field(default_factory=lambda: uuid.uuid4().hex[:16])
     name: str = ""
     entity_type: str = "concept"
-    properties: Dict[str, Any] = field(default_factory=dict)
+    properties: dict[str, Any] = field(default_factory=dict)
     created_at: str = field(
-        default_factory=lambda: datetime.now(UTC).isoformat(),
+        default_factory=lambda: datetime.now(timezone.utc).isoformat(),
     )
     updated_at: str = field(
-        default_factory=lambda: datetime.now(UTC).isoformat(),
+        default_factory=lambda: datetime.now(timezone.utc).isoformat(),
     )
     access_count: int = 0
 
     def touch(self) -> None:
         """Update the *updated_at* timestamp and bump access count."""
-        self.updated_at = datetime.now(UTC).isoformat()
+        self.updated_at = datetime.now(timezone.utc).isoformat()
         self.access_count += 1
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> Entity:
+    def from_dict(cls, data: dict[str, Any]) -> "Entity":
         return cls(**data)
 
 
@@ -69,16 +71,16 @@ class Relation:
     target_id: str = ""
     relation_type: str = "related_to"
     weight: float = 0.5
-    properties: Dict[str, Any] = field(default_factory=dict)
+    properties: dict[str, Any] = field(default_factory=dict)
     created_at: str = field(
-        default_factory=lambda: datetime.now(UTC).isoformat(),
+        default_factory=lambda: datetime.now(timezone.utc).isoformat(),
     )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> Relation:
+    def from_dict(cls, data: dict[str, Any]) -> "Relation":
         return cls(**data)
 
 
@@ -91,15 +93,15 @@ class KnowledgeGraph:
 
     def __init__(self) -> None:
         # Primary storage
-        self._entities: Dict[str, Entity] = {}
-        self._relations: Dict[str, Relation] = {}
+        self._entities: dict[str, Entity] = {}
+        self._relations: dict[str, Relation] = {}
 
         # Adjacency lists for fast traversal
-        self._outgoing: Dict[str, List[str]] = defaultdict(list)   # entity_id -> [relation_ids]
-        self._incoming: Dict[str, List[str]] = defaultdict(list)   # entity_id -> [relation_ids]
+        self._outgoing: dict[str, list[str]] = defaultdict(list)   # entity_id -> [relation_ids]
+        self._incoming: dict[str, list[str]] = defaultdict(list)   # entity_id -> [relation_ids]
 
         # Name+type dedup index: (name, type) -> entity_id
-        self._dedup_index: Dict[Tuple[str, str], str] = {}
+        self._dedup_index: dict[tuple[str, str], str] = {}
 
     # ------------------------------------------------------------------
     # Entity CRUD
@@ -109,8 +111,8 @@ class KnowledgeGraph:
         self,
         name: str,
         entity_type: str = "concept",
-        properties: Optional[Dict[str, Any]] = None,
-        entity_id: Optional[str] = None,
+        properties: dict[str, Any] | None = None,
+        entity_id: str | None = None,
     ) -> Entity:
         """Create an entity, deduplicating on (name, entity_type)."""
         if entity_type not in ENTITY_TYPES:
@@ -137,7 +139,7 @@ class KnowledgeGraph:
         self._dedup_index[key] = entity.id
         return entity
 
-    def get_entity(self, entity_id: str) -> Optional[Entity]:
+    def get_entity(self, entity_id: str) -> Entity | None:
         """Return an entity by id, bumping its access count."""
         entity = self._entities.get(entity_id)
         if entity is not None:
@@ -146,23 +148,24 @@ class KnowledgeGraph:
 
     def find_entities(
         self,
-        entity_type: Optional[str] = None,
-        name_contains: Optional[str] = None,
-        properties_filter: Optional[Dict[str, Any]] = None,
+        entity_type: str | None = None,
+        name_contains: str | None = None,
+        properties_filter: dict[str, Any] | None = None,
         limit: int = 100,
-    ) -> List[Entity]:
+    ) -> list[Entity]:
         """Find entities matching optional type / name / property filters."""
-        results: List[Entity] = []
+        results: list[Entity] = []
         for entity in self._entities.values():
             if entity_type and entity.entity_type != entity_type:
                 continue
             if name_contains and name_contains.lower() not in entity.name.lower():
                 continue
-            if properties_filter and not all(
-                entity.properties.get(k) == v
-                for k, v in properties_filter.items()
-            ):
-                continue
+            if properties_filter:
+                if not all(
+                    entity.properties.get(k) == v
+                    for k, v in properties_filter.items()
+                ):
+                    continue
             results.append(entity)
             if len(results) >= limit:
                 break
@@ -171,9 +174,9 @@ class KnowledgeGraph:
     def update_entity(
         self,
         entity_id: str,
-        properties: Optional[Dict[str, Any]] = None,
-        name: Optional[str] = None,
-    ) -> Optional[Entity]:
+        properties: dict[str, Any] | None = None,
+        name: str | None = None,
+    ) -> Entity | None:
         """Update an existing entity's name and/or properties."""
         entity = self._entities.get(entity_id)
         if entity is None:
@@ -217,9 +220,9 @@ class KnowledgeGraph:
         target_id: str,
         relation_type: str = "related_to",
         weight: float = 0.5,
-        properties: Optional[Dict[str, Any]] = None,
-        relation_id: Optional[str] = None,
-    ) -> Optional[Relation]:
+        properties: dict[str, Any] | None = None,
+        relation_id: str | None = None,
+    ) -> Relation | None:
         """Create a relation between two existing entities."""
         if source_id not in self._entities or target_id not in self._entities:
             return None
@@ -242,27 +245,27 @@ class KnowledgeGraph:
         self._incoming[target_id].append(rel.id)
         return rel
 
-    def get_relation(self, relation_id: str) -> Optional[Relation]:
+    def get_relation(self, relation_id: str) -> Relation | None:
         return self._relations.get(relation_id)
 
     def get_relations(
         self,
-        entity_id: Optional[str] = None,
-        relation_type: Optional[str] = None,
+        entity_id: str | None = None,
+        relation_type: str | None = None,
         direction: str = "both",
-    ) -> List[Relation]:
+    ) -> list[Relation]:
         """
         Get relations touching *entity_id*.  *direction* is ``'out'``,
         ``'in'``, or ``'both'``.
         """
-        rel_ids: Set[str] = set()
+        rel_ids: set[str] = set()
         if entity_id is not None:
             if direction in ("both", "out"):
                 rel_ids.update(self._outgoing.get(entity_id, []))
             if direction in ("both", "in"):
                 rel_ids.update(self._incoming.get(entity_id, []))
 
-        results: List[Relation] = []
+        results: list[Relation] = []
         pool = (
             [self._relations[rid] for rid in rel_ids]
             if entity_id is not None
@@ -277,17 +280,17 @@ class KnowledgeGraph:
     def get_related_entities(
         self,
         entity_id: str,
-        relation_type: Optional[str] = None,
+        relation_type: str | None = None,
         direction: str = "both",
         depth: int = 1,
-    ) -> List[Entity]:
+    ) -> list[Entity]:
         """Get entities connected via relations, up to *depth* hops."""
-        visited: Set[str] = {entity_id}
-        frontier: Set[str] = {entity_id}
-        result_entities: List[Entity] = []
+        visited: set[str] = {entity_id}
+        frontier: set[str] = {entity_id}
+        result_entities: list[Entity] = []
 
         for _ in range(depth):
-            next_frontier: Set[str] = set()
+            next_frontier: set[str] = set()
             for eid in frontier:
                 rels = self.get_relations(eid, relation_type=relation_type, direction=direction)
                 for rel in rels:
@@ -325,9 +328,9 @@ class KnowledgeGraph:
         self,
         source_id: str,
         target_id: str,
-        relation_types: Optional[Set[str]] = None,
+        relation_types: set[str] | None = None,
         max_depth: int = 10,
-    ) -> Optional[List[str]]:
+    ) -> list[str] | None:
         """
         BFS shortest path from *source_id* to *target_id*.
         Returns a list of entity ids (including both endpoints) or ``None``.
@@ -337,7 +340,7 @@ class KnowledgeGraph:
         if source_id == target_id:
             return [source_id]
 
-        visited: Set[str] = {source_id}
+        visited: set[str] = {source_id}
         queue: deque = deque()
         # Each entry: (current_node, path_so_far)
         queue.append((source_id, [source_id]))
@@ -379,18 +382,18 @@ class KnowledgeGraph:
 
         return None
 
-    def get_cluster(self, entity_id: str, max_size: int = 50) -> List[Entity]:
+    def get_cluster(self, entity_id: str, max_size: int = 50) -> list[Entity]:
         """Get the connected component containing *entity_id* via BFS."""
         if entity_id not in self._entities:
             return []
 
-        visited: Set[str] = {entity_id}
+        visited: set[str] = {entity_id}
         queue: deque = deque([entity_id])
-        entity_ids: List[str] = [entity_id]
+        entity_ids: list[str] = [entity_id]
 
         while queue and len(entity_ids) < max_size:
             current = queue.popleft()
-            neighbors: Set[str] = set()
+            neighbors: set[str] = set()
 
             for rel_id in self._outgoing.get(current, []):
                 rel = self._relations.get(rel_id)
@@ -439,9 +442,9 @@ class KnowledgeGraph:
         # Remove the duplicate entity
         return self.remove_entity(remove_id)
 
-    def get_most_connected(self, limit: int = 10) -> List[Tuple[Entity, int]]:
+    def get_most_connected(self, limit: int = 10) -> list[tuple[Entity, int]]:
         """Return the top *limit* entities ranked by total relation count."""
-        counts: Dict[str, int] = defaultdict(int)
+        counts: dict[str, int] = defaultdict(int)
         for rel in self._relations.values():
             counts[rel.source_id] += 1
             counts[rel.target_id] += 1
@@ -452,9 +455,9 @@ class KnowledgeGraph:
             if eid in self._entities
         ]
 
-    def get_entity_types_stats(self) -> Dict[str, int]:
+    def get_entity_types_stats(self) -> dict[str, int]:
         """Return a mapping of entity_type -> count."""
-        stats: Dict[str, int] = defaultdict(int)
+        stats: dict[str, int] = defaultdict(int)
         for entity in self._entities.values():
             stats[entity.entity_type] += 1
         return dict(stats)
@@ -463,7 +466,7 @@ class KnowledgeGraph:
     # Search
     # ------------------------------------------------------------------
 
-    def semantic_search(self, query: str, limit: int = 10) -> List[Entity]:
+    def semantic_search(self, query: str, limit: int = 10) -> list[Entity]:
         """
         Simple keyword-based semantic search across entity names and properties.
         Matches entities whose name or property values contain the query terms.
@@ -472,7 +475,7 @@ class KnowledgeGraph:
         if not terms:
             return []
 
-        scored: List[Tuple[float, Entity]] = []
+        scored: list[tuple[float, Entity]] = []
         for entity in self._entities.values():
             score = 0.0
             text = entity.name.lower()
@@ -512,7 +515,7 @@ class KnowledgeGraph:
             return 0.0
         return self.relation_count / (n * (n - 1))
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         return {
             "entity_count": self.entity_count,
             "relation_count": self.relation_count,
@@ -555,7 +558,7 @@ class KnowledgeGraph:
         # Load entities
         entity_file = path / "entities.json"
         if entity_file.exists():
-            with open(entity_file, encoding="utf-8") as f:
+            with open(entity_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
             for item in data:
                 entity = Entity.from_dict(item)
@@ -566,7 +569,7 @@ class KnowledgeGraph:
         # Load relations
         relation_file = path / "relations.json"
         if relation_file.exists():
-            with open(relation_file, encoding="utf-8") as f:
+            with open(relation_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
             for item in data:
                 rel = Relation.from_dict(item)

@@ -23,11 +23,11 @@ class ExecutionResult:
     output: Any = None
     tokens_used: int = 0
     elapsed: float = 0.0
-    error: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    error: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
     retry_count: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "node_id": self.node_id,
             "status": self.status,
@@ -61,19 +61,19 @@ class ParallelExecutor:
         self._agent = agent
         self._max_workers = max_workers
         self._worker_pool = asyncio.Semaphore(max_workers)
-        self._results: Dict[str, ExecutionResult] = {}
-        self._execution_log: List[Dict[str, Any]] = []
+        self._results: dict[str, ExecutionResult] = {}
+        self._execution_log: list[dict[str, Any]] = []
         self._cancelled = False
 
     @property
-    def results(self) -> Dict[str, ExecutionResult]:
+    def results(self) -> dict[str, ExecutionResult]:
         return dict(self._results)
 
     @property
-    def execution_log(self) -> List[Dict[str, Any]]:
+    def execution_log(self) -> list[dict[str, Any]]:
         return list(self._execution_log)
 
-    async def execute(self, plan: ExecutionPlan) -> Dict[str, ExecutionResult]:
+    async def execute(self, plan: ExecutionPlan) -> dict[str, ExecutionResult]:
         """Execute an entire execution plan.
 
         Args:
@@ -133,12 +133,12 @@ class ParallelExecutor:
         self._cancelled = True
         logger.info("Execution cancellation requested")
 
-    async def _execute_graph(self, plan: ExecutionPlan, topo_order: List[str]) -> None:
+    async def _execute_graph(self, plan: ExecutionPlan, topo_order: list[str]) -> None:
         """Execute the plan graph using event-driven dependency resolution."""
-        completed: Set[str] = set()
-        in_flight: Set[str] = set()
-        failed_nodes: Set[str] = set()
-        completion_events: Dict[str, asyncio.Event] = {}
+        completed: set[str] = set()
+        in_flight: set[str] = set()
+        failed_nodes: set[str] = set()
+        completion_events: dict[str, asyncio.Event] = {}
 
         for node_id in plan.nodes:
             completion_events[node_id] = asyncio.Event()
@@ -225,7 +225,7 @@ class ParallelExecutor:
         finally:
             event.set()
 
-    async def _execute_node_with_retries(self, node: PlanNode, context: Dict[str, Any]) -> ExecutionResult:
+    async def _execute_node_with_retries(self, node: PlanNode, context: dict[str, Any]) -> ExecutionResult:
         """Execute a node with retry logic."""
         last_result = None
         for attempt in range(node.retry_limit + 1):
@@ -257,7 +257,7 @@ class ParallelExecutor:
             node_id=node.id, status="failed", error="All retry attempts exhausted", retry_count=node.retry_limit
         )
 
-    async def _execute_node(self, node: PlanNode, context: Dict[str, Any]) -> ExecutionResult:
+    async def _execute_node(self, node: PlanNode, context: dict[str, Any]) -> ExecutionResult:
         """Execute a single node based on its type."""
         start_time = time.monotonic()
         logger.info(f"Executing node '{node.name}' (type={node.node_type})")
@@ -292,7 +292,7 @@ class ParallelExecutor:
         self._log("node_end", {"node_id": node.id, "status": result.status, "elapsed": round(result.elapsed, 3), "tokens_used": result.tokens_used})
         return result
 
-    async def _execute_agent_node(self, node: PlanNode, context: Dict[str, Any]) -> ExecutionResult:
+    async def _execute_agent_node(self, node: PlanNode, context: dict[str, Any]) -> ExecutionResult:
         """Execute an agent node by calling agent.chat()."""
         if not node.prompt:
             return ExecutionResult(node_id=node.id, status="failed", error="Agent node has no prompt")
@@ -317,7 +317,7 @@ class ParallelExecutor:
 
         return ExecutionResult(node_id=node.id, status="success", output=content, tokens_used=tokens, metadata={"agent_type": node.agent_type})
 
-    async def _execute_tool_node(self, node: PlanNode, context: Dict[str, Any]) -> ExecutionResult:
+    async def _execute_tool_node(self, node: PlanNode, context: dict[str, Any]) -> ExecutionResult:
         """Execute a tool node by calling agent.execute_tool()."""
         if not node.tool_name:
             return ExecutionResult(node_id=node.id, status="failed", error="Tool node has no tool_name")
@@ -333,12 +333,12 @@ class ParallelExecutor:
 
         return ExecutionResult(node_id=node.id, status="success", output=result, tokens_used=0, metadata={"tool_name": node.tool_name})
 
-    async def _execute_parallel_node(self, node: PlanNode, context: Dict[str, Any]) -> ExecutionResult:
+    async def _execute_parallel_node(self, node: PlanNode, context: dict[str, Any]) -> ExecutionResult:
         """Execute a parallel node - delegates to graph-level parallel execution."""
         parallel_results = context.get("parallel_results", [])
         return ExecutionResult(node_id=node.id, status="success", output=parallel_results, metadata={"parallel_group": node.parallel_group})
 
-    async def _execute_condition_node(self, node: PlanNode, context: Dict[str, Any]) -> ExecutionResult:
+    async def _execute_condition_node(self, node: PlanNode, context: dict[str, Any]) -> ExecutionResult:
         """Execute a condition node - evaluate and route."""
         if not node.prompt:
             return ExecutionResult(node_id=node.id, status="failed", error="Condition node has no prompt to evaluate")
@@ -361,7 +361,7 @@ class ParallelExecutor:
             metadata={"condition_result": evaluation},
         )
 
-    async def _execute_merge_node(self, node: PlanNode, context: Dict[str, Any]) -> ExecutionResult:
+    async def _execute_merge_node(self, node: PlanNode, context: dict[str, Any]) -> ExecutionResult:
         """Execute a merge node - combine upstream results."""
         upstream_results = context.get("upstream_results", {})
 
@@ -401,7 +401,7 @@ class ParallelExecutor:
             metadata={"merged_count": len(upstream_results) if isinstance(upstream_results, dict) else 1},
         )
 
-    async def _execute_verify_node(self, node: PlanNode, context: Dict[str, Any]) -> ExecutionResult:
+    async def _execute_verify_node(self, node: PlanNode, context: dict[str, Any]) -> ExecutionResult:
         """Execute a verification node."""
         if not node.prompt:
             return ExecutionResult(node_id=node.id, status="success", output={"verified": True, "notes": "No verification prompt"})
@@ -422,7 +422,7 @@ class ParallelExecutor:
             metadata={"node_type": "verify"},
         )
 
-    def _build_upstream_context(self, node: PlanNode, plan: ExecutionPlan) -> Dict[str, Any]:
+    def _build_upstream_context(self, node: PlanNode, plan: ExecutionPlan) -> dict[str, Any]:
         """Build context from completed upstream dependency results."""
         upstream_results = {}
         all_outputs = []
@@ -444,7 +444,7 @@ class ParallelExecutor:
             "node_type": node.node_type,
         }
 
-    def _resolve_prompt_placeholders(self, prompt: str, context: Dict[str, Any]) -> str:
+    def _resolve_prompt_placeholders(self, prompt: str, context: dict[str, Any]) -> str:
         """Resolve {upstream_results} and {context} placeholders in prompts."""
         if not prompt:
             return ""
@@ -468,10 +468,10 @@ class ParallelExecutor:
 
         return resolved
 
-    def _topological_sort(self, plan: ExecutionPlan) -> List[str]:
+    def _topological_sort(self, plan: ExecutionPlan) -> list[str]:
         """Compute a topological ordering of plan nodes using Kahn's algorithm."""
-        in_degree: Dict[str, int] = {nid: 0 for nid in plan.nodes}
-        adj: Dict[str, List[str]] = defaultdict(list)
+        in_degree: dict[str, int] = {nid: 0 for nid in plan.nodes}
+        adj: dict[str, list[str]] = defaultdict(list)
 
         for node in plan.nodes.values():
             for dep in node.dependencies:
@@ -502,11 +502,11 @@ class ParallelExecutor:
 
         return order
 
-    def _log(self, event: str, data: Dict[str, Any]) -> None:
+    def _log(self, event: str, data: dict[str, Any]) -> None:
         """Record an execution log entry."""
         self._execution_log.append({"event": event, "timestamp": time.time(), **data})
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """Get execution metrics summary."""
         if not self._results:
             return {"nodes_executed": 0}

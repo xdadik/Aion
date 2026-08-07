@@ -64,9 +64,9 @@ class MCPBridge:
         """
         self._client = mcp_client
         self._registry = tool_registry
-        self._bridged_tools: Dict[str, str] = {}
-        self._qualified_to_original: Dict[str, str] = {}
-        self._original_to_qualified: Dict[str, str] = {}
+        self._bridged_tools: dict[str, str] = {}
+        self._qualified_to_original: dict[str, str] = {}
+        self._original_to_qualified: dict[str, str] = {}
 
     # ------------------------------------------------------------------
     # Public API
@@ -124,13 +124,13 @@ class MCPBridge:
         )
         return bridged
 
-    async def bridge_all(self) -> Dict[str, int]:
+    async def bridge_all(self) -> dict[str, int]:
         """Bridge tools from all connected MCP servers.
 
         Returns:
             A dict mapping server name to the number of tools bridged.
         """
-        results: Dict[str, int] = {}
+        results: dict[str, int] = {}
         for server in self._client.list_connected_servers():
             try:
                 count = await self.bridge_server(server.name)
@@ -193,11 +193,11 @@ class MCPBridge:
             total += await self.unbridge_server(server_name)
         return total
 
-    def get_bridged_tools(self) -> Dict[str, str]:
+    def get_bridged_tools(self) -> dict[str, str]:
         """Return mapping of qualified tool name → server name."""
         return dict(self._bridged_tools)
 
-    def get_bridged_tool_names(self) -> List[str]:
+    def get_bridged_tool_names(self) -> list[str]:
         """Return list of all bridged qualified tool names."""
         return list(self._bridged_tools.keys())
 
@@ -205,7 +205,7 @@ class MCPBridge:
         """Check if a qualified tool name is currently bridged."""
         return qualified_name in self._bridged_tools
 
-    def get_server_for_tool(self, qualified_name: str) -> Optional[str]:
+    def get_server_for_tool(self, qualified_name: str) -> str | None:
         """Get the server name that owns a bridged tool."""
         return self._bridged_tools.get(qualified_name)
 
@@ -297,8 +297,8 @@ class MCPBridge:
 
     @staticmethod
     def _schema_to_parameters(
-        input_schema: Dict[str, Any]
-    ) -> List[Any]:
+        input_schema: dict[str, Any]
+    ) -> list[Any]:
         """Convert a JSON Schema input_schema to ToolParameter list.
 
         Handles the standard MCP tool schema format:

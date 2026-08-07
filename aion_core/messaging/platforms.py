@@ -42,10 +42,10 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 
 logger = logging.getLogger(__name__)
 
@@ -88,8 +88,8 @@ class _StoredMessage:
     session_id: str
     msg_type: str          # text, image, file, audio, video, sticker, embed, block, etc.
     content: str
-    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
-    extra: Dict[str, Any] = field(default_factory=dict)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    extra: dict[str, Any] = field(default_factory=dict)
     message_id: str = ""
 
 
@@ -116,12 +116,12 @@ class PlatformAdapter(ABC):
     ``_message_buffer``) and common helper methods.
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         self._config = config
         self._connected: bool = False
-        self._message_buffer: List[_StoredMessage] = []
-        self._receive_queue: asyncio.Queue[Dict[str, Any]] = asyncio.Queue()
-        self._background_task: Optional[asyncio.Task] = None
+        self._message_buffer: list[_StoredMessage] = []
+        self._receive_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
+        self._background_task: asyncio.Task | None = None
 
     # -- lifecycle -----------------------------------------------------------
 
@@ -206,7 +206,7 @@ class PlatformAdapter(ABC):
 
     # -- query operations ----------------------------------------------------
 
-    async def get_messages(self, session_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+    async def get_messages(self, session_id: str, limit: int = 50) -> list[dict[str, Any]]:
         """Retrieve recent messages for *session_id* from the buffer."""
         filtered = [m for m in self._message_buffer if m.session_id == session_id]
         return [
@@ -257,7 +257,7 @@ class PlatformAdapter(ABC):
 
     # -- bot info ------------------------------------------------------------
 
-    async def get_me(self) -> Dict[str, Any]:
+    async def get_me(self) -> dict[str, Any]:
         """Return platform-specific bot/user info."""
         return {
             "platform": self.get_platform_name(),
@@ -277,7 +277,7 @@ class PlatformAdapter(ABC):
             "session_id": session_id,
             "content": content,
             "platform": self.get_platform_name(),
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         })
 
     async def receive(self):
@@ -286,7 +286,7 @@ class PlatformAdapter(ABC):
             try:
                 msg = await asyncio.wait_for(self._receive_queue.get(), timeout=1.0)
                 yield msg
-            except TimeoutError:
+            except asyncio.TimeoutError:
                 continue
             except asyncio.CancelledError:
                 break
@@ -305,7 +305,7 @@ class TelegramAdapter(PlatformAdapter):
         parse_mode (str, optional): ``"Markdown"`` or ``"HTML"`` (default ``"Markdown"``).
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         super().__init__(config)
         self._token: str = config.get("token", "")
         self._default_chat_id: str = config.get("chat_id", "")
@@ -342,7 +342,7 @@ class TelegramAdapter(PlatformAdapter):
     def get_platform_type(self) -> PlatformType:
         return PlatformType.TELEGRAM
 
-    async def get_me(self) -> Dict[str, Any]:
+    async def get_me(self) -> dict[str, Any]:
         return {
             "platform": "telegram",
             "bot_id": int(self._token.split(":")[0]) if ":" in self._token else 0,
@@ -367,7 +367,7 @@ class TelegramAdapter(PlatformAdapter):
         return True
 
     async def send_reply_markup(self, session_id: str, text: str,
-                                 reply_markup: Dict[str, Any]) -> bool:
+                                 reply_markup: dict[str, Any]) -> bool:
         """Send text with inline keyboard reply markup."""
         if not self._connected:
             return False
@@ -404,11 +404,11 @@ class DiscordAdapter(PlatformAdapter):
         intents (list, optional): Gateway intents to enable.
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         super().__init__(config)
         self._token: str = config.get("token", "")
         self._default_channel_id: str = config.get("channel_id", "")
-        self._intents: List[str] = config.get("intents", ["guilds", "messages"])
+        self._intents: list[str] = config.get("intents", ["guilds", "messages"])
 
     async def connect(self) -> None:
         if self._connected:
@@ -441,7 +441,7 @@ class DiscordAdapter(PlatformAdapter):
     def get_platform_type(self) -> PlatformType:
         return PlatformType.DISCORD
 
-    async def get_me(self) -> Dict[str, Any]:
+    async def get_me(self) -> dict[str, Any]:
         return {
             "platform": "discord",
             "bot_id": hashlib.sha256(self._token.encode()).hexdigest()[:16],
@@ -451,7 +451,7 @@ class DiscordAdapter(PlatformAdapter):
 
     # -- platform-specific methods -------------------------------------------
 
-    async def send_embed(self, session_id: str, embed: Dict[str, Any]) -> bool:
+    async def send_embed(self, session_id: str, embed: dict[str, Any]) -> bool:
         """Send a rich embed message."""
         if not self._connected:
             return False
@@ -471,7 +471,7 @@ class DiscordAdapter(PlatformAdapter):
         return True
 
     async def create_thread(self, session_id: str, name: str,
-                            initial_message: str = "") -> Optional[str]:
+                            initial_message: str = "") -> str | None:
         """Create a new thread in a channel. Returns thread ID."""
         thread_id = _generate_message_id()
         logger.info("[%s] createThread → session=%s  name=%s  thread_id=%s",
@@ -502,7 +502,7 @@ class SlackAdapter(PlatformAdapter):
         channel (str, optional): Default channel.
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         super().__init__(config)
         self._bot_token: str = config.get("bot_token", "")
         self._app_token: str = config.get("app_token", "")
@@ -539,7 +539,7 @@ class SlackAdapter(PlatformAdapter):
     def get_platform_type(self) -> PlatformType:
         return PlatformType.SLACK
 
-    async def get_me(self) -> Dict[str, Any]:
+    async def get_me(self) -> dict[str, Any]:
         return {
             "platform": "slack",
             "bot_token_prefix": self._bot_token[:6],
@@ -549,7 +549,7 @@ class SlackAdapter(PlatformAdapter):
 
     # -- platform-specific methods -------------------------------------------
 
-    async def send_block(self, session_id: str, blocks: List[Dict[str, Any]]) -> bool:
+    async def send_block(self, session_id: str, blocks: list[dict[str, Any]]) -> bool:
         """Send a message using Slack Block Kit."""
         if not self._connected:
             return False
@@ -569,7 +569,7 @@ class SlackAdapter(PlatformAdapter):
         return True
 
     async def create_thread(self, session_id: str, parent_message_id: str,
-                            text: str = "") -> Optional[str]:
+                            text: str = "") -> str | None:
         """Reply in thread. Returns thread timestamp."""
         ts = str(time.time())
         logger.info("[%s] chat.postMessage (thread) → session=%s  parent=%s",
@@ -600,7 +600,7 @@ class WhatsAppAdapter(PlatformAdapter):
         verify_token (str, optional): Webhook verify token.
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         super().__init__(config)
         self._phone_number_id: str = config.get("phone_number_id", "")
         self._access_token: str = config.get("access_token", "")
@@ -630,7 +630,7 @@ class WhatsAppAdapter(PlatformAdapter):
     def get_platform_type(self) -> PlatformType:
         return PlatformType.WHATSAPP
 
-    async def get_me(self) -> Dict[str, Any]:
+    async def get_me(self) -> dict[str, Any]:
         return {
             "platform": "whatsapp",
             "phone_number_id": self._phone_number_id,
@@ -640,7 +640,7 @@ class WhatsAppAdapter(PlatformAdapter):
     # -- platform-specific methods -------------------------------------------
 
     async def send_template(self, session_id: str, template_name: str,
-                            parameters: List[str]) -> bool:
+                            parameters: list[str]) -> bool:
         """Send a template message."""
         if not self._connected:
             return False
@@ -655,7 +655,7 @@ class WhatsAppAdapter(PlatformAdapter):
         return True
 
     async def send_interactive(self, session_id: str, body_text: str,
-                               buttons: List[Dict[str, str]]) -> bool:
+                               buttons: list[dict[str, str]]) -> bool:
         """Send an interactive message with reply buttons."""
         if not self._connected:
             return False
@@ -682,7 +682,7 @@ class SignalAdapter(PlatformAdapter):
         config_dir (str, optional): signal-cli config directory.
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         super().__init__(config)
         self._phone_number: str = config.get("phone_number", "")
         self._signal_cli_path: str = config.get("signal_cli_path", "signal-cli")
@@ -719,7 +719,7 @@ class SignalAdapter(PlatformAdapter):
     def get_platform_type(self) -> PlatformType:
         return PlatformType.SIGNAL
 
-    async def get_me(self) -> Dict[str, Any]:
+    async def get_me(self) -> dict[str, Any]:
         return {
             "platform": "signal",
             "phone_number": self._phone_number,
@@ -769,7 +769,7 @@ class TeamsAdapter(PlatformAdapter):
         tenant_id (str): Azure AD tenant ID.
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         super().__init__(config)
         self._app_id: str = config.get("app_id", "")
         self._app_secret: str = config.get("app_secret", "")
@@ -799,7 +799,7 @@ class TeamsAdapter(PlatformAdapter):
     def get_platform_type(self) -> PlatformType:
         return PlatformType.TEAMS
 
-    async def get_me(self) -> Dict[str, Any]:
+    async def get_me(self) -> dict[str, Any]:
         return {
             "platform": "teams",
             "app_id": self._app_id,
@@ -809,7 +809,7 @@ class TeamsAdapter(PlatformAdapter):
 
     # -- platform-specific methods -------------------------------------------
 
-    async def send_adaptive_card(self, session_id: str, card: Dict[str, Any]) -> bool:
+    async def send_adaptive_card(self, session_id: str, card: dict[str, Any]) -> bool:
         """Send an Adaptive Card."""
         if not self._connected:
             return False
@@ -847,7 +847,7 @@ class WeChatAdapter(PlatformAdapter):
         agent_id (str, optional): Agent ID for work account.
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         super().__init__(config)
         self._corp_id: str = config.get("corp_id", "")
         self._secret: str = config.get("secret", "")
@@ -884,7 +884,7 @@ class WeChatAdapter(PlatformAdapter):
     def get_platform_type(self) -> PlatformType:
         return PlatformType.WECHAT
 
-    async def get_me(self) -> Dict[str, Any]:
+    async def get_me(self) -> dict[str, Any]:
         return {
             "platform": "wechat",
             "corp_id": self._corp_id,
@@ -895,14 +895,14 @@ class WeChatAdapter(PlatformAdapter):
 
     # -- platform-specific methods -------------------------------------------
 
-    async def upload_media(self, media_type: str, file_path: str) -> Optional[str]:
+    async def upload_media(self, media_type: str, file_path: str) -> str | None:
         """Upload temporary media. Returns media_id."""
         media_id = hashlib.sha256(f"{media_type}{file_path}".encode()).hexdigest()[:16]
         logger.info("[%s] uploadMedia → type=%s  path=%s  media_id=%s",
                      self.get_platform_name(), media_type, file_path, media_id)
         return media_id
 
-    async def send_news(self, session_id: str, articles: List[Dict[str, str]]) -> bool:
+    async def send_news(self, session_id: str, articles: list[dict[str, str]]) -> bool:
         """Send a news (article) message."""
         if not self._connected:
             return False
@@ -929,7 +929,7 @@ class QQAdapter(PlatformAdapter):
         sandbox (bool, optional): Use sandbox mode.
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         super().__init__(config)
         self._app_id: str = config.get("app_id", "")
         self._token: str = config.get("token", "")
@@ -967,7 +967,7 @@ class QQAdapter(PlatformAdapter):
     def get_platform_type(self) -> PlatformType:
         return PlatformType.QQ
 
-    async def get_me(self) -> Dict[str, Any]:
+    async def get_me(self) -> dict[str, Any]:
         return {
             "platform": "qq",
             "app_id": self._app_id,
@@ -991,7 +991,7 @@ class QQAdapter(PlatformAdapter):
         return True
 
     async def upload_chunked(self, session_id: str, file_path: str,
-                             chunk_size: int = 1024 * 1024) -> Optional[str]:
+                             chunk_size: int = 1024 * 1024) -> str | None:
         """Upload a file using chunked upload. Returns file UUID."""
         file_uuid = hashlib.sha256(file_path.encode()).hexdigest()[:16]
         logger.info("[%s] chunked upload → session=%s  path=%s  chunk_size=%d  uuid=%s",
@@ -1019,7 +1019,7 @@ class FeishuAdapter(PlatformAdapter):
         app_secret (str): Feishu App Secret.
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         super().__init__(config)
         self._app_id: str = config.get("app_id", "")
         self._app_secret: str = config.get("app_secret", "")
@@ -1061,7 +1061,7 @@ class FeishuAdapter(PlatformAdapter):
     def get_platform_type(self) -> PlatformType:
         return PlatformType.FEISHU
 
-    async def get_me(self) -> Dict[str, Any]:
+    async def get_me(self) -> dict[str, Any]:
         return {
             "platform": "feishu",
             "app_id": self._app_id,
@@ -1071,7 +1071,7 @@ class FeishuAdapter(PlatformAdapter):
 
     # -- platform-specific methods -------------------------------------------
 
-    async def send_card(self, session_id: str, card: Dict[str, Any]) -> bool:
+    async def send_card(self, session_id: str, card: dict[str, Any]) -> bool:
         """Send an interactive card message."""
         if not self._connected:
             return False
@@ -1084,7 +1084,7 @@ class FeishuAdapter(PlatformAdapter):
         return True
 
     async def create_meeting(self, title: str, start_time: str,
-                             duration_minutes: int) -> Optional[str]:
+                             duration_minutes: int) -> str | None:
         """Create a Feishu meeting. Returns meeting URL."""
         meeting_id = hashlib.sha256(title.encode()).hexdigest()[:12]
         url = f"https://feishu.cn/meeting/{meeting_id}"
@@ -1114,7 +1114,7 @@ class WeixinWorkAdapter(PlatformAdapter):
         agent_id (str): Agent ID.
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         super().__init__(config)
         self._corp_id: str = config.get("corp_id", "")
         self._secret: str = config.get("secret", "")
@@ -1149,7 +1149,7 @@ class WeixinWorkAdapter(PlatformAdapter):
     def get_platform_type(self) -> PlatformType:
         return PlatformType.WEIXIN_WORK
 
-    async def get_me(self) -> Dict[str, Any]:
+    async def get_me(self) -> dict[str, Any]:
         return {
             "platform": "weixin_work",
             "corp_id": self._corp_id,
@@ -1172,7 +1172,7 @@ class YuanbaoAdapter(PlatformAdapter):
         endpoint (str, optional): Custom API endpoint.
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         super().__init__(config)
         self._app_id: str = config.get("app_id", "")
         self._api_key: str = config.get("api_key", "")
@@ -1202,7 +1202,7 @@ class YuanbaoAdapter(PlatformAdapter):
     def get_platform_type(self) -> PlatformType:
         return PlatformType.YUANBAO
 
-    async def get_me(self) -> Dict[str, Any]:
+    async def get_me(self) -> dict[str, Any]:
         return {
             "platform": "yuanbao",
             "app_id": self._app_id,
@@ -1239,7 +1239,7 @@ class MatrixAdapter(PlatformAdapter):
         device_id (str, optional): Device ID.
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         super().__init__(config)
         self._homeserver_url: str = config.get("homeserver_url", "https://matrix.org")
         self._access_token: str = config.get("access_token", "")
@@ -1277,7 +1277,7 @@ class MatrixAdapter(PlatformAdapter):
     def get_platform_type(self) -> PlatformType:
         return PlatformType.MATRIX
 
-    async def get_me(self) -> Dict[str, Any]:
+    async def get_me(self) -> dict[str, Any]:
         return {
             "platform": "matrix",
             "user_id": self._user_id,
@@ -1341,12 +1341,12 @@ class IRCAdapter(PlatformAdapter):
         ssl (bool, optional): Use TLS (default False).
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         super().__init__(config)
         self._server: str = config.get("server", "")
         self._port: int = config.get("port", 6667)
         self._nick: str = config.get("nick", "aion-bot")
-        self._channels: List[str] = config.get("channels", [])
+        self._channels: list[str] = config.get("channels", [])
         self._use_ssl: bool = config.get("ssl", False)
 
     async def connect(self) -> None:
@@ -1386,7 +1386,7 @@ class IRCAdapter(PlatformAdapter):
     def get_platform_type(self) -> PlatformType:
         return PlatformType.IRC
 
-    async def get_me(self) -> Dict[str, Any]:
+    async def get_me(self) -> dict[str, Any]:
         return {
             "platform": "irc",
             "server": self._server,
@@ -1451,7 +1451,7 @@ class MattermostAdapter(PlatformAdapter):
         team_name (str, optional): Default team name.
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         super().__init__(config)
         self._url: str = config.get("url", "").rstrip("/")
         self._token: str = config.get("token", "")
@@ -1488,7 +1488,7 @@ class MattermostAdapter(PlatformAdapter):
     def get_platform_type(self) -> PlatformType:
         return PlatformType.MATTERMOST
 
-    async def get_me(self) -> Dict[str, Any]:
+    async def get_me(self) -> dict[str, Any]:
         return {
             "platform": "mattermost",
             "url": self._url,
@@ -1531,11 +1531,11 @@ class LineAdapter(PlatformAdapter):
         channel_secret (str): Channel secret.
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         super().__init__(config)
         self._channel_token: str = config.get("channel_token", "")
         self._channel_secret: str = config.get("channel_secret", "")
-        self._reply_tokens: Dict[str, str] = {}
+        self._reply_tokens: dict[str, str] = {}
 
     async def connect(self) -> None:
         if self._connected:
@@ -1562,7 +1562,7 @@ class LineAdapter(PlatformAdapter):
     def get_platform_type(self) -> PlatformType:
         return PlatformType.LINE
 
-    async def get_me(self) -> Dict[str, Any]:
+    async def get_me(self) -> dict[str, Any]:
         return {
             "platform": "line",
             "channel_token_prefix": self._channel_token[:8],
@@ -1586,7 +1586,7 @@ class LineAdapter(PlatformAdapter):
         return True
 
     async def send_flex_message(self, session_id: str, alt_text: str,
-                                 contents: Dict[str, Any]) -> bool:
+                                 contents: dict[str, Any]) -> bool:
         """Send a LINE Flex Message."""
         if not self._connected:
             return False
@@ -1625,7 +1625,7 @@ class GoogleChatAdapter(PlatformAdapter):
         project_id (str, optional): GCP project ID.
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         super().__init__(config)
         self._service_account: str = config.get("service_account_json", "")
         self._project_id: str = config.get("project_id", "")
@@ -1659,7 +1659,7 @@ class GoogleChatAdapter(PlatformAdapter):
     def get_platform_type(self) -> PlatformType:
         return PlatformType.GOOGLE_CHAT
 
-    async def get_me(self) -> Dict[str, Any]:
+    async def get_me(self) -> dict[str, Any]:
         return {
             "platform": "google_chat",
             "project_id": self._project_id,
@@ -1669,7 +1669,7 @@ class GoogleChatAdapter(PlatformAdapter):
 
     # -- platform-specific methods -------------------------------------------
 
-    async def send_card(self, space_id: str, card: Dict[str, Any]) -> bool:
+    async def send_card(self, space_id: str, card: dict[str, Any]) -> bool:
         """Send a Google Chat card message to a space."""
         if not self._connected:
             return False
@@ -1707,7 +1707,7 @@ class DingTalkAdapter(PlatformAdapter):
         robot_code (str, optional): Robot code for bot messages.
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         super().__init__(config)
         self._app_key: str = config.get("app_key", "")
         self._app_secret: str = config.get("app_secret", "")
@@ -1749,7 +1749,7 @@ class DingTalkAdapter(PlatformAdapter):
     def get_platform_type(self) -> PlatformType:
         return PlatformType.DINGTALK
 
-    async def get_me(self) -> Dict[str, Any]:
+    async def get_me(self) -> dict[str, Any]:
         return {
             "platform": "dingtalk",
             "app_key": self._app_key,
@@ -1814,7 +1814,7 @@ class EmailAdapter(PlatformAdapter):
         from_address (str, optional): Sender email address.
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         super().__init__(config)
         self._smtp_host: str = config.get("smtp_host", "")
         self._smtp_port: int = config.get("smtp_port", 587)
@@ -1851,7 +1851,7 @@ class EmailAdapter(PlatformAdapter):
     def get_platform_type(self) -> PlatformType:
         return PlatformType.EMAIL
 
-    async def get_me(self) -> Dict[str, Any]:
+    async def get_me(self) -> dict[str, Any]:
         return {
             "platform": "email",
             "from_address": self._from_address,
@@ -1863,7 +1863,7 @@ class EmailAdapter(PlatformAdapter):
     # -- platform-specific methods -------------------------------------------
 
     async def send_email(self, to: str, subject: str, body: str,
-                         html: str = "", attachments: Optional[List[str]] = None) -> bool:
+                         html: str = "", attachments: list[str] | None = None) -> bool:
         """Send an email with optional HTML body and attachments."""
         if not self._connected:
             return False
@@ -1878,7 +1878,7 @@ class EmailAdapter(PlatformAdapter):
                      self.get_platform_name(), to, subject, len(attachments or []))
         return True
 
-    async def check_inbox(self, folder: str = "INBOX", limit: int = 10) -> List[Dict[str, Any]]:
+    async def check_inbox(self, folder: str = "INBOX", limit: int = 10) -> list[dict[str, Any]]:
         """Check IMAP inbox for new messages."""
         logger.info("[%s] checkInbox → folder=%s  limit=%d",
                      self.get_platform_name(), folder, limit)
@@ -1899,7 +1899,7 @@ class NtfyAdapter(PlatformAdapter):
         priority (int, optional): Default priority 1-5 (default 3).
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         super().__init__(config)
         self._server_url: str = config.get("server_url", "https://ntfy.sh").rstrip("/")
         self._topic: str = config.get("topic", "")
@@ -1930,7 +1930,7 @@ class NtfyAdapter(PlatformAdapter):
     def get_platform_type(self) -> PlatformType:
         return PlatformType.NTFY
 
-    async def get_me(self) -> Dict[str, Any]:
+    async def get_me(self) -> dict[str, Any]:
         return {
             "platform": "ntfy",
             "server_url": self._server_url,
@@ -1942,8 +1942,8 @@ class NtfyAdapter(PlatformAdapter):
     # -- platform-specific methods -------------------------------------------
 
     async def send_notification(self, title: str, body: str,
-                                priority: Optional[int] = None,
-                                tags: Optional[List[str]] = None,
+                                priority: int | None = None,
+                                tags: list[str] | None = None,
                                 click_url: str = "") -> bool:
         """Send a push notification with optional metadata."""
         if not self._connected:
@@ -1961,7 +1961,7 @@ class NtfyAdapter(PlatformAdapter):
         return True
 
     async def send_with_actions(self, title: str, body: str,
-                                actions: List[Dict[str, str]]) -> bool:
+                                actions: list[dict[str, str]]) -> bool:
         """Send a notification with action buttons."""
         if not self._connected:
             return False
@@ -1991,11 +1991,11 @@ class WebhookAdapter(PlatformAdapter):
         auth_token (str, optional): Auth token/credentials.
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         super().__init__(config)
         self._url: str = config.get("url", "")
         self._method: str = config.get("method", "POST").upper()
-        self._headers: Dict[str, str] = config.get("headers", {})
+        self._headers: dict[str, str] = config.get("headers", {})
         self._auth_type: str = config.get("auth_type", "none")
         self._auth_token: str = config.get("auth_token", "")
 
@@ -2023,7 +2023,7 @@ class WebhookAdapter(PlatformAdapter):
     def get_platform_type(self) -> PlatformType:
         return PlatformType.WEBHOOK
 
-    async def get_me(self) -> Dict[str, Any]:
+    async def get_me(self) -> dict[str, Any]:
         return {
             "platform": "webhook",
             "url": self._url,
@@ -2034,7 +2034,7 @@ class WebhookAdapter(PlatformAdapter):
 
     # -- platform-specific methods -------------------------------------------
 
-    async def fire(self, payload: Dict[str, Any],
+    async def fire(self, payload: dict[str, Any],
                    override_url: str = "") -> bool:
         """Fire the webhook with a JSON payload."""
         if not self._connected:
@@ -2051,7 +2051,7 @@ class WebhookAdapter(PlatformAdapter):
         return True
 
     async def fire_raw(self, body: str, content_type: str = "application/json",
-                       override_headers: Optional[Dict[str, str]] = None) -> bool:
+                       override_headers: dict[str, str] | None = None) -> bool:
         """Fire the webhook with a raw string body."""
         if not self._connected:
             return False
@@ -2066,9 +2066,9 @@ class WebhookAdapter(PlatformAdapter):
                      self.get_platform_name(), self._method, self._url, content_type, len(body))
         return True
 
-    def _build_auth_headers(self) -> Dict[str, str]:
+    def _build_auth_headers(self) -> dict[str, str]:
         """Build authentication headers based on configured auth_type."""
-        headers: Dict[str, str] = {}
+        headers: dict[str, str] = {}
         if self._auth_type == "bearer" and self._auth_token:
             headers["Authorization"] = f"Bearer {self._auth_token}"
         elif self._auth_type == "basic" and self._auth_token:
@@ -2094,9 +2094,9 @@ class PlatformRegistry:
     """
 
     def __init__(self) -> None:
-        self._adapters: Dict[PlatformType, PlatformAdapter] = {}
+        self._adapters: dict[PlatformType, PlatformAdapter] = {}
 
-    def register(self, platform_type: PlatformType, config: Dict[str, Any]) -> None:
+    def register(self, platform_type: PlatformType, config: dict[str, Any]) -> None:
         """Create and register an adapter for *platform_type* with *config*."""
         adapter = _ADAPTER_MAP[platform_type](config)
         self._adapters[platform_type] = adapter
@@ -2110,7 +2110,7 @@ class PlatformRegistry:
         logger.info("PlatformRegistry: registered instance %s (%s)",
                      platform_type.value, type(adapter).__name__)
 
-    def get(self, platform_type: PlatformType) -> Optional[PlatformAdapter]:
+    def get(self, platform_type: PlatformType) -> PlatformAdapter | None:
         """Get the adapter for *platform_type*, or ``None``."""
         return self._adapters.get(platform_type)
 
@@ -2121,19 +2121,19 @@ class PlatformRegistry:
             raise KeyError(f"No adapter registered for {platform_type.value}")
         return adapter
 
-    def list_platforms(self) -> List[PlatformType]:
+    def list_platforms(self) -> list[PlatformType]:
         """Return a list of all registered platform types."""
         return list(self._adapters.keys())
 
-    async def connect_all(self) -> Dict[PlatformType, bool]:
+    async def connect_all(self) -> dict[PlatformType, bool]:
         """Connect all registered adapters concurrently.
 
         Returns a mapping of platform type → success boolean.
         """
-        results: Dict[PlatformType, bool] = {}
+        results: dict[PlatformType, bool] = {}
         coros = {pt: adapter.connect() for pt, adapter in self._adapters.items()}
         outcomes = await asyncio.gather(*coros.values(), return_exceptions=True)
-        for pt, outcome in zip(coros.keys(), outcomes, strict=True):
+        for pt, outcome in zip(coros.keys(), outcomes):
             if isinstance(outcome, Exception):
                 logger.error("PlatformRegistry: failed to connect %s — %s", pt.value, outcome)
                 results[pt] = False
@@ -2160,7 +2160,7 @@ class PlatformRegistry:
 # Adapter map (used by registry and factory)
 # ============================================================================
 
-_ADAPTER_MAP: Dict[PlatformType, type[PlatformAdapter]] = {
+_ADAPTER_MAP: dict[PlatformType, type[PlatformAdapter]] = {
     PlatformType.TELEGRAM:    TelegramAdapter,
     PlatformType.DISCORD:     DiscordAdapter,
     PlatformType.SLACK:       SlackAdapter,
@@ -2189,7 +2189,7 @@ _ADAPTER_MAP: Dict[PlatformType, type[PlatformAdapter]] = {
 # ============================================================================
 
 def create_platform(platform_type: PlatformType,
-                    config: Dict[str, Any]) -> PlatformAdapter:
+                    config: dict[str, Any]) -> PlatformAdapter:
     """Factory function: create a platform adapter instance.
 
     Args:
@@ -2217,7 +2217,7 @@ def create_platform(platform_type: PlatformType,
 # ============================================================================
 
 # Required config keys per platform
-_REQUIRED_KEYS: Dict[PlatformType, List[str]] = {
+_REQUIRED_KEYS: dict[PlatformType, list[str]] = {
     PlatformType.TELEGRAM:    ["token"],
     PlatformType.DISCORD:     ["token"],
     PlatformType.SLACK:       ["bot_token", "app_token"],
@@ -2242,7 +2242,7 @@ _REQUIRED_KEYS: Dict[PlatformType, List[str]] = {
 
 
 def validate_platform_config(platform_type: PlatformType,
-                              config: Dict[str, Any]) -> List[str]:
+                              config: dict[str, Any]) -> list[str]:
     """Validate a platform configuration dictionary.
 
     Args:
@@ -2252,7 +2252,7 @@ def validate_platform_config(platform_type: PlatformType,
     Returns:
         A list of error strings (empty if valid).
     """
-    errors: List[str] = []
+    errors: list[str] = []
 
     if not isinstance(config, dict):
         errors.append(f"config must be a dict, got {type(config).__name__}")

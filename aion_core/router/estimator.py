@@ -111,7 +111,7 @@ class ComplexityEstimator:
     W_DOMAIN = 0.15
     W_CONTEXT_SIZE = 0.10
 
-    def __init__(self, config: Optional[dict] = None) -> None:
+    def __init__(self, config: dict | None = None) -> None:
         cfg = config or {}
         self._min_chars = cfg.get("min_chars_for_high", 800)
         self._keyword_threshold = cfg.get("keyword_threshold", 1)
@@ -120,7 +120,7 @@ class ComplexityEstimator:
     def estimate(
         self,
         task: str,
-        context: Optional[str] = None,
+        context: str | None = None,
     ) -> TaskComplexity:
         """Return a :class:`TaskComplexity` for *task* + optional *context*."""
         combined = f"{task}\n{context or ''}"
@@ -261,7 +261,7 @@ class ComplexityEstimator:
         score += min(0.2, (urls + paths) * 0.05)
         return min(1.0, score)
 
-    def _score_context(self, context: Optional[str]) -> float:
+    def _score_context(self, context: str | None) -> float:
         if not context:
             return 0.0
         ctx_len = len(context)

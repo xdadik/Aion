@@ -92,31 +92,31 @@ class ContextEngine(abc.ABC):
     # ---------------------------------------------------------------
 
     @abc.abstractmethod
-    def should_compress(self, messages: List[Dict[str, Any]], max_tokens: int) -> bool:
+    def should_compress(self, messages: list[dict[str, Any]], max_tokens: int) -> bool:
         """Return *True* if ``messages`` exceed ``max_tokens``."""
 
     @abc.abstractmethod
-    def compress(self, messages: List[Dict[str, Any]], target_tokens: int) -> List[Dict[str, Any]]:
+    def compress(self, messages: list[dict[str, Any]], target_tokens: int) -> list[dict[str, Any]]:
         """Return a compressed copy of *messages* that fits within
         approximately ``target_tokens``."""
 
     @abc.abstractmethod
-    def estimate_tokens(self, messages: List[Dict[str, Any]]) -> int:
+    def estimate_tokens(self, messages: list[dict[str, Any]]) -> int:
         """Estimate the token count for *messages*."""
 
     def select_context(
         self,
         query: str,
-        all_messages: List[Dict[str, Any]],
+        all_messages: list[dict[str, Any]],
         max_tokens: int,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Select the most relevant messages for *query*.
 
         Default implementation simply returns the tail of *all_messages*
         that fits within ``max_tokens``.  Subclasses may override to
         provide relevance-based selection.
         """
-        result: List[Dict[str, Any]] = []
+        result: list[dict[str, Any]] = []
         budget = max_tokens
         for msg in reversed(all_messages):
             msg_tokens = self.estimate_tokens([msg])
@@ -157,7 +157,7 @@ class SummaryCompressor(ContextEngine):
         self,
         protect_head: int = DEFAULT_PROTECT_HEAD,
         protect_tail: int = DEFAULT_PROTECT_TAIL,
-        summary_fn: Optional[Callable[[str], str]] = None,
+        summary_fn: Callable[[str], str] | None = None,
     ) -> None:
         self.protect_head = protect_head
         self.protect_tail = protect_tail
@@ -172,7 +172,7 @@ class SummaryCompressor(ContextEngine):
         """Heuristic: ~4 characters per token."""
         return max(1, len(text) // CHARS_PER_TOKEN)
 
-    def estimate_tokens(self, messages: List[Dict[str, Any]]) -> int:
+    def estimate_tokens(self, messages: list[dict[str, Any]]) -> int:
         """Sum token estimates for every message in the list."""
         total = 0
         for msg in messages:
@@ -194,7 +194,7 @@ class SummaryCompressor(ContextEngine):
     # Should compress?
     # ---------------------------------------------------------------
 
-    def should_compress(self, messages: List[Dict[str, Any]], max_tokens: int) -> bool:
+    def should_compress(self, messages: list[dict[str, Any]], max_tokens: int) -> bool:
         """Compress when token estimate exceeds ``max_tokens`` *and* there
         is a middle section to summarise (head + tail < total)."""
         if len(messages) <= self.protect_head + self.protect_tail:
@@ -205,7 +205,7 @@ class SummaryCompressor(ContextEngine):
     # Compression
     # ---------------------------------------------------------------
 
-    def compress(self, messages: List[Dict[str, Any]], target_tokens: int) -> List[Dict[str, Any]]:
+    def compress(self, messages: list[dict[str, Any]], target_tokens: int) -> list[dict[str, Any]]:
         """Replace the middle portion of *messages* with a summary message.
 
         The head (first ``protect_head`` messages) and tail (last
@@ -226,7 +226,7 @@ class SummaryCompressor(ContextEngine):
         summary_text = self._generate_summary(middle, summary_budget)
         self._compression_count += 1
 
-        summary_message: Dict[str, Any] = {
+        summary_message: dict[str, Any] = {
             "role": "system",
             "content": f"{COMPRESSION_MARKER_START}\n"
             f"Summary of {len(middle)} earlier messages:\n\n"
@@ -240,7 +240,7 @@ class SummaryCompressor(ContextEngine):
     # Internal helpers
     # ---------------------------------------------------------------
 
-    def _generate_summary(self, middle: List[Dict[str, Any]], budget: int) -> str:
+    def _generate_summary(self, middle: list[dict[str, Any]], budget: int) -> str:
         """Produce a summary string for the *middle* messages.
 
         If a ``summary_fn`` is available, use it.  Otherwise fall back to
@@ -261,9 +261,9 @@ class SummaryCompressor(ContextEngine):
 
         return self._truncation_fallback(middle, budget)
 
-    def _build_summary_prompt(self, middle: List[Dict[str, Any]]) -> str:
+    def _build_summary_prompt(self, middle: list[dict[str, Any]]) -> str:
         """Build a prompt asking for a concise conversation summary."""
-        parts: List[str] = []
+        parts: list[str] = []
         for msg in middle:
             role = msg.get("role", "unknown")
             content = msg.get("content", "")
@@ -287,11 +287,11 @@ class SummaryCompressor(ContextEngine):
         )
 
     def _truncation_fallback(
-        self, middle: List[Dict[str, Any]], budget: int
+        self, middle: list[dict[str, Any]], budget: int
     ) -> str:
         """When no LLM is available, concatenate abbreviated messages."""
         max_chars = budget * CHARS_PER_TOKEN
-        parts: List[str] = []
+        parts: list[str] = []
         used = 0
         for msg in middle:
             role = msg.get("role", "unknown")
@@ -345,7 +345,7 @@ class PruningCompressor(ContextEngine):
     def _estimate_tokens(self, text: str) -> int:
         return max(1, len(text) // CHARS_PER_TOKEN)
 
-    def estimate_tokens(self, messages: List[Dict[str, Any]]) -> int:
+    def estimate_tokens(self, messages: list[dict[str, Any]]) -> int:
         total = 0
         for msg in messages:
             content = msg.get("content", "")
@@ -364,7 +364,7 @@ class PruningCompressor(ContextEngine):
     # Should compress?
     # ---------------------------------------------------------------
 
-    def should_compress(self, messages: List[Dict[str, Any]], max_tokens: int) -> bool:
+    def should_compress(self, messages: list[dict[str, Any]], max_tokens: int) -> bool:
         if self.estimate_tokens(messages) <= max_tokens:
             return False
         return any(self._should_prune(msg) for msg in messages)
@@ -374,14 +374,14 @@ class PruningCompressor(ContextEngine):
     # ---------------------------------------------------------------
 
     def compress(
-        self, messages: List[Dict[str, Any]], target_tokens: int
-    ) -> List[Dict[str, Any]]:
+        self, messages: list[dict[str, Any]], target_tokens: int
+    ) -> list[dict[str, Any]]:
         """Prune messages in-place (conceptually) and return a new list."""
         result = [self._prune_message(msg) for msg in messages]
 
         # If still over budget after pruning, drop oldest messages.
         budget = target_tokens
-        pruned: List[Dict[str, Any]] = []
+        pruned: list[dict[str, Any]] = []
         for msg in reversed(result):
             tokens = self.estimate_tokens([msg])
             if tokens > budget:
@@ -395,7 +395,7 @@ class PruningCompressor(ContextEngine):
     # Internal helpers
     # ---------------------------------------------------------------
 
-    def _should_prune(self, msg: Dict[str, Any]) -> bool:
+    def _should_prune(self, msg: dict[str, Any]) -> bool:
         """Decide whether a message is a pruning candidate."""
         role = msg.get("role", "")
         content = msg.get("content", "")
@@ -406,7 +406,7 @@ class PruningCompressor(ContextEngine):
         text = str(content)
         return len(text) > self.max_message_chars
 
-    def _prune_message(self, msg: Dict[str, Any]) -> Dict[str, Any]:
+    def _prune_message(self, msg: dict[str, Any]) -> dict[str, Any]:
         """Return a copy of *msg* with its content trimmed if needed."""
         if not self._should_prune(msg):
             return msg
@@ -480,7 +480,7 @@ class ThreeTierPromptBuilder:
 
         Empty tiers are silently omitted.
         """
-        sections: List[str] = []
+        sections: list[str] = []
 
         if stable_parts.strip():
             sections.append(self._wrap_tier(PromptTier.STABLE, stable_parts))
@@ -494,13 +494,13 @@ class ThreeTierPromptBuilder:
     def build_stable(
         self,
         agent_name: str = "Aion Hand",
-        capabilities: Optional[List[str]] = None,
+        capabilities: list[str] | None = None,
         guidelines: str = "",
     ) -> str:
         """Build the STABLE tier: identity, capabilities, and behavioural
         guidelines."""
         capabilities = capabilities or []
-        parts: List[str] = []
+        parts: list[str] = []
 
         # Identity
         parts.append(
@@ -521,13 +521,13 @@ class ThreeTierPromptBuilder:
 
     def build_context(
         self,
-        workspace_files: Optional[List[str]] = None,
-        project_rules: Optional[Dict[str, str]] = None,
+        workspace_files: list[str] | None = None,
+        project_rules: dict[str, str] | None = None,
     ) -> str:
         """Build the CONTEXT tier: workspace layout and project conventions."""
         workspace_files = workspace_files or []
         project_rules = project_rules or {}
-        parts: List[str] = []
+        parts: list[str] = []
 
         if workspace_files:
             file_lines = "\n".join(f"- {f}" for f in workspace_files)
@@ -543,14 +543,14 @@ class ThreeTierPromptBuilder:
         self,
         memory_snapshot: str = "",
         user_profile: str = "",
-        timestamp: Optional[str] = None,
+        timestamp: str | None = None,
     ) -> str:
         """Build the VOLATILE tier: current memory state, user context,
         and wall-clock time."""
         if timestamp is None:
             timestamp = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
 
-        parts: List[str] = [f"# Current Time\n{timestamp}"]
+        parts: list[str] = [f"# Current Time\n{timestamp}"]
 
         if user_profile.strip():
             parts.append(f"# User Context\n{user_profile}")
@@ -583,7 +583,7 @@ class ThreeTierPromptBuilder:
 class _MessageRecord:
     """Internal wrapper that preserves metadata alongside the API-facing
     message dict."""
-    message: Dict[str, Any]
+    message: dict[str, Any]
     created_at: float = field(default_factory=time.time)
     token_estimate: int = 0
 
@@ -611,14 +611,14 @@ class ContextWindowManager:
         self,
         max_context_tokens: int = 128_000,
         compression_threshold: float = DEFAULT_COMPRESSION_THRESHOLD,
-        compressor: Optional[ContextEngine] = None,
+        compressor: ContextEngine | None = None,
     ) -> None:
         self.max_context_tokens = max_context_tokens
         self.compression_threshold = max(0.1, min(0.99, compression_threshold))
         self._compressor = compressor or SummaryCompressor()
         self._system_prompt: str = ""
         self._system_prompt_tokens: int = 0
-        self._messages: List[_MessageRecord] = []
+        self._messages: list[_MessageRecord] = []
         self._total_compressions: int = 0
 
     # ---------------------------------------------------------------
@@ -641,14 +641,14 @@ class ContextWindowManager:
 
         *content* may be a string or a list (multi-part / tool-call).
         """
-        msg: Dict[str, Any] = {"role": role, "content": content}
+        msg: dict[str, Any] = {"role": role, "content": content}
         tokens = self._compressor.estimate_tokens([msg])
         record = _MessageRecord(message=msg, token_estimate=tokens)
         self._messages.append(record)
 
-    def get_messages(self) -> List[Dict[str, Any]]:
+    def get_messages(self) -> list[dict[str, Any]]:
         """Return the assembled message list ready for the LLM API."""
-        result: List[Dict[str, Any]] = []
+        result: list[dict[str, Any]] = []
         if self._system_prompt:
             result.append({"role": "system", "content": self._system_prompt})
         result.extend(r.message for r in self._messages)
@@ -662,7 +662,7 @@ class ContextWindowManager:
     # Compression
     # ---------------------------------------------------------------
 
-    def compress_if_needed(self, target_tokens: Optional[int] = None) -> bool:
+    def compress_if_needed(self, target_tokens: int | None = None) -> bool:
         """Check context utilisation and compress if over threshold.
 
         Returns *True* if compression was performed.
@@ -718,7 +718,7 @@ class ContextWindowManager:
     # Statistics
     # ---------------------------------------------------------------
 
-    def get_context_stats(self) -> Dict[str, Any]:
+    def get_context_stats(self) -> dict[str, Any]:
         """Return a dict with token counts and metadata for each section."""
         msg_tokens = sum(r.token_estimate for r in self._messages)
         total = self._system_prompt_tokens + msg_tokens
@@ -744,10 +744,10 @@ class ContextWindowManager:
     def with_three_tier(
         cls,
         agent_name: str = "Aion Hand",
-        capabilities: Optional[List[str]] = None,
+        capabilities: list[str] | None = None,
         guidelines: str = "",
-        workspace_files: Optional[List[str]] = None,
-        project_rules: Optional[Dict[str, str]] = None,
+        workspace_files: list[str] | None = None,
+        project_rules: dict[str, str] | None = None,
         max_context_tokens: int = 128_000,
     ) -> ContextWindowManager:
         """Factory that wires up a :class:`ThreeTierPromptBuilder` and
@@ -773,7 +773,7 @@ def estimate_tokens_for_text(text: str) -> int:
     return max(1, len(text) // CHARS_PER_TOKEN)
 
 
-def estimate_tokens_for_messages(messages: List[Dict[str, Any]]) -> int:
+def estimate_tokens_for_messages(messages: list[dict[str, Any]]) -> int:
     """Standalone convenience: estimate tokens for a message list."""
     engine = SummaryCompressor()
     return engine.estimate_tokens(messages)

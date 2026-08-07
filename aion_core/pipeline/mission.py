@@ -14,21 +14,21 @@ logger = logging.getLogger("aion_hand.pipeline")
 class MissionAnalysis:
     """Complete analysis of a user mission before execution."""
     intent: str = ""
-    goals: List[str] = field(default_factory=list)
-    constraints: List[str] = field(default_factory=list)
-    risks: List[str] = field(default_factory=list)
+    goals: list[str] = field(default_factory=list)
+    constraints: list[str] = field(default_factory=list)
+    risks: list[str] = field(default_factory=list)
     complexity: float = 0.5
     estimated_tokens: int = 2000
     estimated_time: int = 30
-    capabilities_needed: List[str] = field(default_factory=list)
+    capabilities_needed: list[str] = field(default_factory=list)
     raw_task: str = ""
     context_summary: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "MissionAnalysis":
+    def from_dict(cls, data: dict[str, Any]) -> "MissionAnalysis":
         return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
 
 
@@ -69,7 +69,7 @@ Return ONLY the JSON. No markdown, no explanation."""
     def __init__(self, agent: Any):
         self._agent = agent
 
-    async def analyze(self, task: str, context: Optional[Dict] = None) -> MissionAnalysis:
+    async def analyze(self, task: str, context: dict | None = None) -> MissionAnalysis:
         """Perform deep mission analysis using the LLM.
 
         Args:
@@ -148,7 +148,7 @@ Return ONLY the JSON. No markdown, no explanation."""
         # Fallback: heuristic analysis
         return self._heuristic_analysis(task, context_str)
 
-    def _extract_json(self, text: str) -> Optional[str]:
+    def _extract_json(self, text: str) -> str | None:
         """Extract JSON object from text that may contain markdown fences or extra text."""
         if not text:
             return None
@@ -167,7 +167,7 @@ Return ONLY the JSON. No markdown, no explanation."""
 
         return None
 
-    def _build_from_llm_data(self, data: Dict[str, Any], task: str) -> MissionAnalysis:
+    def _build_from_llm_data(self, data: dict[str, Any], task: str) -> MissionAnalysis:
         """Build MissionAnalysis from parsed LLM JSON data."""
         analysis = MissionAnalysis(
             intent=data.get("intent", task[:100]),
@@ -285,7 +285,7 @@ Return ONLY the JSON. No markdown, no explanation."""
             capabilities_needed=capabilities,
         )
 
-    def _extract_goals_heuristic(self, task: str) -> List[str]:
+    def _extract_goals_heuristic(self, task: str) -> list[str]:
         """Extract goals from task text using simple heuristics."""
         goals = []
 
@@ -313,7 +313,7 @@ Return ONLY the JSON. No markdown, no explanation."""
         return goals[:10]  # Cap at 10 goals
 
     @staticmethod
-    def _ensure_list(value: Any) -> List[str]:
+    def _ensure_list(value: Any) -> list[str]:
         """Ensure a value is a list of strings."""
         if value is None:
             return []

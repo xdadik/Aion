@@ -82,7 +82,7 @@ class ToolParameter:
         description: str = "",
         required: bool = True,
         default: Any = None,
-        enum: Optional[List[str]] = None,
+        enum: list[str] | None = None,
     ) -> None:
         self.name = name
         self.type = type
@@ -93,9 +93,9 @@ class ToolParameter:
 
     # -- serialisation ---------------------------------------------------
 
-    def to_json_schema(self) -> Dict[str, Any]:
+    def to_json_schema(self) -> dict[str, Any]:
         """Return the JSON Schema representation for this parameter."""
-        schema: Dict[str, Any] = {"type": self.type}
+        schema: dict[str, Any] = {"type": self.type}
         if self.description:
             schema["description"] = self.description
         if self.enum:
@@ -130,8 +130,8 @@ class Tool:
         self,
         name: str,
         description: str,
-        parameters: Optional[List[ToolParameter]] = None,
-        handler: Optional[Callable[..., Awaitable[Any]]] = None,
+        parameters: list[ToolParameter] | None = None,
+        handler: Callable[..., Awaitable[Any]] | None = None,
         toolset: str = "general",
         requires_approval: bool = False,
         timeout: int = 60,
@@ -139,7 +139,7 @@ class Tool:
     ) -> None:
         self.name = name
         self.description = description
-        self.parameters: List[ToolParameter] = parameters or []
+        self.parameters: list[ToolParameter] = parameters or []
         self.handler = handler
         self.toolset = toolset
         self.requires_approval = requires_approval
@@ -153,7 +153,7 @@ class Tool:
 
     # -- Schema generation -----------------------------------------------
 
-    def to_openai_schema(self) -> Dict[str, Any]:
+    def to_openai_schema(self) -> dict[str, Any]:
         """Convert to the OpenAI function-calling format.
 
         Example::
@@ -174,8 +174,8 @@ class Tool:
                 }
             }
         """
-        properties: Dict[str, Any] = {}
-        required: List[str] = []
+        properties: dict[str, Any] = {}
+        required: list[str] = []
 
         for param in self.parameters:
             properties[param.name] = param.to_json_schema()
@@ -195,14 +195,14 @@ class Tool:
             },
         }
 
-    def to_mcp_schema(self) -> Dict[str, Any]:
+    def to_mcp_schema(self) -> dict[str, Any]:
         """Convert to the MCP (Model Context Protocol) tool schema.
 
         MCP uses a flatter structure where the tool *is* the schema rather
         than being wrapped in ``{type: "function", function: …}``.
         """
-        properties: Dict[str, Any] = {}
-        required: List[str] = []
+        properties: dict[str, Any] = {}
+        required: list[str] = []
 
         for param in self.parameters:
             properties[param.name] = param.to_json_schema()
@@ -266,7 +266,7 @@ class ToolResult:
         tool_name: str,
         success: bool,
         data: Any = None,
-        error: Optional[str] = None,
+        error: str | None = None,
         elapsed: float = 0.0,
     ) -> None:
         self.tool_name = tool_name
@@ -276,7 +276,7 @@ class ToolResult:
         self.elapsed = elapsed
         self.timestamp = time.time()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialise to a plain dictionary."""
         return {
             "success": self.success,
@@ -306,7 +306,7 @@ class ToolResult:
 # Approval Callback Type
 # ======================================================================
 
-ApprovalCallback = Callable[["Tool", Dict[str, Any]], Awaitable[bool]]
+ApprovalCallback = Callable[["Tool", dict[str, Any]], Awaitable[bool]]
 
 
 # ======================================================================
@@ -326,7 +326,7 @@ ApprovalCallback = Callable[["Tool", Dict[str, Any]], Awaitable[bool]]
 async def _handle_web_search(
     query: str,
     num_results: int = 5,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Search the web for information."""
     logger.info(f"[stub] web_search: query={query!r}, num_results={num_results}")
     return {
@@ -349,7 +349,7 @@ async def _handle_web_search(
 async def _handle_web_reader(
     url: str,
     extract_text: bool = True,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Read and extract content from a web page URL."""
     logger.info(f"[stub] web_reader: url={url!r}")
     return {
@@ -373,7 +373,7 @@ async def _handle_code_execute(
     code: str,
     language: str = "python",
     timeout: int = 30,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Execute code in a sandboxed environment."""
     logger.info(
         f"code_execute: language={language!r}, code_len={len(code)}"
@@ -440,7 +440,7 @@ async def _handle_shell_command(
     command: str,
     working_dir: str = "",
     timeout: int = 30,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Execute a shell command."""
     logger.info(f"shell_command: command={command!r}, cwd={working_dir!r}")
     cwd = working_dir or None
@@ -493,7 +493,7 @@ async def _handle_shell_command(
 async def _handle_file_read(
     path: str,
     encoding: str = "utf-8",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Read the contents of a file."""
     logger.info(f"file_read: path={path!r}")
     try:
@@ -521,7 +521,7 @@ async def _handle_file_write(
     content: str,
     encoding: str = "utf-8",
     create_dirs: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Write content to a file."""
     logger.info(f"file_write: path={path!r}, content_len={len(content)}")
     try:
@@ -544,7 +544,7 @@ async def _handle_file_list(
     path: str = ".",
     pattern: str = "*",
     recursive: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """List files and directories."""
     logger.info(
         f"file_list: path={path!r}, pattern={pattern!r}, recursive={recursive}"
@@ -576,11 +576,11 @@ async def _handle_file_list(
 # -- Utility --------------------------------------------------------------
 
 
-async def _handle_calculator(expression: str) -> Dict[str, Any]:
+async def _handle_calculator(expression: str) -> dict[str, Any]:
     """Evaluate a mathematical expression safely."""
     logger.info(f"calculator: expression={expression!r}")
 
-    allowed_names: Dict[str, Any] = {
+    allowed_names: dict[str, Any] = {
         "abs": abs,
         "round": round,
         "min": min,
@@ -632,7 +632,7 @@ async def _handle_calculator(expression: str) -> Dict[str, Any]:
 async def _handle_date_time(
     timezone_str: str = "UTC",
     format_str: str = "%Y-%m-%d %H:%M:%S %Z",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get the current date and time."""
     logger.info(f"date_time: timezone={timezone_str!r}")
     try:
@@ -665,10 +665,10 @@ async def _handle_date_time(
         }
 
 
-async def _handle_system_info() -> Dict[str, Any]:
+async def _handle_system_info() -> dict[str, Any]:
     """Get information about the current system."""
     logger.info("system_info: gathering system info")
-    info: Dict[str, Any] = {
+    info: dict[str, Any] = {
         "success": True,
         "system": platform.system(),
         "release": platform.release(),
@@ -711,7 +711,7 @@ async def _handle_http_request(
     headers: str = "{}",
     body: str = "",
     timeout: int = 30,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Make an HTTP API request."""
     logger.info(f"[stub] http_request: method={method!r}, url={url!r}")
     try:
@@ -733,7 +733,7 @@ async def _handle_http_request(
 # -- Data -----------------------------------------------------------------
 
 
-async def _handle_json_parse(text: str) -> Dict[str, Any]:
+async def _handle_json_parse(text: str) -> dict[str, Any]:
     """Parse a JSON string into a structured object."""
     logger.info(f"json_parse: text_len={len(text)}")
     try:
@@ -755,7 +755,7 @@ async def _handle_json_format(
     data: str,
     indent: int = 2,
     sort_keys: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Format a JSON string with proper indentation."""
     logger.info(f"json_format: data_len={len(data)}")
     try:
@@ -780,7 +780,7 @@ async def _handle_text_summarize(
     text: str,
     max_length: int = 200,
     style: str = "concise",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Summarize a block of text.
 
     In production this would call an LLM for summarization; the built-in
@@ -811,7 +811,7 @@ async def _handle_todo_manage(
     text: str = "",
     todo_id: str = "",
     status: str = "",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Manage a todo list (add, list, complete, delete, clear)."""
     logger.info(f"todo_manage: action={action!r}, text={text!r}")
     valid_actions = ("add", "list", "complete", "delete", "clear")
@@ -847,7 +847,7 @@ async def _handle_note_create(
     title: str,
     content: str,
     tags: str = "",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Create a new note."""
     note_id = uuid.uuid4().hex[:8]
     logger.info(f"note_create: id={note_id}, title={title!r}")
@@ -867,7 +867,7 @@ async def _handle_note_search(
     query: str,
     tags: str = "",
     limit: int = 10,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Search through notes."""
     logger.info(f"note_search: query={query!r}, tags={tags!r}")
     return {
@@ -892,7 +892,7 @@ async def _handle_email_send(
     body: str,
     cc: str = "",
     html: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Send an email."""
     logger.info(f"[stub] email_send: to={to!r}, subject={subject!r}")
     recipients = [a.strip() for a in to.split(",") if a.strip()]
@@ -917,7 +917,7 @@ async def _handle_calendar_manage(
     end_time: str = "",
     description: str = "",
     event_id: str = "",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Manage calendar events (add, list, delete, update)."""
     logger.info(f"[stub] calendar_manage: action={action!r}, title={title!r}")
     valid_actions = ("add", "list", "delete", "update")
@@ -946,7 +946,7 @@ async def _handle_image_generate(
     prompt: str,
     size: str = "1024x1024",
     style: str = "natural",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Generate an image from a text prompt."""
     logger.info(f"[stub] image_generate: prompt={prompt!r}, size={size!r}")
     return {
@@ -964,7 +964,7 @@ async def _handle_text_to_speech(
     text: str,
     voice: str = "alloy",
     speed: float = 1.0,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Convert text to speech audio."""
     logger.info(f"[stub] text_to_speech: text_len={len(text)}, voice={voice!r}")
     return {
@@ -979,7 +979,7 @@ async def _handle_text_to_speech(
 
 async def _handle_speech_to_text(
     audio_data: str = "",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Convert speech/audio to text (transcription)."""
     logger.info("[stub] speech_to_text: transcription requested")
     return {
@@ -998,7 +998,7 @@ async def _handle_speech_to_text(
 async def _handle_weather(
     location: str,
     units: str = "metric",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get weather information for a location."""
     logger.info(f"[stub] weather: location={location!r}, units={units!r}")
     return {
@@ -1025,7 +1025,7 @@ async def _handle_weather(
 # -- System ----------------------------------------------------------------
 
 
-async def _handle_clipboard_copy(text: str) -> Dict[str, Any]:
+async def _handle_clipboard_copy(text: str) -> dict[str, Any]:
     """Copy text to the system clipboard."""
     logger.info(f"[stub] clipboard_copy: text_len={len(text)}")
     return {
@@ -1036,7 +1036,7 @@ async def _handle_clipboard_copy(text: str) -> Dict[str, Any]:
     }
 
 
-async def _handle_clipboard_paste() -> Dict[str, Any]:
+async def _handle_clipboard_paste() -> dict[str, Any]:
     """Paste text from the system clipboard."""
     logger.info("[stub] clipboard_paste: paste requested")
     return {
@@ -1052,7 +1052,7 @@ async def _handle_clipboard_paste() -> Dict[str, Any]:
 # ======================================================================
 
 
-def _build_builtin_tools() -> List[Tool]:
+def _build_builtin_tools() -> list[Tool]:
     """Construct the full list of built-in tools (24 tools, 9 toolsets)."""
     return [
         # ── Web toolset (2) ─────────────────────────────────────────────
@@ -1594,15 +1594,15 @@ class ToolRegistry:
         self._approval_mode = ApprovalMode(approval_mode)
 
         # Core storage
-        self._tools: Dict[str, Tool] = {}
-        self._toolsets: Dict[str, List[str]] = {}
+        self._tools: dict[str, Tool] = {}
+        self._toolsets: dict[str, list[str]] = {}
 
         # Audit log (ring buffer)
-        self._execution_log: List[Dict[str, Any]] = []
+        self._execution_log: list[dict[str, Any]] = []
         self._max_log_size: int = 1000
 
         # Optional approval callback set by the host application
-        self._approval_callback: Optional[ApprovalCallback] = None
+        self._approval_callback: ApprovalCallback | None = None
 
         logger.debug("ToolRegistry instance created")
 
@@ -1693,7 +1693,7 @@ class ToolRegistry:
         Expects each plugin to be a ``.py`` file exporting a ``TOOLS`` list
         of :class:`Tool` instances, or a single ``tool`` variable.
         """
-        tools_dir: Optional[Path] = getattr(self._config, "tools_dir", None)
+        tools_dir: Path | None = getattr(self._config, "tools_dir", None)
         if tools_dir is None:
             return
         tools_dir = Path(tools_dir)
@@ -1716,7 +1716,7 @@ class ToolRegistry:
                 module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module)
 
-                tools_list: Optional[Sequence[Tool]] = getattr(module, "TOOLS", None)
+                tools_list: Sequence[Tool] | None = getattr(module, "TOOLS", None)
                 if tools_list is None:
                     single = getattr(module, "tool", None)
                     tools_list = [single] if single is not None else None
@@ -1744,7 +1744,7 @@ class ToolRegistry:
         """
         self._approval_callback = callback
 
-    async def _check_approval(self, tool: Tool, params: Dict[str, Any]) -> bool:
+    async def _check_approval(self, tool: Tool, params: dict[str, Any]) -> bool:
         """Determine whether a tool requiring approval is allowed to run."""
         if self._approval_mode == ApprovalMode.AUTO:
             return True
@@ -1773,7 +1773,7 @@ class ToolRegistry:
     @staticmethod
     def _check_type(value: Any, expected: str) -> bool:
         """Rough type check mapping JSON Schema types to Python types."""
-        type_map: Dict[str, type] = {
+        type_map: dict[str, type] = {
             "string": str,
             "integer": int,
             "number": (int, float),
@@ -1790,14 +1790,14 @@ class ToolRegistry:
         return isinstance(value, expected_type)
 
     def _validate_params(
-        self, tool: Tool, params: Dict[str, Any]
-    ) -> Tuple[Dict[str, Any], Optional[str]]:
+        self, tool: Tool, params: dict[str, Any]
+    ) -> tuple[dict[str, Any], str | None]:
         """Validate and fill defaults for tool parameters.
 
         Returns:
             ``(validated_params, error_message_or_None)``
         """
-        validated: Dict[str, Any] = {}
+        validated: dict[str, Any] = {}
         param_map = {p.name: p for p in tool.parameters}
 
         # Reject unexpected parameters
@@ -1837,9 +1837,9 @@ class ToolRegistry:
     async def execute(
         self,
         tool_name: str,
-        params: Optional[Dict[str, Any]] = None,
+        params: dict[str, Any] | None = None,
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Execute a tool by name with validated keyword arguments.
 
         Supports two calling styles::
@@ -1984,7 +1984,7 @@ class ToolRegistry:
     # Schema Export
     # ------------------------------------------------------------------
 
-    def get_tools_schema(self) -> List[Dict[str, Any]]:
+    def get_tools_schema(self) -> list[dict[str, Any]]:
         """Return all tool schemas in **OpenAI function-calling** format.
 
         This is the method called by :class:`AgentLoop` to build the tools
@@ -1992,15 +1992,15 @@ class ToolRegistry:
         """
         return [tool.to_openai_schema() for tool in self._tools.values()]
 
-    def get_schemas(self) -> List[Dict[str, Any]]:
+    def get_schemas(self) -> list[dict[str, Any]]:
         """Alias for :meth:`get_tools_schema`."""
         return self.get_tools_schema()
 
-    def get_mcp_schemas(self) -> List[Dict[str, Any]]:
+    def get_mcp_schemas(self) -> list[dict[str, Any]]:
         """Return all tool schemas in **MCP** format."""
         return [tool.to_mcp_schema() for tool in self._tools.values()]
 
-    def get_toolset_schema(self, toolset_name: str) -> List[Dict[str, Any]]:
+    def get_toolset_schema(self, toolset_name: str) -> list[dict[str, Any]]:
         """Return OpenAI-format schemas for tools in a specific toolset."""
         names = self._toolsets.get(toolset_name, [])
         return [
@@ -2013,19 +2013,19 @@ class ToolRegistry:
     # Discovery
     # ------------------------------------------------------------------
 
-    def get_tool(self, tool_name: str) -> Optional[Tool]:
+    def get_tool(self, tool_name: str) -> Tool | None:
         """Look up a tool by name. Returns ``None`` if not found."""
         return self._tools.get(tool_name)
 
-    def list_tools(self) -> List[str]:
+    def list_tools(self) -> list[str]:
         """Return a sorted list of all registered tool names."""
         return sorted(self._tools.keys())
 
-    def list_toolsets(self) -> Dict[str, List[str]]:
+    def list_toolsets(self) -> dict[str, list[str]]:
         """Return a mapping of toolset name → list of tool names."""
         return dict(self._toolsets)
 
-    def get_toolset_names(self) -> List[str]:
+    def get_toolset_names(self) -> list[str]:
         """Return a sorted list of toolset names."""
         return sorted(self._toolsets.keys())
 
@@ -2033,11 +2033,11 @@ class ToolRegistry:
     # Statistics
     # ------------------------------------------------------------------
 
-    async def get_stats(self) -> Dict[str, Any]:
+    async def get_stats(self) -> dict[str, Any]:
         """Return aggregate usage statistics for all tools."""
         total_calls = sum(t.call_count for t in self._tools.values())
         total_errors = sum(t.error_count for t in self._tools.values())
-        tool_stats: Dict[str, Dict[str, Any]] = {}
+        tool_stats: dict[str, dict[str, Any]] = {}
         for name, tool in self._tools.items():
             tool_stats[name] = {
                 "calls": tool.call_count,
@@ -2057,7 +2057,7 @@ class ToolRegistry:
             "toolsets": dict(self._toolsets),
         }
 
-    def get_execution_log(self, limit: int = 50) -> List[Dict[str, Any]]:
+    def get_execution_log(self, limit: int = 50) -> list[dict[str, Any]]:
         """Return the most recent execution log entries."""
         return self._execution_log[-limit:]
 

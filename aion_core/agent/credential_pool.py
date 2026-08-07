@@ -17,9 +17,16 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
+
+# SECURITY: redactor for safe serialization - prevents API keys from
+# appearing in to_dict() output, error messages, or log files.
+try:
+    from aion_core.security.redact import redactor as _redactor
+except ImportError:
+    _redactor = None
 
 
 # ---------------------------------------------------------------------------
@@ -62,9 +69,9 @@ class PooledCredential:
     provider: str
     api_key: str
     source: CredentialSource = CredentialSource.CUSTOM
-    expires_at: Optional[str] = None
+    expires_at: str | None = None
     priority: int = 0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     # Internal bookkeeping (not persisted)
     _last_used: float = field(default=0.0, repr=False)
@@ -89,7 +96,7 @@ class PooledCredential:
         except (ValueError, TypeError):
             return False
 
-    def is_available(self, now: Optional[float] = None) -> bool:
+    def is_available(self, now: float | None = None) -> bool:
         """Credential is usable when not exhausted, not expired, and not
         currently rate-limited."""
         if self._exhausted:
@@ -99,7 +106,7 @@ class PooledCredential:
         ts = now if now is not None else time.time()
         return not ts < self._rate_limited_until
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serializable dictionary (excludes private fields)."""
         expires = None
         if self.expires_at is not None:
@@ -110,7 +117,7 @@ class PooledCredential:
         return {
             "id": self.id,
             "provider": self.provider,
-            "api_key": self.api_key,
+            "api_key": "***REDACTED***",
             "source": self.source.value if isinstance(self.source, CredentialSource) else str(self.source),
             "expires_at": expires,
             "priority": self.priority,
@@ -118,7 +125,7 @@ class PooledCredential:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> PooledCredential:
+    def from_dict(cls, data: dict[str, Any]) -> PooledCredential:
         """Reconstruct from a serialised dictionary."""
         source = data.get("source", "custom")
         if isinstance(source, str):
@@ -126,6 +133,9 @@ class PooledCredential:
         return cls(
             id=data["id"],
             provider=data["provider"],
+            # SECURITY: from_dict is only used with trusted input files
+            # that were created by save_to_file (which redacts keys).
+            # If loading from untrusted sources, add validation here.
             api_key=data["api_key"],
             source=source,
             expires_at=data.get("expires_at"),
@@ -158,10 +168,10 @@ class CredentialPool:
     ) -> None:
         self._strategy = strategy
         self._rate_limit_cooldown = rate_limit_cooldown
-        self._credentials: Dict[str, PooledCredential] = {}
-        self._provider_index: Dict[str, int] = {}
+        self._credentials: dict[str, PooledCredential] = {}
+        self._provider_index: dict[str, int] = {}
         self._lock = threading.RLock()
-        self._stats: Dict[str, int] = {
+        self._stats: dict[str, int] = {
             "total_rotations": 0,
             "total_exhausted": 0,
             "total_rate_limited": 0,
@@ -172,7 +182,7 @@ class CredentialPool:
 
     def load_from_env(
         self,
-        env_mapping: Optional[Dict[str, str]] = None,
+        env_mapping: dict[str, str] | None = None,
     ) -> int:
         """Load credentials from environment variables.
 
@@ -203,8 +213,9 @@ class CredentialPool:
                 )
                 self._credentials[cred.id] = cred
                 count += 1
+                # SECURITY: never log the actual key value
                 logger.debug(
-                    "Loaded credential for %s from env var %s",
+                    "Loaded credential for %s from env var %s (redacted)",
                     provider,
                     var_name,
                 )
@@ -240,6 +251,7 @@ class CredentialPool:
         """Add or replace a credential in the pool."""
         with self._lock:
             self._credentials[credential.id] = credential
+            # SECURITY: log only the credential ID and provider, never the key
             logger.debug(
                 "Added credential %s for provider %s",
                 credential.id,
@@ -259,8 +271,8 @@ class CredentialPool:
     def rotate(
         self,
         provider: str,
-        strategy: Optional[RotationStrategy] = None,
-    ) -> Optional[PooledCredential]:
+        strategy: RotationStrategy | None = None,
+    ) -> PooledCredential | None:
         """Return the next available credential for *provider*.
 
         Uses *strategy* if given, otherwise the pool default.  Returns
@@ -302,7 +314,7 @@ class CredentialPool:
             self._stats["total_rotations"] += 1
             return selected
 
-    def get_active(self, provider: str) -> Optional[PooledCredential]:
+    def get_active(self, provider: str) -> PooledCredential | None:
         """Convenience: return the current active credential for *provider*."""
         return self.rotate(provider)
 
@@ -320,7 +332,7 @@ class CredentialPool:
             return True
 
     def mark_rate_limited(
-        self, credential_id: str, cooldown: Optional[float] = None
+        self, credential_id: str, cooldown: float | None = None
     ) -> bool:
         """Mark a credential as rate-limited for *cooldown* seconds."""
         cd = cooldown if cooldown is not None else self._rate_limit_cooldown
@@ -337,7 +349,7 @@ class CredentialPool:
 
     # -- queries -----------------------------------------------------------
 
-    def get_all(self, provider: Optional[str] = None) -> List[PooledCredential]:
+    def get_all(self, provider: str | None = None) -> list[PooledCredential]:
         """Return all credentials, optionally filtered by *provider*."""
         with self._lock:
             creds = list(self._credentials.values())
@@ -345,7 +357,7 @@ class CredentialPool:
             creds = [c for c in creds if c.provider == provider]
         return creds
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Return aggregate statistics about the pool."""
         with self._lock:
             creds = list(self._credentials.values())
@@ -377,13 +389,20 @@ class CredentialPool:
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w", encoding="utf-8") as fh:
             json.dump(data, fh, indent=2, ensure_ascii=False)
+        # SECURITY: file path is safe to log; file contents contain
+        # redacted keys (see to_dict). Ensure the file has restricted perms.
         logger.info("Saved %d credential(s) to %s", len(data), path)
+        # SECURITY: restrict file permissions to owner-only (0600)
+        try:
+            os.chmod(path, 0o600)
+        except OSError:
+            logger.warning("Failed to set restrictive permissions on %s", path)
 
     # -- housekeeping ------------------------------------------------------
 
     def cleanup_expired(self) -> int:
         """Remove all expired credentials.  Returns count removed."""
-        removed_ids: List[str] = []
+        removed_ids: list[str] = []
         with self._lock:
             for cid, cred in list(self._credentials.items()):
                 if cred.is_expired():

@@ -90,22 +90,22 @@ class MCPServerConfig:
 
     name: str = ""
     transport: str = "stdio"
-    command: Optional[str] = None
-    args: List[str] = field(default_factory=list)
-    url: Optional[str] = None
-    env: Dict[str, str] = field(default_factory=dict)
+    command: str | None = None
+    args: list[str] = field(default_factory=list)
+    url: str | None = None
+    env: dict[str, str] = field(default_factory=dict)
     auto_connect: bool = False
     enabled: bool = True
     description: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize to a JSON-serializable dict."""
         d = asdict(self)
         # Remove None values for cleaner JSON
         return {k: v for k, v in d.items() if v is not None and v != [] and v != {}}
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> MCPServerConfig:
+    def from_dict(cls, data: dict[str, Any]) -> MCPServerConfig:
         """Deserialize from a dict."""
         # Filter out unknown keys to stay forward-compatible
         known_fields = {f.name for f in cls.__dataclass_fields__.values()}
@@ -124,7 +124,7 @@ class MCPServerConfig:
 # ===================================================================
 
 
-def _get_default_servers() -> List[MCPServerConfig]:
+def _get_default_servers() -> list[MCPServerConfig]:
     """Return the built-in default MCP server configurations.
 
     These are well-known community MCP servers. They are pre-configured
@@ -198,7 +198,7 @@ class MCPConfig:
     with the defaults (user config takes precedence).
     """
 
-    def __init__(self, config_dir: Optional[str] = None) -> None:
+    def __init__(self, config_dir: str | None = None) -> None:
         """
         Args:
             config_dir: Directory containing the config file.
@@ -210,7 +210,7 @@ class MCPConfig:
             )
         self._config_dir = Path(config_dir)
         self._config_path = self._config_dir / CONFIG_FILENAME
-        self._servers: Dict[str, MCPServerConfig] = {}
+        self._servers: dict[str, MCPServerConfig] = {}
         self._loaded = False
 
     # ------------------------------------------------------------------
@@ -251,7 +251,7 @@ class MCPConfig:
             return
 
         # Parse server configs from file
-        file_servers: Dict[str, MCPServerConfig] = {}
+        file_servers: dict[str, MCPServerConfig] = {}
         for server_data in data.get("servers", []):
             try:
                 config = MCPServerConfig.from_dict(server_data)
@@ -264,7 +264,7 @@ class MCPConfig:
 
         # Merge: defaults first, then user overrides
         defaults = _get_default_servers()
-        merged: Dict[str, MCPServerConfig] = {}
+        merged: dict[str, MCPServerConfig] = {}
 
         for default in defaults:
             merged[default.name] = default
@@ -341,19 +341,19 @@ class MCPConfig:
         )
         return False
 
-    def get_server(self, name: str) -> Optional[MCPServerConfig]:
+    def get_server(self, name: str) -> MCPServerConfig | None:
         """Get a specific server configuration by name."""
         return self._servers.get(name)
 
-    def list_servers(self) -> List[MCPServerConfig]:
+    def list_servers(self) -> list[MCPServerConfig]:
         """Return all server configurations (enabled and disabled)."""
         return list(self._servers.values())
 
-    def list_enabled_servers(self) -> List[MCPServerConfig]:
+    def list_enabled_servers(self) -> list[MCPServerConfig]:
         """Return only enabled server configurations."""
         return [s for s in self._servers.values() if s.enabled]
 
-    def get_auto_connect_servers(self) -> List[MCPServerConfig]:
+    def get_auto_connect_servers(self) -> list[MCPServerConfig]:
         """Return servers that should auto-connect on startup.
 
         These are servers that are both enabled and have ``auto_connect=True``.
@@ -368,14 +368,14 @@ class MCPConfig:
     # Queries
     # ------------------------------------------------------------------
 
-    def list_stdio_servers(self) -> List[MCPServerConfig]:
+    def list_stdio_servers(self) -> list[MCPServerConfig]:
         """Return all stdio-transport server configs."""
         return [
             s for s in self._servers.values()
             if s.transport == "stdio" and s.enabled
         ]
 
-    def list_sse_servers(self) -> List[MCPServerConfig]:
+    def list_sse_servers(self) -> list[MCPServerConfig]:
         """Return all SSE-transport server configs."""
         return [
             s for s in self._servers.values()
@@ -409,7 +409,7 @@ class MCPConfig:
     # Serialization helpers
     # ------------------------------------------------------------------
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Return the full config as a serializable dict."""
         servers = []
         for s in self._servers.values():

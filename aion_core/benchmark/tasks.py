@@ -38,13 +38,13 @@ class BenchmarkTask:
     difficulty: Difficulty
     description: str
     task_prompt: str
-    evaluation_criteria: List[str]  # Each criterion is a check descriptor
-    expected_tools: List[str] = field(default_factory=list)
+    evaluation_criteria: list[str]  # Each criterion is a check descriptor
+    expected_tools: list[str] = field(default_factory=list)
     expected_steps: int = 1
     max_turns: int = 10
     max_tokens: int = 4096
     timeout: float = 60.0
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
 
     def __post_init__(self):
         if not self.id:
@@ -702,7 +702,7 @@ MULTI_STEP_TASKS = [
 
 # ─── Master Task List ────────────────────────────────────────────────────────
 
-BENCHMARK_TASKS: List[BenchmarkTask] = [
+BENCHMARK_TASKS: list[BenchmarkTask] = [
     *PLANNING_TASKS,
     *TOOL_USE_TASKS,
     *CODE_GENERATION_TASKS,
@@ -712,14 +712,14 @@ BENCHMARK_TASKS: List[BenchmarkTask] = [
 ]
 
 
-def get_tasks_by_category(category: Category | str) -> List[BenchmarkTask]:
+def get_tasks_by_category(category: Category | str) -> list[BenchmarkTask]:
     """Return all tasks matching a given category."""
     if isinstance(category, str):
         category = Category(category.lower())
     return [t for t in BENCHMARK_TASKS if t.category == category]
 
 
-def get_tasks_by_difficulty(difficulty: Difficulty | str) -> List[BenchmarkTask]:
+def get_tasks_by_difficulty(difficulty: Difficulty | str) -> list[BenchmarkTask]:
     """Return all tasks matching a given difficulty level."""
     if isinstance(difficulty, str):
         difficulty = Difficulty(difficulty.lower())

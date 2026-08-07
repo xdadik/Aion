@@ -25,17 +25,17 @@ class TaskResult:
     task_name: str
     success: bool = False
     score: float = 0.0
-    criteria_met: List[str] = field(default_factory=list)
-    criteria_failed: List[str] = field(default_factory=list)
+    criteria_met: list[str] = field(default_factory=list)
+    criteria_failed: list[str] = field(default_factory=list)
     turns_used: int = 0
     tokens_used: int = 0
     time_elapsed: float = 0.0
-    tools_used: List[str] = field(default_factory=list)
-    errors: List[str] = field(default_factory=list)
+    tools_used: list[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
     agent_output: str = ""
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary for JSON persistence."""
         return {
             "task_id": self.task_id,
@@ -75,7 +75,7 @@ class BenchmarkEvaluator:
             "tool_used": self._check_tool_used,
             "pattern_match": self._check_pattern_match,
         }
-        self._results_history: List[TaskResult] = []
+        self._results_history: list[TaskResult] = []
 
     # -- Public API ----------------------------------------------------------
 
@@ -83,7 +83,7 @@ class BenchmarkEvaluator:
         self,
         task: BenchmarkTask,
         agent_output: str,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> TaskResult:
         """
         Evaluate agent output against a task's criteria.
@@ -97,8 +97,8 @@ class BenchmarkEvaluator:
             A TaskResult with score, criteria breakdown, and metadata.
         """
         metadata = metadata or {}
-        criteria_met: List[str] = []
-        criteria_failed: List[str] = []
+        criteria_met: list[str] = []
+        criteria_failed: list[str] = []
 
         for criterion in task.evaluation_criteria:
             passed = self._check_criterion(criterion, agent_output, metadata)
@@ -137,7 +137,7 @@ class BenchmarkEvaluator:
         )
         return result
 
-    def get_history(self) -> List[TaskResult]:
+    def get_history(self) -> list[TaskResult]:
         """Return all evaluation results from this evaluator instance."""
         return list(self._results_history)
 
@@ -151,7 +151,7 @@ class BenchmarkEvaluator:
         self,
         criterion: str,
         output: str,
-        metadata: Dict[str, Any],
+        metadata: dict[str, Any],
     ) -> bool:
         """
         Parse a criterion string and dispatch to the appropriate checker.
@@ -180,7 +180,7 @@ class BenchmarkEvaluator:
     # -- Check Implementations ----------------------------------------------
 
     @staticmethod
-    def _check_keywords(params: str, output: str, metadata: Dict[str, Any]) -> bool:
+    def _check_keywords(params: str, output: str, metadata: dict[str, Any]) -> bool:
         """
         All comma-separated keywords must appear in the output (case-insensitive).
 
@@ -193,7 +193,7 @@ class BenchmarkEvaluator:
         return all(kw.lower() in output_lower for kw in keywords)
 
     @staticmethod
-    def _check_min_length(params: str, output: str, metadata: Dict[str, Any]) -> bool:
+    def _check_min_length(params: str, output: str, metadata: dict[str, Any]) -> bool:
         """
         Output must meet or exceed a minimum character length.
 
@@ -207,7 +207,7 @@ class BenchmarkEvaluator:
         return len(output.strip()) >= min_len
 
     @staticmethod
-    def _check_has_code(params: str, output: str, metadata: Dict[str, Any]) -> bool:
+    def _check_has_code(params: str, output: str, metadata: dict[str, Any]) -> bool:
         """
         Check whether the output contains (or does not contain) code blocks.
 
@@ -225,7 +225,7 @@ class BenchmarkEvaluator:
             return False
 
     @staticmethod
-    def _check_tool_used(params: str, output: str, metadata: Dict[str, Any]) -> bool:
+    def _check_tool_used(params: str, output: str, metadata: dict[str, Any]) -> bool:
         """
         A specific tool name must appear in the metadata's tools_used list.
 
@@ -238,7 +238,7 @@ class BenchmarkEvaluator:
         return False
 
     @staticmethod
-    def _check_pattern_match(params: str, output: str, metadata: Dict[str, Any]) -> bool:
+    def _check_pattern_match(params: str, output: str, metadata: dict[str, Any]) -> bool:
         """
         A regex pattern must match somewhere in the output.
 
@@ -255,8 +255,8 @@ class BenchmarkEvaluator:
 
     @staticmethod
     def _compute_score(
-        all_criteria: List[str],
-        criteria_met: List[str],
+        all_criteria: list[str],
+        criteria_met: list[str],
     ) -> float:
         """
         Compute a score based on criteria results.

@@ -18,15 +18,15 @@ Wire protocol reference: https://spec.modelcontextprotocol.io/
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import json
 import logging
 import os
+import sys
 import time
-import urllib.error
 import urllib.request
+import urllib.error
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger("aion_hand.mcp.client")
 
@@ -64,11 +64,11 @@ class MCPTool:
 
     name: str
     description: str = ""
-    input_schema: Dict[str, Any] = field(default_factory=dict)
+    input_schema: dict[str, Any] = field(default_factory=dict)
     server_name: str = ""
     protocol_version: str = MCP_PROTOCOL_VERSION
 
-    def to_openai_schema(self) -> Dict[str, Any]:
+    def to_openai_schema(self) -> dict[str, Any]:
         """Convert to OpenAI function-calling format."""
         return {
             "type": "function",
@@ -92,16 +92,16 @@ class MCPServer:
 
     name: str
     transport_type: str = "stdio"  # stdio | sse | websocket
-    command: Optional[str] = None   # for stdio
-    url: Optional[str] = None       # for sse / websocket
-    args: List[str] = field(default_factory=list)
-    env: Dict[str, str] = field(default_factory=dict)
+    command: str | None = None   # for stdio
+    url: str | None = None       # for sse / websocket
+    args: list[str] = field(default_factory=list)
+    env: dict[str, str] = field(default_factory=dict)
     status: str = "disconnected"    # connected | disconnected | error
-    tools: List[MCPTool] = field(default_factory=list)
-    resources: List[Dict[str, Any]] = field(default_factory=list)
-    prompts: List[Dict[str, Any]] = field(default_factory=list)
-    server_info: Dict[str, Any] = field(default_factory=dict)
-    server_capabilities: Dict[str, Any] = field(default_factory=dict)
+    tools: list[MCPTool] = field(default_factory=list)
+    resources: list[dict[str, Any]] = field(default_factory=list)
+    prompts: list[dict[str, Any]] = field(default_factory=list)
+    server_info: dict[str, Any] = field(default_factory=dict)
+    server_capabilities: dict[str, Any] = field(default_factory=dict)
 
     # Reconnection state
     _reconnect_attempts: int = field(default=0, repr=False)
@@ -118,9 +118,9 @@ class MCPServer:
 # ===================================================================
 
 
-def _jsonrpc_request(method: str, params: Optional[Dict] = None, rid: int = 0) -> str:
+def _jsonrpc_request(method: str, params: dict | None = None, rid: int = 0) -> str:
     """Build a JSON-RPC 2.0 request string."""
-    msg: Dict[str, Any] = {
+    msg: dict[str, Any] = {
         "jsonrpc": "2.0",
         "id": rid,
         "method": method,
@@ -130,9 +130,9 @@ def _jsonrpc_request(method: str, params: Optional[Dict] = None, rid: int = 0) -
     return json.dumps(msg, separators=(",", ":")) + "\n"
 
 
-def _jsonrpc_notification(method: str, params: Optional[Dict] = None) -> str:
+def _jsonrpc_notification(method: str, params: dict | None = None) -> str:
     """Build a JSON-RPC 2.0 notification (no id, no response expected)."""
-    msg: Dict[str, Any] = {
+    msg: dict[str, Any] = {
         "jsonrpc": "2.0",
         "method": method,
     }
@@ -141,7 +141,7 @@ def _jsonrpc_notification(method: str, params: Optional[Dict] = None) -> str:
     return json.dumps(msg, separators=(",", ":")) + "\n"
 
 
-def _parse_jsonrpc_message(raw: str) -> Optional[Dict[str, Any]]:
+def _parse_jsonrpc_message(raw: str) -> dict[str, Any] | None:
     """Parse a single JSON-RPC message. Returns None on blank/invalid."""
     stripped = raw.strip()
     if not stripped:
@@ -165,15 +165,15 @@ class _StdioConnection:
     We write requests to the process stdin and read responses from stdout.
     """
 
-    def __init__(self, command: str, args: List[str], env: Dict[str, str]):
+    def __init__(self, command: str, args: list[str], env: dict[str, str]):
         self.command = command
         self.args = args
         self.env = env
-        self.process: Optional[asyncio.subprocess.Process] = None
-        self._reader_task: Optional[asyncio.Task] = None
+        self.process: asyncio.subprocess.Process | None = None
+        self._reader_task: asyncio.Task | None = None
         # Response queue: maps request id -> Future[response_dict]
-        self._pending: Dict[int, asyncio.Future] = {}
-        self._notification_handlers: List = []
+        self._pending: dict[int, asyncio.Future] = {}
+        self._notification_handlers: list = []
         self._lock = asyncio.Lock()
         self._closed = False
 
@@ -236,22 +236,24 @@ class _StdioConnection:
                     fut.set_exception(ConnectionError("Stdio connection closed"))
             self._pending.clear()
 
-    def _handle_notification(self, msg: Dict[str, Any]) -> None:
+    def _handle_notification(self, msg: dict[str, Any]) -> None:
         """Handle incoming server notifications."""
         method = msg.get("method", "")
         params = msg.get("params", {})
         logger.debug("Server notification: %s params=%s", method, params)
         for handler in self._notification_handlers:
-            with contextlib.suppress(Exception):
+            try:
                 handler(msg)
+            except Exception:
+                pass
 
     def on_notification(self, handler) -> None:
         """Register a callback for server notifications."""
         self._notification_handlers.append(handler)
 
     async def send_request(
-        self, method: str, params: Optional[Dict] = None, timeout: float = STDIO_CALL_TIMEOUT
-    ) -> Dict[str, Any]:
+        self, method: str, params: dict | None = None, timeout: float = STDIO_CALL_TIMEOUT
+    ) -> dict[str, Any]:
         """Send a JSON-RPC request and wait for the response."""
         async with self._lock:
             if self._closed or self.process is None or self.process.stdin is None:
@@ -282,14 +284,14 @@ class _StdioConnection:
                     err.get("data"),
                 )
             return response.get("result", {})
-        except TimeoutError:
+        except asyncio.TimeoutError:
             self._pending.pop(rid, None)
             raise TimeoutError(
                 f"MCP request '{method}' timed out after {timeout}s"
-            ) from None
+            )
 
     async def send_notification(
-        self, method: str, params: Optional[Dict] = None
+        self, method: str, params: dict | None = None
     ) -> None:
         """Send a JSON-RPC notification (fire-and-forget)."""
         async with self._lock:
@@ -304,8 +306,10 @@ class _StdioConnection:
         self._closed = True
         if self._reader_task:
             self._reader_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
+            try:
                 await self._reader_task
+            except asyncio.CancelledError:
+                pass
         if self.process:
             try:
                 if self.process.stdin:
@@ -313,7 +317,7 @@ class _StdioConnection:
                     await self.process.stdin.wait_closed()
                 self.process.terminate()
                 await asyncio.wait_for(self.process.wait(), timeout=5)
-            except TimeoutError:
+            except asyncio.TimeoutError:
                 logger.warning("Stdio process did not terminate, killing")
                 self.process.kill()
                 await self.process.wait()
@@ -343,11 +347,11 @@ class _SSEConnection:
 
     def __init__(self, url: str):
         self.url = url
-        self._session_id: Optional[str] = None
-        self._endpoint_url: Optional[str] = None
+        self._session_id: str | None = None
+        self._endpoint_url: str | None = None
         self._closed = False
         self._lock = asyncio.Lock()
-        self._notification_handlers: List = []
+        self._notification_handlers: list = []
 
     def on_notification(self, handler) -> None:
         """Register a callback for server notifications."""
@@ -410,10 +414,10 @@ class _SSEConnection:
                 loop.run_in_executor(None, _do_connect),
                 timeout=SSE_CONNECT_TIMEOUT,
             )
-        except TimeoutError:
+        except asyncio.TimeoutError:
             raise TimeoutError(
                 f"SSE connection to {self.url} timed out after {SSE_CONNECT_TIMEOUT}s"
-            ) from None
+            )
 
         if not self._endpoint_url:
             raise ConnectionError(
@@ -423,8 +427,8 @@ class _SSEConnection:
         logger.info("SSE MCP server connected, POST endpoint: %s", self._endpoint_url)
 
     async def send_request(
-        self, method: str, params: Optional[Dict] = None, timeout: float = SSE_MESSAGE_TIMEOUT
-    ) -> Dict[str, Any]:
+        self, method: str, params: dict | None = None, timeout: float = SSE_MESSAGE_TIMEOUT
+    ) -> dict[str, Any]:
         """Send a JSON-RPC request to the MCP server via HTTP POST."""
         if self._closed or not self._endpoint_url:
             raise ConnectionError("SSE connection is not open")
@@ -440,7 +444,7 @@ class _SSEConnection:
 
         loop = asyncio.get_running_loop()
 
-        def _do_post() -> Dict[str, Any]:
+        def _do_post() -> dict[str, Any]:
             """Blocking HTTP POST to the SSE message endpoint."""
             data = json.dumps(request_body).encode("utf-8")
             req = urllib.request.Request(
@@ -459,6 +463,8 @@ class _SSEConnection:
                 resp = urllib.request.urlopen(req, timeout=timeout)
                 response_data = resp.read().decode("utf-8")
                 content_type = resp.headers.get("Content-Type", "")
+
+                resp_headers = dict(resp.headers)
 
                 # The response might be SSE or direct JSON
                 if "text/event-stream" in content_type:
@@ -492,10 +498,10 @@ class _SSEConnection:
                     loop.run_in_executor(None, _do_post),
                     timeout=timeout,
                 )
-            except TimeoutError:
+            except asyncio.TimeoutError:
                 raise TimeoutError(
                     f"SSE request '{method}' timed out after {timeout}s"
-                ) from None
+                )
 
         # Extract session ID from response headers if available
         # (We'd need to thread this through from the blocking function)
@@ -511,7 +517,7 @@ class _SSEConnection:
         return raw_response
 
     async def send_notification(
-        self, method: str, params: Optional[Dict] = None
+        self, method: str, params: dict | None = None
     ) -> None:
         """Send a notification via the SSE endpoint."""
         await self.send_request(method, params)
@@ -580,8 +586,8 @@ class MCPClient:
     """
 
     def __init__(self):
-        self._servers: Dict[str, MCPServer] = {}
-        self._connections: Dict[str, Any] = {}  # _StdioConnection | _SSEConnection
+        self._servers: dict[str, MCPServer] = {}
+        self._connections: dict[str, Any] = {}  # _StdioConnection | _SSEConnection
         self._request_id = 0
 
     # ------------------------------------------------------------------
@@ -592,8 +598,8 @@ class MCPClient:
         self,
         server_name: str,
         command: str,
-        args: Optional[List[str]] = None,
-        env: Optional[Dict[str, str]] = None,
+        args: list[str] | None = None,
+        env: dict[str, str] | None = None,
     ) -> MCPServer:
         """Launch an MCP server as a subprocess and perform the handshake.
 
@@ -776,7 +782,7 @@ class MCPClient:
         server_name: str,
         conn: Any,
         protocol_version: str = MCP_PROTOCOL_VERSION,
-    ) -> List[MCPTool]:
+    ) -> list[MCPTool]:
         """Fetch the tool list from a connected server."""
         try:
             result = await conn.send_request("tools/list", {}, timeout=15)
@@ -801,7 +807,7 @@ class MCPClient:
 
     async def _fetch_resources(
         self, server_name: str, conn: Any
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Fetch the resource list from a connected server."""
         try:
             result = await conn.send_request("resources/list", {}, timeout=15)
@@ -812,7 +818,7 @@ class MCPClient:
 
     async def _fetch_prompts(
         self, server_name: str, conn: Any
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Fetch the prompt list from a connected server."""
         try:
             result = await conn.send_request("prompts/list", {}, timeout=15)
@@ -829,8 +835,8 @@ class MCPClient:
         self,
         server_name: str,
         tool_name: str,
-        arguments: Optional[Dict[str, Any]] = None,
-        timeout: Optional[float] = None,
+        arguments: dict[str, Any] | None = None,
+        timeout: float | None = None,
     ) -> Any:
         """Call a tool on a connected MCP server.
 
@@ -920,7 +926,7 @@ class MCPClient:
     # Resources
     # ------------------------------------------------------------------
 
-    async def list_resources(self, server_name: str) -> List[Dict[str, Any]]:
+    async def list_resources(self, server_name: str) -> list[dict[str, Any]]:
         """List resources from a connected MCP server."""
         conn = self._connections.get(server_name)
         if conn is None:
@@ -935,7 +941,7 @@ class MCPClient:
 
     async def read_resource(
         self, server_name: str, uri: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Read a specific resource from a connected MCP server."""
         conn = self._connections.get(server_name)
         if conn is None:
@@ -948,7 +954,7 @@ class MCPClient:
     # Prompts
     # ------------------------------------------------------------------
 
-    async def list_prompts(self, server_name: str) -> List[Dict[str, Any]]:
+    async def list_prompts(self, server_name: str) -> list[dict[str, Any]]:
         """List prompts from a connected MCP server."""
         conn = self._connections.get(server_name)
         if conn is None:
@@ -964,13 +970,13 @@ class MCPClient:
         self,
         server_name: str,
         prompt_name: str,
-        arguments: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        arguments: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Get a specific prompt with optional arguments."""
         conn = self._connections.get(server_name)
         if conn is None:
             raise ConnectionError(f"No connection to server '{server_name}'")
-        params: Dict[str, Any] = {"name": prompt_name}
+        params: dict[str, Any] = {"name": prompt_name}
         if arguments:
             params["arguments"] = arguments
         return await conn.send_request("prompts/get", params, timeout=30)
@@ -1072,15 +1078,15 @@ class MCPClient:
     # Tool Queries
     # ------------------------------------------------------------------
 
-    def get_all_tools(self) -> List[MCPTool]:
+    def get_all_tools(self) -> list[MCPTool]:
         """Return all tools from all connected servers."""
-        tools: List[MCPTool] = []
+        tools: list[MCPTool] = []
         for server in self._servers.values():
             if server.status == "connected":
                 tools.extend(server.tools)
         return tools
 
-    def get_tools_schema(self) -> List[Dict[str, Any]]:
+    def get_tools_schema(self) -> list[dict[str, Any]]:
         """Return all MCP tools in OpenAI function-calling format.
 
         This is the key integration point: the returned list can be
@@ -1090,22 +1096,22 @@ class MCPClient:
         """
         return [tool.to_openai_schema() for tool in self.get_all_tools()]
 
-    def get_server_tools(self, server_name: str) -> List[MCPTool]:
+    def get_server_tools(self, server_name: str) -> list[MCPTool]:
         """Return tools from a specific server."""
         server = self._servers.get(server_name)
         if server and server.status == "connected":
             return list(server.tools)
         return []
 
-    def get_server(self, server_name: str) -> Optional[MCPServer]:
+    def get_server(self, server_name: str) -> MCPServer | None:
         """Return the server descriptor, or None if not registered."""
         return self._servers.get(server_name)
 
-    def list_servers(self) -> List[MCPServer]:
+    def list_servers(self) -> list[MCPServer]:
         """Return all registered servers (connected or not)."""
         return list(self._servers.values())
 
-    def list_connected_servers(self) -> List[MCPServer]:
+    def list_connected_servers(self) -> list[MCPServer]:
         """Return only connected servers."""
         return [
             s for s in self._servers.values() if s.status == "connected"
@@ -1115,7 +1121,7 @@ class MCPClient:
     # Health Check
     # ------------------------------------------------------------------
 
-    async def health_check(self, server_name: str) -> Dict[str, Any]:
+    async def health_check(self, server_name: str) -> dict[str, Any]:
         """Check if a server is alive by sending a ping.
 
         Returns a dict with ``status``, ``latency_ms``, and ``error``.
@@ -1157,7 +1163,7 @@ class MCPClient:
                 "error": str(exc),
             }
 
-    async def health_check_all(self) -> Dict[str, Dict[str, Any]]:
+    async def health_check_all(self) -> dict[str, dict[str, Any]]:
         """Run health checks on all registered servers."""
         results = {}
         for name in self._servers:
@@ -1181,10 +1187,10 @@ class MCPClient:
         server.tools = tools
         return len(tools)
 
-    async def refresh_all_tools(self) -> Dict[str, int]:
+    async def refresh_all_tools(self) -> dict[str, int]:
         """Refresh tool lists from all connected servers."""
-        counts: Dict[str, int] = {}
-        for name, _conn in list(self._connections.items()):
+        counts: dict[str, int] = {}
+        for name, conn in list(self._connections.items()):
             server = self._servers.get(name)
             if server and server.status == "connected":
                 try:

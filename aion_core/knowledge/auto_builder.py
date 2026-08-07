@@ -24,7 +24,7 @@ class AutoKnowledgeBuilder:
     _WORD_RE = re.compile(r'\b([A-Za-z][A-Za-z0-9_.\-/]{2,})\b')
 
     # Keywords that suggest entity types
-    _TYPE_HINTS: Dict[str, str] = {
+    _TYPE_HINTS: dict[str, str] = {
         "file": "file",
         "tool": "tool",
         "skill": "skill",
@@ -46,7 +46,7 @@ class AutoKnowledgeBuilder:
         self,
         user_msg: str,
         agent_response: str,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """
         Extract entities and relations from a conversation turn.
@@ -59,7 +59,7 @@ class AutoKnowledgeBuilder:
         """
         metadata = metadata or {}
 
-        mentioned: List[tuple] = []
+        mentioned: list[tuple] = []
 
         # Extract from user message
         user_entities = self._extract_entities_from_text(user_msg)
@@ -108,7 +108,7 @@ class AutoKnowledgeBuilder:
     def from_tool_execution(
         self,
         tool_name: str,
-        params: Dict[str, Any],
+        params: dict[str, Any],
         result: Any,
     ) -> None:
         """
@@ -265,13 +265,13 @@ class AutoKnowledgeBuilder:
     # Pattern discovery
     # ------------------------------------------------------------------
 
-    def discover_patterns(self) -> Dict[str, Any]:
+    def discover_patterns(self) -> dict[str, Any]:
         """Analyse the graph for interesting patterns."""
-        patterns: Dict[str, Any] = {}
+        patterns: dict[str, Any] = {}
 
         # --- Co-occurring tools ---
         tool_nodes = self._graph.find_entities(entity_type="tool")
-        tool_graph: Dict[str, set] = defaultdict(set)
+        tool_graph: dict[str, set] = defaultdict(set)
         for t1 in tool_nodes:
             related = self._graph.get_related_entities(t1.id, depth=2)
             for r in related:
@@ -287,7 +287,7 @@ class AutoKnowledgeBuilder:
 
         # --- Failure patterns ---
         error_nodes = self._graph.find_entities(entity_type="error")
-        failure_patterns: List[Dict[str, Any]] = []
+        failure_patterns: list[dict[str, Any]] = []
         for err in error_nodes:
             fixes = self._graph.get_relations(
                 entity_id=err.id, relation_type="fixed_by"
@@ -311,7 +311,7 @@ class AutoKnowledgeBuilder:
             e for e in self._graph.find_entities(entity_type="task")
             if e.properties.get("success") is True
         ]
-        strategies: List[Dict[str, Any]] = []
+        strategies: list[dict[str, Any]] = []
         for task in successful_tasks:
             tools_used = self._graph.get_relations(
                 entity_id=task.id, relation_type="uses"
@@ -348,9 +348,9 @@ class AutoKnowledgeBuilder:
     # Helpers
     # ------------------------------------------------------------------
 
-    def _extract_entities_from_text(self, text: str) -> List[tuple]:
+    def _extract_entities_from_text(self, text: str) -> list[tuple]:
         """Naive extraction of (name, entity_type) pairs from text."""
-        entities: List[tuple] = []
+        entities: list[tuple] = []
 
         # Quoted strings are often file names or specific identifiers
         for match in self._QUOTED_RE.finditer(text):

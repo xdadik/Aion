@@ -14,10 +14,9 @@ import logging
 import time
 import uuid
 from collections import Counter
-from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Coroutine, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +42,7 @@ class ReviewTask:
 
     turn_id: str
     review_type: ReviewType
-    payload: Dict[str, Any] = field(default_factory=dict)
+    payload: dict[str, Any] = field(default_factory=dict)
     priority: int = 0
     created_at: float = field(default_factory=time.monotonic)
     task_id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])
@@ -58,15 +57,15 @@ class ReviewResult:
     turn_id: str
     passed: bool = True
     score: float = 1.0
-    findings: List[str] = field(default_factory=list)
-    suggestions: List[str] = field(default_factory=list)
+    findings: list[str] = field(default_factory=list)
+    suggestions: list[str] = field(default_factory=list)
     elapsed: float = 0.0
-    error: Optional[str] = None
+    error: str | None = None
 
 
 # Callable signature for review checks
 ReviewCheck = Callable[
-    [Dict[str, Any]], Coroutine[Any, Any, ReviewResult]
+    [dict[str, Any]], Coroutine[Any, Any, ReviewResult]
 ]
 
 
@@ -95,11 +94,11 @@ class BackgroundReviewer:
             maxsize=queue_size
         )
         self._max_concurrent = max_concurrent
-        self._workers: List[asyncio.Task[None]] = []
+        self._workers: list[asyncio.Task[None]] = []
         self._running = False
-        self._results: List[ReviewResult] = []
+        self._results: list[ReviewResult] = []
         self._results_lock = asyncio.Lock()
-        self._stats: Dict[str, int] = {
+        self._stats: dict[str, int] = {
             "submitted": 0,
             "completed": 0,
             "failed": 0,
@@ -109,10 +108,10 @@ class BackgroundReviewer:
             "insight_reviews": 0,
         }
         # Pluggable review hooks (can be overridden by the caller)
-        self._check_memory: Optional[ReviewCheck] = None
-        self._check_skills: Optional[ReviewCheck] = None
-        self._check_quality: Optional[ReviewCheck] = None
-        self._check_insights: Optional[ReviewCheck] = None
+        self._check_memory: ReviewCheck | None = None
+        self._check_skills: ReviewCheck | None = None
+        self._check_quality: ReviewCheck | None = None
+        self._check_insights: ReviewCheck | None = None
 
     # -- lifecycle --------------------------------------------------------
 
@@ -165,7 +164,7 @@ class BackgroundReviewer:
                 _, _, task = await asyncio.wait_for(
                     self._queue.get(), timeout=1.0
                 )
-            except TimeoutError:
+            except asyncio.TimeoutError:
                 continue
             except asyncio.CancelledError:
                 break
@@ -213,7 +212,7 @@ class BackgroundReviewer:
 
     # -- built-in review checks -------------------------------------------
 
-    async def _review_memory(self, payload: Dict[str, Any]) -> ReviewResult:
+    async def _review_memory(self, payload: dict[str, Any]) -> ReviewResult:
         """Check memory consistency after a turn.
 
         Looks for contradictions between the turn output and previously
@@ -224,9 +223,9 @@ class BackgroundReviewer:
         )
         self._stats["memory_reviews"] += 1
 
-        facts: List[str] = payload.get("existing_facts", [])
+        facts: list[str] = payload.get("existing_facts", [])
         turn_output: str = payload.get("turn_output", "")
-        new_claims: List[str] = payload.get("new_claims", [])
+        new_claims: list[str] = payload.get("new_claims", [])
 
         if not turn_output:
             result.findings.append(
@@ -235,7 +234,7 @@ class BackgroundReviewer:
             result.score = 0.5
             return result
 
-        contradictions: List[str] = []
+        contradictions: list[str] = []
         for fact in facts:
             negation_markers = [
                 "not ", "no longer", "never", "incorrectly", "wrong"
@@ -260,16 +259,16 @@ class BackgroundReviewer:
         result.score = max(0.0, 1.0 - len(contradictions) * 0.25)
         return result
 
-    async def _review_skills(self, payload: Dict[str, Any]) -> ReviewResult:
+    async def _review_skills(self, payload: dict[str, Any]) -> ReviewResult:
         """Audit skill/tool usage during the turn."""
         result = ReviewResult(
             task_id="", review_type=ReviewType.SKILLS, turn_id=""
         )
         self._stats["skill_reviews"] += 1
 
-        tools_used: List[str] = payload.get("tools_used", [])
-        tools_available: List[str] = payload.get("tools_available", [])
-        errors: List[str] = payload.get("tool_errors", [])
+        tools_used: list[str] = payload.get("tools_used", [])
+        tools_available: list[str] = payload.get("tools_available", [])
+        errors: list[str] = payload.get("tool_errors", [])
 
         if not tools_used:
             result.findings.append(
@@ -294,7 +293,7 @@ class BackgroundReviewer:
         )
         return result
 
-    async def _review_quality(self, payload: Dict[str, Any]) -> ReviewResult:
+    async def _review_quality(self, payload: dict[str, Any]) -> ReviewResult:
         """Assess response quality heuristically."""
         result = ReviewResult(
             task_id="", review_type=ReviewType.QUALITY, turn_id=""
@@ -310,7 +309,7 @@ class BackgroundReviewer:
             result.findings.append("Empty response.")
             return result
 
-        issues: List[str] = []
+        issues: list[str] = []
         if len(response.strip()) < min_length:
             issues.append(
                 f"Response too short "
@@ -333,7 +332,7 @@ class BackgroundReviewer:
         result.score = max(0.0, 1.0 - len(issues) * 0.3)
         return result
 
-    async def _extract_insights(self, payload: Dict[str, Any]) -> ReviewResult:
+    async def _extract_insights(self, payload: dict[str, Any]) -> ReviewResult:
         """Extract reusable insights from the turn."""
         result = ReviewResult(
             task_id="", review_type=ReviewType.INSIGHTS, turn_id=""
@@ -352,7 +351,8 @@ class BackgroundReviewer:
             "recommendation",
         ]
 
-        insights: List[str] = []
+        insights: list[str] = []
+        lower = turn_output.lower()
         sentences = turn_output.replace(". ", ".\n").split("\n")
         for sentence in sentences:
             for marker in insight_markers:
@@ -385,7 +385,7 @@ class BackgroundReviewer:
         await self._queue.join()
         return self._stats["completed"]
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Return aggregate statistics."""
         return dict(self._stats)
 

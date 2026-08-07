@@ -16,11 +16,11 @@ logger = logging.getLogger("aion_hand.pipeline")
 class CritiqueResult:
     """Result of critiquing an execution output."""
     score: float = 0.5  # 0.0-1.0 quality score
-    issues: List[str] = field(default_factory=list)
-    improvements: List[str] = field(default_factory=list)
+    issues: list[str] = field(default_factory=list)
+    improvements: list[str] = field(default_factory=list)
     should_repair: bool = False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "score": round(self.score, 3),
             "issues": self.issues,
@@ -72,7 +72,7 @@ Return ONLY the JSON. No markdown, no explanation."""
         self,
         task: str,
         result: Any,
-        verifications: List[VerificationResult],
+        verifications: list[VerificationResult],
     ) -> CritiqueResult:
         """Critique an execution result based on verification outputs.
 
@@ -109,7 +109,7 @@ Return ONLY the JSON. No markdown, no explanation."""
         self,
         task: str,
         result: Any,
-        verifications: List[VerificationResult],
+        verifications: list[VerificationResult],
     ) -> CritiqueResult:
         """Generate a critique based purely on verification results (no LLM)."""
         issues = []
@@ -181,8 +181,8 @@ Return ONLY the JSON. No markdown, no explanation."""
         self,
         task: str,
         result: Any,
-        verifications: List[VerificationResult],
-    ) -> Optional[CritiqueResult]:
+        verifications: list[VerificationResult],
+    ) -> CritiqueResult | None:
         """Use the LLM to perform a deeper critique."""
         # Build verification summary
         verif_parts = []
@@ -214,7 +214,7 @@ Return ONLY the JSON. No markdown, no explanation."""
 
         return self._parse_llm_critique(content)
 
-    def _parse_llm_critique(self, raw_content: str) -> Optional[CritiqueResult]:
+    def _parse_llm_critique(self, raw_content: str) -> CritiqueResult | None:
         """Parse the LLM's critique JSON response."""
         json_str = None
         code_block_match = re.search(r"```(?:json)?\s*\n?(\{.*?\})\s*\n?```", raw_content, re.DOTALL)

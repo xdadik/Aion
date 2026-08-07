@@ -75,7 +75,7 @@ class KnowledgeManager:
     # Event recording
     # ------------------------------------------------------------------
 
-    def record(self, event_type: str, data: Dict[str, Any]) -> None:
+    def record(self, event_type: str, data: dict[str, Any]) -> None:
         """
         Route an event to the appropriate builder method.
 
@@ -124,7 +124,7 @@ class KnowledgeManager:
     # Querying
     # ------------------------------------------------------------------
 
-    def query(self, task: str) -> Dict[str, Any]:
+    def query(self, task: str) -> dict[str, Any]:
         """
         Full context query for a task.  Returns entities, tool suggestions,
         risk predictions, strategy, and similar tasks all in one call.
@@ -136,7 +136,7 @@ class KnowledgeManager:
             "suggested_strategy": self._reasoner.suggest_strategy(task),
         }
 
-    def search(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+    def search(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
         """Search across all knowledge for entities matching the query."""
         entities = self._graph.semantic_search(query, limit=limit)
         return [
@@ -153,7 +153,7 @@ class KnowledgeManager:
     # Statistics & patterns
     # ------------------------------------------------------------------
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Full graph statistics plus discovered patterns."""
         return {
             "graph": self._graph.get_stats(),

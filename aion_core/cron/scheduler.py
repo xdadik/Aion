@@ -96,7 +96,7 @@ def _parse_field(field_str: str, min_val: int, max_val: int) -> set[int]:
     return allowed
 
 
-def parse_cron_expression(expression: str) -> List[set[int]]:
+def parse_cron_expression(expression: str) -> list[set[int]]:
     """Parse a 5-field cron expression into a list of allowed-value sets.
 
     Returns:
@@ -130,7 +130,7 @@ def parse_cron_expression(expression: str) -> List[set[int]]:
     return parsed
 
 
-def next_occurrence(parsed_fields: List[set[int]], after: datetime) -> datetime:
+def next_occurrence(parsed_fields: list[set[int]], after: datetime) -> datetime:
     """Calculate the next datetime *after* ``after`` that matches the schedule.
 
     Uses minute-level resolution.  Day-of-week and day-of-month are OR-ed
@@ -184,15 +184,15 @@ class ScheduledTask:
     id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])
     task: str = ""
     schedule: str = "* * * * *"
-    platforms: List[str] = field(default_factory=list)
+    platforms: list[str] = field(default_factory=list)
     enabled: bool = True
-    last_run: Optional[datetime] = None
-    next_run: Optional[datetime] = None
+    last_run: datetime | None = None
+    next_run: datetime | None = None
     run_count: int = 0
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     # Internal — parsed cron fields, populated on validation.
-    _parsed: Optional[List[set[int]]] = field(default=None, repr=False, compare=False)
+    _parsed: list[set[int]] | None = field(default=None, repr=False, compare=False)
 
     def validate_and_compute(self) -> None:
         """Parse the cron expression and compute ``next_run``."""
@@ -227,11 +227,11 @@ class CronScheduler:
     """
 
     def __init__(self, agent: Any = None, timezone: str = "UTC") -> None:
-        self._tasks: Dict[str, ScheduledTask] = {}
+        self._tasks: dict[str, ScheduledTask] = {}
         self._agent = agent
         self._timezone = timezone
         self._running: bool = False
-        self._tick_task: Optional[asyncio.Task] = None
+        self._tick_task: asyncio.Task | None = None
         self._tick_interval: int = 60  # seconds between evaluation passes
 
         logger.info(
@@ -350,7 +350,7 @@ class CronScheduler:
         self,
         task: str,
         schedule: str,
-        platforms: Optional[List[str]] = None,
+        platforms: list[str] | None = None,
     ) -> str:
         """Register a new scheduled task.
 
@@ -396,7 +396,7 @@ class CronScheduler:
         logger.warning("Task %s not found for removal", task_id)
         return False
 
-    async def list_tasks(self) -> List[ScheduledTask]:
+    async def list_tasks(self) -> list[ScheduledTask]:
         """Return a list of all registered tasks (enabled and disabled)."""
         return list(self._tasks.values())
 
@@ -438,7 +438,7 @@ class CronScheduler:
         logger.info("Task %s disabled", task_id)
         return True
 
-    async def run_task_now(self, task_id: str) -> Dict[str, Any]:
+    async def run_task_now(self, task_id: str) -> dict[str, Any]:
         """Immediately execute a task regardless of its schedule.
 
         Args:

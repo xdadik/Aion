@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import UTC, datetime, timedelta
+import time
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -19,9 +20,9 @@ class MetricsTracker:
         self.storage_dir = Path(storage_dir)
         self.storage_dir.mkdir(parents=True, exist_ok=True)
         self._metrics_file = self.storage_dir / "metrics_history.json"
-        self._history: List[Dict[str, Any]] = self._load()
+        self._history: list[dict[str, Any]] = self._load()
 
-    def _load(self) -> List[Dict[str, Any]]:
+    def _load(self) -> list[dict[str, Any]]:
         if self._metrics_file.exists():
             try:
                 data = json.loads(self._metrics_file.read_text())
@@ -34,7 +35,7 @@ class MetricsTracker:
     def _save(self) -> None:
         self._metrics_file.write_text(json.dumps(self._history, indent=2, default=str))
 
-    def record_run(self, report: BenchmarkReport) -> Dict[str, Any]:
+    def record_run(self, report: BenchmarkReport) -> dict[str, Any]:
         entry = {
             "run_id": report.run_id,
             "timestamp": report.timestamp,
@@ -53,25 +54,25 @@ class MetricsTracker:
         logger.info("Recorded run %s (score=%.2f)", report.run_id, report.overall_score)
         return entry
 
-    def get_trend(self, metric_name: str, days: int = 30) -> List[Dict[str, Any]]:
-        cutoff = datetime.now(UTC) - timedelta(days=days)
+    def get_trend(self, metric_name: str, days: int = 30) -> list[dict[str, Any]]:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         trend = []
         for entry in self._history:
             try:
                 ts = datetime.fromisoformat(entry["timestamp"])
-                if ts.replace(tzinfo=UTC) >= cutoff:
+                if ts.replace(tzinfo=timezone.utc) >= cutoff:
                     trend.append({"timestamp": entry["timestamp"], "value": entry.get(metric_name, 0.0)})
             except (KeyError, ValueError):
                 continue
         return trend
 
-    def get_best_score(self) -> Optional[Dict[str, Any]]:
+    def get_best_score(self) -> dict[str, Any] | None:
         if not self._history:
             return None
         best = max(self._history, key=lambda e: e.get("overall_score", 0.0))
         return best
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         if not self._history:
             return {"total_runs": 0, "message": "No benchmark runs recorded yet."}
         scores = [e["overall_score"] for e in self._history if "overall_score" in e]

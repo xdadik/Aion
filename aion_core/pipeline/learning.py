@@ -19,9 +19,9 @@ class TaskLesson:
     """A complete lesson learned from a single task execution."""
     task_hash: str = ""
     task_summary: str = ""
-    task_keywords: List[str] = field(default_factory=list)
+    task_keywords: list[str] = field(default_factory=list)
     mission_complexity: float = 0.5
-    mission_capabilities: List[str] = field(default_factory=list)
+    mission_capabilities: list[str] = field(default_factory=list)
     plan_node_count: int = 0
     plan_risk_level: str = "low"
     execution_success: bool = False
@@ -33,17 +33,17 @@ class TaskLesson:
     verifications_total: int = 0
     critique_score: float = 0.5
     final_confidence: float = 0.5
-    mistakes: List[str] = field(default_factory=list)
-    learned_rules: List[str] = field(default_factory=list)
+    mistakes: list[str] = field(default_factory=list)
+    learned_rules: list[str] = field(default_factory=list)
     was_repaired: bool = False
     repair_successful: bool = False
     timestamp: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "TaskLesson":
+    def from_dict(cls, data: dict[str, Any]) -> "TaskLesson":
         return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
 
 
@@ -59,13 +59,13 @@ class RuntimeLearning:
     MAX_RULES_PER_TASK = 5
     KEYWORD_EXTRACT_MIN_LEN = 3
 
-    def __init__(self, storage_path: Optional[str] = None):
+    def __init__(self, storage_path: str | None = None):
         self._storage_path = storage_path or os.path.join(
             os.path.expanduser("~"), ".aion-hand", "data", "pipeline_lessons.json"
         )
-        self._lessons: List[TaskLesson] = []
-        self._rules: List[Dict[str, Any]] = []
-        self._task_index: Dict[str, List[int]] = {}  # keyword -> [lesson indices]
+        self._lessons: list[TaskLesson] = []
+        self._rules: list[dict[str, Any]] = []
+        self._task_index: dict[str, list[int]] = {}  # keyword -> [lesson indices]
         self._loaded = False
 
     @property
@@ -112,8 +112,8 @@ class RuntimeLearning:
         self,
         task: str,
         plan: Any,
-        results: Dict[str, Any],
-        verifications: List[Any],
+        results: dict[str, Any],
+        verifications: list[Any],
         critique: Any,
         confidence: float,
     ) -> TaskLesson:
@@ -229,7 +229,7 @@ class RuntimeLearning:
         )
         return lesson
 
-    def get_relevant_lessons(self, task: str, max_lessons: int = 5) -> List[TaskLesson]:
+    def get_relevant_lessons(self, task: str, max_lessons: int = 5) -> list[TaskLesson]:
         """Retrieve past lessons relevant to a new task.
 
         Uses keyword overlap to find similar past tasks and returns
@@ -290,7 +290,7 @@ class RuntimeLearning:
 
         return [lesson for _, _, lesson in scored[:max_lessons]]
 
-    def get_applicable_rules(self, task: str, max_rules: int = 10) -> List[Dict[str, Any]]:
+    def get_applicable_rules(self, task: str, max_rules: int = 10) -> list[dict[str, Any]]:
         """Get rules that apply to a given task.
 
         Args:
@@ -310,7 +310,7 @@ class RuntimeLearning:
             return []
 
         matched_rules = []
-        seen_rules: Set[str] = set()
+        seen_rules: set[str] = set()
 
         # Match by keyword
         for kw in task_keywords:
@@ -336,10 +336,10 @@ class RuntimeLearning:
 
     def _extract_mistakes(
         self,
-        results: Dict[str, Any],
-        verifications: List[Any],
+        results: dict[str, Any],
+        verifications: list[Any],
         critique: Any,
-    ) -> List[str]:
+    ) -> list[str]:
         """Extract specific mistakes from execution results."""
         mistakes = []
 
@@ -376,11 +376,11 @@ class RuntimeLearning:
     def _generate_rules(
         self,
         task: str,
-        mistakes: List[str],
-        results: Dict[str, Any],
-        verifications: List[Any],
+        mistakes: list[str],
+        results: dict[str, Any],
+        verifications: list[Any],
         critique: Any,
-    ) -> List[str]:
+    ) -> list[str]:
         """Generate actionable rules from failures to prevent recurrence."""
         rules = []
 
@@ -435,7 +435,7 @@ class RuntimeLearning:
 
         return list(dict.fromkeys(rules))
 
-    def _extract_keywords(self, text: str) -> List[str]:
+    def _extract_keywords(self, text: str) -> list[str]:
         """Extract meaningful keywords from task text."""
         stop_words = {
             "the", "a", "an", "is", "are", "was", "were", "be", "to", "of",
@@ -520,7 +520,7 @@ class RuntimeLearning:
         except OSError as e:
             logger.error(f"Failed to save lessons to {self._storage_path}: {e}")
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get statistics about stored lessons."""
         self._ensure_loaded()
 

@@ -48,13 +48,13 @@ class CostOptimizer:
     def __init__(
         self,
         router: ModelRouter,
-        budget_limit: Optional[float] = None,
-        persist_path: Optional[str] = None,
+        budget_limit: float | None = None,
+        persist_path: str | None = None,
     ) -> None:
         self._router = router
         self._budget_limit = budget_limit
         self._persist_path = persist_path
-        self._records: List[UsageRecord] = []
+        self._records: list[UsageRecord] = []
         self._total_spent: float = 0.0
 
         # Load persisted state if available
@@ -91,7 +91,7 @@ class CostOptimizer:
         self._auto_persist()
         return cost
 
-    def estimate_cost(self, task: str, context: Optional[str] = None) -> float:
+    def estimate_cost(self, task: str, context: str | None = None) -> float:
         """Pre-execution cost estimate based on the router's decision."""
         decision = self._router.route(task, context)
         return decision.estimated_cost
@@ -102,7 +102,7 @@ class CostOptimizer:
             return float("inf")
         return max(0.0, self._budget_limit - self._total_spent)
 
-    def get_usage_report(self, period: Optional[str] = None) -> Dict[str, Any]:
+    def get_usage_report(self, period: str | None = None) -> dict[str, Any]:
         """Spending breakdown.
 
         Parameters
@@ -118,8 +118,8 @@ class CostOptimizer:
         total_in = sum(r.tokens_input for r in filtered)
         total_out = sum(r.tokens_output for r in filtered)
 
-        by_model: Dict[str, Any] = {}
-        by_tier: Dict[str, Any] = {}
+        by_model: dict[str, Any] = {}
+        by_tier: dict[str, Any] = {}
 
         for r in filtered:
             # By model
@@ -168,9 +168,9 @@ class CostOptimizer:
             ),
         }
 
-    def suggest_optimizations(self) -> List[Dict[str, str]]:
+    def suggest_optimizations(self) -> list[dict[str, str]]:
         """Analyse usage patterns and return actionable cost-saving tips."""
-        tips: List[Dict[str, str]] = []
+        tips: list[dict[str, str]] = []
 
         if not self._records:
             tips.append({
@@ -255,7 +255,7 @@ class CostOptimizer:
         self._auto_persist()
 
     # ── persistence ────────────────────────────────────────────────
-    def save(self, path: Optional[str] = None) -> None:
+    def save(self, path: str | None = None) -> None:
         """Persist current state to *path* (or configured path)."""
         target = path or self._persist_path
         if not target:
@@ -282,7 +282,7 @@ class CostOptimizer:
             json.dump(data, fh, indent=2)
         logger.debug("Saved optimizer state to %s", target)
 
-    def load(self, path: Optional[str] = None) -> None:
+    def load(self, path: str | None = None) -> None:
         """Load state from *path* (or configured path)."""
         self._load(path or self._persist_path)
 
@@ -308,7 +308,7 @@ class CostOptimizer:
         if self._persist_path:
             self.save()
 
-    def _load(self, path: Optional[str]) -> None:  # type: ignore[override]
+    def _load(self, path: str | None) -> None:  # type: ignore[override]
         if not path or not os.path.exists(path):
             return
         try:
@@ -324,7 +324,7 @@ class CostOptimizer:
             logger.error("Failed to load optimizer state from %s: %s", path, exc)
 
     @staticmethod
-    def _period_cutoff(period: Optional[str]) -> float:
+    def _period_cutoff(period: str | None) -> float:
         """Return the epoch-time cutoff for the given period string."""
         if not period:
             return 0.0

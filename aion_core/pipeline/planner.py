@@ -17,34 +17,34 @@ class PlanNode:
     id: str = ""
     name: str = ""
     node_type: str = "agent"  # agent, tool, parallel, condition, merge, verify
-    agent_type: Optional[str] = None  # planner, coder, researcher, verifier
-    tool_name: Optional[str] = None
-    prompt: Optional[str] = None
-    dependencies: List[str] = field(default_factory=list)
-    parallel_group: Optional[str] = None
+    agent_type: str | None = None  # planner, coder, researcher, verifier
+    tool_name: str | None = None
+    prompt: str | None = None
+    dependencies: list[str] = field(default_factory=list)
+    parallel_group: str | None = None
     retry_limit: int = 2
     timeout: int = 120
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "PlanNode":
+    def from_dict(cls, data: dict[str, Any]) -> "PlanNode":
         return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
 
 
 @dataclass
 class ExecutionPlan:
     """A complete execution plan: a DAG of PlanNodes."""
-    nodes: Dict[str, PlanNode] = field(default_factory=dict)
+    nodes: dict[str, PlanNode] = field(default_factory=dict)
     entry_node: str = ""
     total_estimated_tokens: int = 0
     total_estimated_time: int = 0
     complexity: float = 0.5
     risk_level: str = "low"  # low, medium, high
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "nodes": {nid: n.to_dict() for nid, n in self.nodes.items()},
             "entry_node": self.entry_node,
@@ -93,7 +93,7 @@ Return ONLY the JSON array. No markdown, no explanation."""
     async def plan(
         self,
         mission: MissionAnalysis,
-        lessons: Optional[List[Any]] = None,
+        lessons: list[Any] | None = None,
     ) -> ExecutionPlan:
         """Build an execution plan from mission analysis.
 
@@ -268,7 +268,7 @@ Return ONLY the JSON array. No markdown, no explanation."""
         self,
         mission: MissionAnalysis,
         risk_level: str,
-        lessons: Optional[List[Any]],
+        lessons: list[Any] | None,
     ) -> ExecutionPlan:
         """Create a complex execution plan using LLM assistance."""
         capabilities_str = ", ".join(mission.capabilities_needed)
@@ -532,7 +532,7 @@ Return ONLY the JSON array. No markdown, no explanation."""
             metadata={"is_final_verify": True},
         )
 
-    def _find_terminal_nodes(self, plan: ExecutionPlan) -> List[str]:
+    def _find_terminal_nodes(self, plan: ExecutionPlan) -> list[str]:
         """Find nodes that nothing else depends on (terminal/leaf nodes)."""
         all_deps = set()
         for node in plan.nodes.values():
@@ -559,7 +559,7 @@ Return ONLY the JSON array. No markdown, no explanation."""
                     if safety_note not in node.prompt:
                         node.prompt += safety_note
 
-    def _apply_lessons(self, plan: ExecutionPlan, lessons: List[Any]) -> None:
+    def _apply_lessons(self, plan: ExecutionPlan, lessons: list[Any]) -> None:
         """Apply lessons from past executions to improve the plan."""
         applicable_rules = []
         for lesson in lessons[:10]:

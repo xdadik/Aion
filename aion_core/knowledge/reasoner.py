@@ -25,7 +25,7 @@ class GraphReasoner:
     # Context
     # ------------------------------------------------------------------
 
-    def get_context_for_task(self, task: str) -> Dict[str, Any]:
+    def get_context_for_task(self, task: str) -> dict[str, Any]:
         """
         Given a task description, find relevant entities, relations,
         and related past tasks.
@@ -90,7 +90,7 @@ class GraphReasoner:
     # Tool suggestions
     # ------------------------------------------------------------------
 
-    def suggest_tools(self, task: str) -> List[Dict[str, Any]]:
+    def suggest_tools(self, task: str) -> list[dict[str, Any]]:
         """
         Based on similar past tasks, suggest tools that were useful.
         Returns a list sorted by relevance score.
@@ -110,7 +110,7 @@ class GraphReasoner:
         top_tasks = [t for _, t in relevant_tasks[:10]]
 
         # Collect tools used by those tasks
-        tool_scores: Dict[str, Dict[str, Any]] = {}
+        tool_scores: dict[str, dict[str, Any]] = {}
         for t in top_tasks:
             tool_rels = self._graph.get_relations(
                 entity_id=t.id, relation_type="uses"
@@ -152,7 +152,7 @@ class GraphReasoner:
     # Risk prediction
     # ------------------------------------------------------------------
 
-    def predict_risks(self, task: str) -> List[Dict[str, Any]]:
+    def predict_risks(self, task: str) -> list[dict[str, Any]]:
         """
         Based on past failures with similar characteristics, predict
         potential risks for a given task.
@@ -207,7 +207,7 @@ class GraphReasoner:
     # Strategy suggestion
     # ------------------------------------------------------------------
 
-    def suggest_strategy(self, task: str) -> Dict[str, Any]:
+    def suggest_strategy(self, task: str) -> dict[str, Any]:
         """
         Based on successful past approaches for similar tasks, suggest
         a strategy.
@@ -274,7 +274,7 @@ class GraphReasoner:
         }
 
     def _synthesize_approach(
-        self, tasks: List[Dict[str, Any]], tools: List[str]
+        self, tasks: list[dict[str, Any]], tools: list[str]
     ) -> str:
         """Generate a natural-language strategy description."""
         if not tasks:
@@ -303,8 +303,8 @@ class GraphReasoner:
     def explain_failure(
         self,
         error: str,
-        context: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        context: str | None = None,
+    ) -> dict[str, Any]:
         """
         Look up similar past failures and how they were resolved.
         Returns explanation with fixes, related errors, and path to resolution.

@@ -30,7 +30,7 @@ class RouterManager:
         * ``default_tier`` (str) — fallback tier
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         cfg = config or {}
 
         self.router = ModelRouter(cfg)
@@ -50,9 +50,9 @@ class RouterManager:
     def route(
         self,
         task: str,
-        context: Optional[str] = None,
-        force_tier: Optional[str] = None,
-        preferred_provider: Optional[str] = None,
+        context: str | None = None,
+        force_tier: str | None = None,
+        preferred_provider: str | None = None,
     ) -> RoutingDecision:
         """Route a task and optionally check budget before proceeding.
 
@@ -88,7 +88,7 @@ class RouterManager:
         return self.optimizer.track_usage(model, tokens_input, tokens_output)
 
     # ── reporting ──────────────────────────────────────────────────
-    def get_report(self, period: Optional[str] = None) -> Dict[str, Any]:
+    def get_report(self, period: str | None = None) -> dict[str, Any]:
         """Combined routing stats + cost report."""
         return {
             "routing_stats": self.router.get_routing_stats(),
@@ -100,10 +100,10 @@ class RouterManager:
         }
 
     # ── persistence ────────────────────────────────────────────────
-    def save(self, path: Optional[str] = None) -> None:
+    def save(self, path: str | None = None) -> None:
         """Persist optimizer state (routing stats are ephemeral)."""
         self.optimizer.save(path)
 
-    def load(self, path: Optional[str] = None) -> None:
+    def load(self, path: str | None = None) -> None:
         """Load persisted optimizer state."""
         self.optimizer.load(path)

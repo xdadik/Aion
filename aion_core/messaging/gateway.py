@@ -29,13 +29,11 @@ swap them for production implementations by subclassing ``PlatformAdapter``.
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import logging
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone
+from typing import Any, AsyncIterator, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -59,8 +57,8 @@ class Message:
     platform: str = ""
     user_id: str = ""
     content: str = ""
-    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
-    reply_to: Optional[str] = None
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    reply_to: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -128,12 +126,12 @@ class TelegramAdapter(PlatformAdapter):
         token (str): Bot API token from @BotFather.
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         self._config = config or {}
         self._connected: bool = False
         self._token: str = self._config.get("token", "")
         self._receive_queue: asyncio.Queue[Message] = asyncio.Queue()
-        self._poll_task: Optional[asyncio.Task] = None
+        self._poll_task: asyncio.Task | None = None
 
     # -- ABC implementation ------------------------------------------------
 
@@ -172,8 +170,10 @@ class TelegramAdapter(PlatformAdapter):
         self._connected = False
         if self._poll_task and not self._poll_task.done():
             self._poll_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
+            try:
                 await self._poll_task
+            except asyncio.CancelledError:
+                pass
         logger.info("[%s] Disconnected", self.platform_name())
 
     async def send(self, user_id: str, content: str) -> bool:
@@ -196,7 +196,7 @@ class TelegramAdapter(PlatformAdapter):
             try:
                 msg = await asyncio.wait_for(self._receive_queue.get(), timeout=1.0)
                 yield msg
-            except TimeoutError:
+            except asyncio.TimeoutError:
                 continue
             except asyncio.CancelledError:
                 break
@@ -248,12 +248,12 @@ class DiscordAdapter(PlatformAdapter):
         token (str): Bot token from the Discord Developer Portal.
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         self._config = config or {}
         self._connected: bool = False
         self._token: str = self._config.get("token", "")
         self._receive_queue: asyncio.Queue[Message] = asyncio.Queue()
-        self._ws_task: Optional[asyncio.Task] = None
+        self._ws_task: asyncio.Task | None = None
 
     # -- ABC implementation ------------------------------------------------
 
@@ -294,8 +294,10 @@ class DiscordAdapter(PlatformAdapter):
         self._connected = False
         if self._ws_task and not self._ws_task.done():
             self._ws_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
+            try:
                 await self._ws_task
+            except asyncio.CancelledError:
+                pass
         logger.info(
             "[%s] Sent WS close, gateway disconnected", self.platform_name()
         )
@@ -320,7 +322,7 @@ class DiscordAdapter(PlatformAdapter):
             try:
                 msg = await asyncio.wait_for(self._receive_queue.get(), timeout=1.0)
                 yield msg
-            except TimeoutError:
+            except asyncio.TimeoutError:
                 continue
             except asyncio.CancelledError:
                 break
@@ -373,13 +375,13 @@ class SlackAdapter(PlatformAdapter):
         app_token (str): ``xapp-…`` token for Socket Mode.
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         self._config = config or {}
         self._connected: bool = False
         self._bot_token: str = self._config.get("bot_token", "")
         self._app_token: str = self._config.get("app_token", "")
         self._receive_queue: asyncio.Queue[Message] = asyncio.Queue()
-        self._ws_task: Optional[asyncio.Task] = None
+        self._ws_task: asyncio.Task | None = None
 
     # -- ABC implementation ------------------------------------------------
 
@@ -416,8 +418,10 @@ class SlackAdapter(PlatformAdapter):
         self._connected = False
         if self._ws_task and not self._ws_task.done():
             self._ws_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
+            try:
                 await self._ws_task
+            except asyncio.CancelledError:
+                pass
         logger.info("[%s] Socket Mode disconnected", self.platform_name())
 
     async def send(self, user_id: str, content: str) -> bool:
@@ -439,7 +443,7 @@ class SlackAdapter(PlatformAdapter):
             try:
                 msg = await asyncio.wait_for(self._receive_queue.get(), timeout=1.0)
                 yield msg
-            except TimeoutError:
+            except asyncio.TimeoutError:
                 continue
             except asyncio.CancelledError:
                 break
@@ -478,7 +482,7 @@ class SlackAdapter(PlatformAdapter):
 # Adapter registry — maps platform name → class
 # ---------------------------------------------------------------------------
 
-_ADAPTER_REGISTRY: Dict[str, type[PlatformAdapter]] = {
+_ADAPTER_REGISTRY: dict[str, type[PlatformAdapter]] = {
     "telegram": TelegramAdapter,
     "discord": DiscordAdapter,
     "slack": SlackAdapter,
@@ -529,13 +533,13 @@ class MessagingGateway:
 
     def __init__(
         self,
-        platforms: Dict[str, Dict[str, Any]],
+        platforms: dict[str, dict[str, Any]],
         agent: Any,
     ) -> None:
-        self._adapters: Dict[str, PlatformAdapter] = {}
+        self._adapters: dict[str, PlatformAdapter] = {}
         self._agent = agent
         self._running: bool = False
-        self._receive_tasks: Dict[str, asyncio.Task] = {}
+        self._receive_tasks: dict[str, asyncio.Task] = {}
 
         # Instantiate adapters from the registry
         for name, config in platforms.items():
@@ -576,7 +580,7 @@ class MessagingGateway:
             *connect_coros.values(), return_exceptions=True
         )
 
-        for name, result in zip(connect_coros.keys(), results, strict=True):
+        for name, result in zip(connect_coros.keys(), results):
             if isinstance(result, Exception):
                 logger.error("[%s] Failed to connect: %s", name, result)
             else:
@@ -597,12 +601,14 @@ class MessagingGateway:
         self._running = False
 
         # Cancel dispatch loops first
-        for _name, task in self._receive_tasks.items():
+        for name, task in self._receive_tasks.items():
             if not task.done():
                 task.cancel()
-        for _name, task in self._receive_tasks.items():
-            with contextlib.suppress(asyncio.CancelledError):
+        for name, task in self._receive_tasks.items():
+            try:
                 await task
+            except asyncio.CancelledError:
+                pass
         self._receive_tasks.clear()
 
         # Disconnect adapters concurrently
@@ -643,8 +649,8 @@ class MessagingGateway:
         return success
 
     async def broadcast(
-        self, platforms: List[str], content: str
-    ) -> Dict[str, bool]:
+        self, platforms: list[str], content: str
+    ) -> dict[str, bool]:
         """Send the same content to multiple platforms concurrently.
 
         Returns:
@@ -655,8 +661,8 @@ class MessagingGateway:
         }
         results = await asyncio.gather(*coros.values(), return_exceptions=True)
 
-        outcome: Dict[str, bool] = {}
-        for name, result in zip(coros.keys(), results, strict=True):
+        outcome: dict[str, bool] = {}
+        for name, result in zip(coros.keys(), results):
             if isinstance(result, Exception):
                 logger.error("[%s] broadcast error: %s", name, result)
                 outcome[name] = False

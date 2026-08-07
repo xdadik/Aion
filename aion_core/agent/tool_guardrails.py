@@ -119,9 +119,9 @@ class ToolCallRecord:
     args_hash: str
     result_status: str
     timestamp: float
-    raw_args: Optional[Dict[str, Any]] = None
+    raw_args: dict[str, Any] | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "tool_name": self.tool_name,
             "args_hash": self.args_hash,
@@ -157,7 +157,7 @@ class ToolGuardrails:
                 raise ToolLoopDetected("blocked by guardrails")
     """
 
-    def __init__(self, config: Optional[ToolGuardrailConfig] = None) -> None:
+    def __init__(self, config: ToolGuardrailConfig | None = None) -> None:
         self._config = config or ToolGuardrailConfig()
         self._history: deque[ToolCallRecord] = deque(
             maxlen=self._config.max_history,
@@ -231,7 +231,7 @@ class ToolGuardrails:
 
         return ToolGuardrailDecision.PROCEED
 
-    def get_history(self) -> List[ToolCallRecord]:
+    def get_history(self) -> list[ToolCallRecord]:
         """Return the full history of tool-call records."""
         return list(self._history)
 
@@ -240,7 +240,7 @@ class ToolGuardrails:
         self._history.clear()
         logger.debug("ToolGuardrails: history reset")
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Return statistics about observed patterns.
 
         Includes per-tool failure counts, exact-failure hotspots, and the
@@ -443,18 +443,18 @@ class _ToolCall:
     """Lightweight wrapper used internally by the executor."""
 
     tool_name: str
-    args: Dict[str, Any]
-    call_id: Optional[str] = None
+    args: dict[str, Any]
+    call_id: str | None = None
 
 
 @dataclass
 class _ToolResult:
     """Result container for a single tool execution."""
 
-    call_id: Optional[str]
+    call_id: str | None
     tool_name: str
     result: Any
-    error: Optional[str] = None
+    error: str | None = None
     duration_seconds: float = 0.0
 
 
@@ -492,9 +492,9 @@ class ConcurrentToolExecutor:
 
     async def execute_concurrent(
         self,
-        tool_calls: Sequence[Dict[str, Any]],
-        executor_fn: Callable[[str, Dict[str, Any]], Any],
-    ) -> List[Dict[str, Any]]:
+        tool_calls: Sequence[dict[str, Any]],
+        executor_fn: Callable[[str, dict[str, Any]], Any],
+    ) -> list[dict[str, Any]]:
         """Execute a batch of tool calls with safety grouping.
 
         Dangerous tools run sequentially (one at a time); safe tools are
@@ -519,7 +519,7 @@ class ConcurrentToolExecutor:
             for tc in tool_calls
         ]
         batches = self._plan_batches(calls)
-        results: List[_ToolResult] = []
+        results: list[_ToolResult] = []
 
         for batch in batches:
             if len(batch) == 1:
@@ -544,7 +544,7 @@ class ConcurrentToolExecutor:
                         results.append(br)
 
         # Map results back to original order
-        call_to_result: Dict[str, _ToolResult] = {}
+        call_to_result: dict[str, _ToolResult] = {}
         for r in results:
             call_to_result[r.tool_name] = r  # last match wins (acceptable)
 
@@ -573,9 +573,9 @@ class ConcurrentToolExecutor:
 
     async def execute_sequential(
         self,
-        tool_calls: Sequence[Dict[str, Any]],
-        executor_fn: Callable[[str, Dict[str, Any]], Any],
-    ) -> List[Dict[str, Any]]:
+        tool_calls: Sequence[dict[str, Any]],
+        executor_fn: Callable[[str, dict[str, Any]], Any],
+    ) -> list[dict[str, Any]]:
         """Execute tool calls strictly one at a time.
 
         Useful when the order matters (e.g. create-then-configure).
@@ -588,7 +588,7 @@ class ConcurrentToolExecutor:
         Returns:
             List of result dicts in the same order as *tool_calls*.
         """
-        results: List[Dict[str, Any]] = []
+        results: list[dict[str, Any]] = []
         for tc in tool_calls:
             call = _ToolCall(
                 tool_name=tc["tool_name"],
@@ -610,15 +610,15 @@ class ConcurrentToolExecutor:
     def _plan_batches(
         self,
         calls: Sequence[_ToolCall],
-    ) -> List[List[_ToolCall]]:
+    ) -> list[list[_ToolCall]]:
         """Group tool calls into safe parallel batches.
 
         Strategy:
           * Each dangerous tool gets its own singleton batch.
           * Safe tools are grouped into batches of at most ``max_concurrency``.
         """
-        safe: List[_ToolCall] = []
-        batches: List[List[_ToolCall]] = []
+        safe: list[_ToolCall] = []
+        batches: list[list[_ToolCall]] = []
 
         for call in calls:
             if self._is_dangerous_tool(call.tool_name):
@@ -654,7 +654,7 @@ class ConcurrentToolExecutor:
     async def _run_one(
         self,
         call: _ToolCall,
-        executor_fn: Callable[[str, Dict[str, Any]], Any],
+        executor_fn: Callable[[str, dict[str, Any]], Any],
     ) -> _ToolResult:
         """Execute a single tool call with timeout protection."""
         start = time.monotonic()

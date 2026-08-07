@@ -34,16 +34,16 @@ optional dependency, the loader can transparently support YAML as well.
 
 from __future__ import annotations
 
-import contextlib
 import copy
 import json
 import logging
 import os
+import shutil
 import sys
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 logger = logging.getLogger(__name__)
 
@@ -202,7 +202,7 @@ def get_aion_home() -> Path:
 # ---------------------------------------------------------------------------
 
 
-def normalize_proxy_env_vars() -> Dict[str, str]:
+def normalize_proxy_env_vars() -> dict[str, str]:
     """Normalize proxy environment variables.
 
     Ensures lowercase variants are set if uppercase ones exist.
@@ -215,7 +215,7 @@ def normalize_proxy_env_vars() -> Dict[str, str]:
         "https_proxy": "HTTPS_PROXY",
         "no_proxy": "NO_PROXY",
     }
-    result: Dict[str, str] = {}
+    result: dict[str, str] = {}
     for lower, upper in mapping.items():
         val = os.environ.get(upper) or os.environ.get(lower)
         if val:
@@ -245,10 +245,10 @@ class ModelConfig:
     timeout: int = 120
     retry_count: int = 3
     retry_delay: float = 1.0
-    extra: Dict[str, Any] = field(default_factory=dict)
+    extra: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
-        d: Dict[str, Any] = {
+    def to_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {
             "name": self.name,
             "provider": self.provider,
             "api_key": self.api_key,
@@ -267,7 +267,7 @@ class ModelConfig:
         return d
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> ModelConfig:
+    def from_dict(cls, data: dict[str, Any]) -> "ModelConfig":
         return cls(
             name=data.get("name", cls().name),
             provider=data.get("provider", cls().provider),
@@ -294,16 +294,16 @@ class SecurityConfig:
     sandbox_timeout: int = 30
     max_tool_calls_per_turn: int = 20
     max_code_length: int = 50000
-    allowed_dirs: List[str] = field(default_factory=lambda: ["~/.aion-hand"])
-    blocked_commands: List[str] = field(default_factory=lambda: [
+    allowed_dirs: list[str] = field(default_factory=lambda: ["~/.aion-hand"])
+    blocked_commands: list[str] = field(default_factory=lambda: [
         "rm -rf /", "dd if=/dev/zero", ":(){ :|:& };:",
     ])
     require_approval: bool = False
     audit_log: bool = True
-    extra: Dict[str, Any] = field(default_factory=dict)
+    extra: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
-        d: Dict[str, Any] = {
+    def to_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {
             "enabled": self.enabled,
             "sandbox_enabled": self.sandbox_enabled,
             "sandbox_timeout": self.sandbox_timeout,
@@ -319,7 +319,7 @@ class SecurityConfig:
         return d
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> SecurityConfig:
+    def from_dict(cls, data: dict[str, Any]) -> "SecurityConfig":
         return cls(
             enabled=bool(data.get("enabled", cls().enabled)),
             sandbox_enabled=bool(data.get("sandbox_enabled", cls().sandbox_enabled)),
@@ -350,10 +350,10 @@ class MemoryConfig:
     persistence_backend: str = "json"  # json | sqlite
     fts_enabled: bool = True
     search_default_limit: int = 20
-    extra: Dict[str, Any] = field(default_factory=dict)
+    extra: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
-        d: Dict[str, Any] = {
+    def to_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {
             "enabled": self.enabled,
             "working_max": self.working_max,
             "session_max": self.session_max,
@@ -372,7 +372,7 @@ class MemoryConfig:
         return d
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> MemoryConfig:
+    def from_dict(cls, data: dict[str, Any]) -> "MemoryConfig":
         return cls(
             enabled=bool(data.get("enabled", cls().enabled)),
             working_max=int(data.get("working_max", cls().working_max)),
@@ -403,10 +403,10 @@ class PipelineConfig:
     max_repair_attempts: int = 3
     planner_model: str = ""
     critic_model: str = ""
-    extra: Dict[str, Any] = field(default_factory=dict)
+    extra: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
-        d: Dict[str, Any] = {
+    def to_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {
             "enabled": self.enabled,
             "max_iterations": self.max_iterations,
             "learning_rate": self.learning_rate,
@@ -422,7 +422,7 @@ class PipelineConfig:
         return d
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> PipelineConfig:
+    def from_dict(cls, data: dict[str, Any]) -> "PipelineConfig":
         return cls(
             enabled=bool(data.get("enabled", cls().enabled)),
             max_iterations=int(data.get("max_iterations", cls().max_iterations)),
@@ -442,7 +442,7 @@ class GatewayConfig:
     """Configuration for the messaging gateway."""
 
     enabled: bool = False
-    platforms: List[str] = field(default_factory=list)
+    platforms: list[str] = field(default_factory=list)
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
     discord_bot_token: str = ""
@@ -452,10 +452,10 @@ class GatewayConfig:
     webhook_secret: str = ""
     rate_limit: int = 60
     max_message_length: int = 4000
-    extra: Dict[str, Any] = field(default_factory=dict)
+    extra: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
-        d: Dict[str, Any] = {
+    def to_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {
             "enabled": self.enabled,
             "platforms": self.platforms,
             "telegram_bot_token": self.telegram_bot_token,
@@ -473,7 +473,7 @@ class GatewayConfig:
         return d
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> GatewayConfig:
+    def from_dict(cls, data: dict[str, Any]) -> "GatewayConfig":
         return cls(
             enabled=bool(data.get("enabled", cls().enabled)),
             platforms=data.get("platforms", cls().platforms),
@@ -500,10 +500,10 @@ class CronConfig:
     default_timezone: str = "UTC"
     persistent: bool = True
     state_file: str = "cron_state.json"
-    extra: Dict[str, Any] = field(default_factory=dict)
+    extra: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
-        d: Dict[str, Any] = {
+    def to_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {
             "enabled": self.enabled,
             "tick_interval": self.tick_interval,
             "max_tasks": self.max_tasks,
@@ -516,7 +516,7 @@ class CronConfig:
         return d
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> CronConfig:
+    def from_dict(cls, data: dict[str, Any]) -> "CronConfig":
         return cls(
             enabled=bool(data.get("enabled", cls().enabled)),
             tick_interval=int(data.get("tick_interval", cls().tick_interval)),
@@ -533,16 +533,16 @@ class MCPConfig:
     """Configuration for the Model Context Protocol integration."""
 
     enabled: bool = True
-    servers: List[Dict[str, Any]] = field(default_factory=list)
+    servers: list[dict[str, Any]] = field(default_factory=list)
     default_timeout: int = 30
     max_retries: int = 2
     retry_delay: float = 1.0
     auto_discover: bool = True
     transport: str = "stdio"  # stdio | sse
-    extra: Dict[str, Any] = field(default_factory=dict)
+    extra: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
-        d: Dict[str, Any] = {
+    def to_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {
             "enabled": self.enabled,
             "servers": self.servers,
             "default_timeout": self.default_timeout,
@@ -556,7 +556,7 @@ class MCPConfig:
         return d
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> MCPConfig:
+    def from_dict(cls, data: dict[str, Any]) -> "MCPConfig":
         return cls(
             enabled=bool(data.get("enabled", cls().enabled)),
             servers=data.get("servers", cls().servers),
@@ -625,7 +625,7 @@ class AionConfig:
     # Benchmark
     benchmark_enabled: bool = False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize to a plain dict suitable for JSON dumping."""
         return {
             "name": self.name,
@@ -656,7 +656,7 @@ class AionConfig:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> AionConfig:
+    def from_dict(cls, data: dict[str, Any]) -> "AionConfig":
         """Deserialize from a plain dict (e.g. loaded JSON)."""
         home = data.get("home_dir", "")
         return cls(
@@ -741,16 +741,22 @@ def _apply_env_overlays(config: AionConfig) -> AionConfig:
         config.model.api_base = api_base
     temp = os.environ.get(ENV_TEMPERATURE)
     if temp is not None:
-        with contextlib.suppress(ValueError):
+        try:
             config.model.temperature = float(temp)
+        except ValueError:
+            pass
     max_tok = os.environ.get(ENV_MAX_TOKENS)
     if max_tok is not None:
-        with contextlib.suppress(ValueError):
+        try:
             config.model.max_tokens = int(max_tok)
+        except ValueError:
+            pass
     timeout = os.environ.get(ENV_TIMEOUT)
     if timeout is not None:
-        with contextlib.suppress(ValueError):
+        try:
             config.model.timeout = int(timeout)
+        except ValueError:
+            pass
 
     # General
     log_level = os.environ.get(ENV_LOG_LEVEL)
@@ -788,7 +794,7 @@ def _apply_env_overlays(config: AionConfig) -> AionConfig:
 # ---------------------------------------------------------------------------
 
 
-def _discover_config_file(explicit: Optional[str] = None) -> Optional[Path]:
+def _discover_config_file(explicit: str | None = None) -> Path | None:
     """Locate the config file.
 
     Search order:
@@ -797,7 +803,7 @@ def _discover_config_file(explicit: Optional[str] = None) -> Optional[Path]:
         3. ``<aion_home>/config/config.json``
         4. ``<aion_home>/config.json``
     """
-    candidates: List[Path] = []
+    candidates: list[Path] = []
 
     # 1. Explicit path
     if explicit:
@@ -828,9 +834,9 @@ def _discover_config_file(explicit: Optional[str] = None) -> Optional[Path]:
 
 
 def load_config(
-    config_file: Optional[str] = None,
-    profile: Optional[str] = None,
-    cli_overrides: Optional[Dict[str, Any]] = None,
+    config_file: str | None = None,
+    profile: str | None = None,
+    cli_overrides: dict[str, Any] | None = None,
 ) -> AionConfig:
     """Load the Aion Hand configuration.
 
@@ -886,7 +892,7 @@ def load_config(
     return config
 
 
-def _apply_overrides(config: AionConfig, overrides: Dict[str, Any]) -> AionConfig:
+def _apply_overrides(config: AionConfig, overrides: dict[str, Any]) -> AionConfig:
     """Apply a flat dict of overrides onto the config.
 
     Supports dotted keys like ``model.temperature`` and ``security.enabled``.
@@ -916,7 +922,7 @@ def _apply_overrides(config: AionConfig, overrides: Dict[str, Any]) -> AionConfi
 
 def save_config(
     config: AionConfig,
-    config_file: Optional[str] = None,
+    config_file: str | None = None,
 ) -> Path:
     """Save the configuration to a JSON file with atomic writes.
 
@@ -957,8 +963,10 @@ def save_config(
         logger.info("Config saved to %s", target)
     except BaseException:
         # Clean up temp file on any failure
-        with contextlib.suppress(OSError):
+        try:
             os.unlink(tmp_path)
+        except OSError:
+            pass
         raise
 
     return target
@@ -969,7 +977,7 @@ def save_config(
 # ---------------------------------------------------------------------------
 
 
-def create_default_config(home: Optional[Path] = None) -> AionConfig:
+def create_default_config(home: Path | None = None) -> AionConfig:
     """Create a default configuration with paths resolved.
 
     This is useful for bootstrapping a fresh installation.
@@ -994,7 +1002,7 @@ def create_default_config(home: Optional[Path] = None) -> AionConfig:
 # ---------------------------------------------------------------------------
 
 
-def parse_cli_overrides(argv: Optional[List[str]] = None) -> Dict[str, Any]:
+def parse_cli_overrides(argv: list[str] | None = None) -> dict[str, Any]:
     """Parse ``--config-key=value`` style CLI arguments.
 
     Examples::
@@ -1013,7 +1021,7 @@ def parse_cli_overrides(argv: Optional[List[str]] = None) -> Dict[str, Any]:
     if argv is None:
         argv = sys.argv[1:]
 
-    overrides: Dict[str, Any] = {}
+    overrides: dict[str, Any] = {}
     for arg in argv:
         if arg.startswith("--") and "=" in arg:
             key_val = arg[2:]
@@ -1054,7 +1062,7 @@ def _coerce_cli_value(val: str) -> Any:
 # ---------------------------------------------------------------------------
 
 
-def validate_config(config: AionConfig) -> List[str]:
+def validate_config(config: AionConfig) -> list[str]:
     """Validate a configuration and return a list of warnings.
 
     Does not raise — just collects warnings so the caller can decide
@@ -1063,7 +1071,7 @@ def validate_config(config: AionConfig) -> List[str]:
     Returns:
         A list of warning strings (empty if all good).
     """
-    warnings: List[str] = []
+    warnings: list[str] = []
 
     # Model provider
     if config.model.provider and config.model.provider not in KNOWN_PROVIDERS:
@@ -1118,14 +1126,14 @@ def validate_config(config: AionConfig) -> List[str]:
 # ---------------------------------------------------------------------------
 
 
-def config_diff(a: AionConfig, b: AionConfig) -> Dict[str, Tuple[Any, Any]]:
+def config_diff(a: AionConfig, b: AionConfig) -> dict[str, tuple[Any, Any]]:
     """Compute the difference between two configs.
 
     Returns:
         A dict mapping field paths to ``(old_value, new_value)`` tuples.
         Only changed fields are included.
     """
-    diff: Dict[str, Tuple[Any, Any]] = {}
+    diff: dict[str, tuple[Any, Any]] = {}
 
     def _compare(path: str, va: Any, vb: Any) -> None:
         if isinstance(va, (list, dict)) and isinstance(vb, (list, dict)):

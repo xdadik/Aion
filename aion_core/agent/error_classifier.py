@@ -134,14 +134,14 @@ class ClassifiedError:
     message: str
     retryable: bool = True
     retry_after_seconds: float = 0.0
-    provider: Optional[str] = None
-    model: Optional[str] = None
-    context: Dict[str, Any] = field(default_factory=dict)
+    provider: str | None = None
+    model: str | None = None
+    context: dict[str, Any] = field(default_factory=dict)
 
     # -- Convenience helpers -----------------------------------------------
 
     def __str__(self) -> str:
-        bits: List[str] = [self.reason.value, self.message]
+        bits: list[str] = [self.reason.value, self.message]
         if self.provider:
             bits.append(f"provider={self.provider}")
         if self.model:
@@ -150,7 +150,7 @@ class ClassifiedError:
             bits.append(f"retry_after={self.retry_after_seconds:.1f}s")
         return " | ".join(bits)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialise to a plain dict suitable for JSON logging."""
         return {
             "reason": self.reason.value,
@@ -189,7 +189,7 @@ class ErrorRecoveryStrategy(str, Enum):
 # Reason → Strategy mapping
 # ======================================================================
 
-_REASON_STRATEGY_MAP: Dict[FailoverReason, ErrorRecoveryStrategy] = {
+_REASON_STRATEGY_MAP: dict[FailoverReason, ErrorRecoveryStrategy] = {
     # Auth / Billing
     FailoverReason.AUTH:               ErrorRecoveryStrategy.ROTATE_CREDENTIAL,
     FailoverReason.AUTH_PERMANENT:     ErrorRecoveryStrategy.ABORT,
@@ -256,7 +256,7 @@ def get_recovery_strategy(reason: FailoverReason) -> ErrorRecoveryStrategy:
 # ======================================================================
 
 # Keywords we scan for in exception messages and HTTP response bodies.
-_HTTP_STATUS_MAP: Dict[int, FailoverReason] = {
+_HTTP_STATUS_MAP: dict[int, FailoverReason] = {
     400: FailoverReason.FORMAT_ERROR,
     401: FailoverReason.AUTH,
     402: FailoverReason.BILLING,
@@ -271,7 +271,7 @@ _HTTP_STATUS_MAP: Dict[int, FailoverReason] = {
     504: FailoverReason.TIMEOUT,
 }
 
-_REASON_KEYWORD_MAP: List[tuple] = [
+_REASON_KEYWORD_MAP: list[tuple] = [
     # (keywords tuple, reason, retry_after_hint)
     (
         ("rate_limit", "ratelimit", "rate limit", "too many requests", "request_limit"),
@@ -389,8 +389,8 @@ _REASON_KEYWORD_MAP: List[tuple] = [
 def classify_error(
     error: BaseException,
     *,
-    provider: Optional[str] = None,
-    model: Optional[str] = None,
+    provider: str | None = None,
+    model: str | None = None,
 ) -> ClassifiedError:
     """Classify a raw exception into a :class:`ClassifiedError`.
 
@@ -413,7 +413,7 @@ def classify_error(
     """
     error_type = type(error).__name__
     error_msg = str(error).lower()
-    context: Dict[str, Any] = {
+    context: dict[str, Any] = {
         "exception_type": error_type,
         "original_message": str(error),
     }
@@ -423,7 +423,7 @@ def classify_error(
     retryable: bool = True
 
     # ── Stage 1: HTTP status code ──────────────────────────────────────
-    http_status: Optional[int] = getattr(error, "http_status", None)
+    http_status: int | None = getattr(error, "http_status", None)
     if http_status is None:
         http_status = getattr(error, "status_code", None)
     if http_status is not None:
@@ -538,8 +538,8 @@ class _ErrorEntry:
     """Internal record stored by :class:`ErrorTracker`."""
 
     reason: FailoverReason
-    provider: Optional[str]
-    model: Optional[str]
+    provider: str | None
+    model: str | None
     timestamp: float
     message: str
 
@@ -573,7 +573,7 @@ class ErrorTracker:
         self._max_entries = max_entries
         self._errors: deque[_ErrorEntry] = deque(maxlen=max_entries)
         self._counts: Counter = Counter()
-        self._provider_counts: Dict[str, Counter] = defaultdict(Counter)
+        self._provider_counts: dict[str, Counter] = defaultdict(Counter)
 
     # -- Public API -------------------------------------------------------
 
@@ -602,7 +602,7 @@ class ErrorTracker:
             error.provider or "unknown",
         )
 
-    def get_error_counts(self) -> Dict[str, int]:
+    def get_error_counts(self) -> dict[str, int]:
         """Return a dict mapping ``FailoverReason`` values to their total count.
 
         Only counts within the active window are returned.
@@ -610,7 +610,7 @@ class ErrorTracker:
         self._expire()
         return {r.value: c for r, c in self._counts.items()}
 
-    def get_recent_errors(self, limit: int = 20) -> List[ClassifiedError]:
+    def get_recent_errors(self, limit: int = 20) -> list[ClassifiedError]:
         """Return the most recent ``limit`` errors as :class:`ClassifiedError`.
 
         The list is in newest-first order.
@@ -618,7 +618,7 @@ class ErrorTracker:
         self._expire()
         recent = list(self._errors)
         recent.reverse()
-        result: List[ClassifiedError] = []
+        result: list[ClassifiedError] = []
         for entry in recent[:limit]:
             result.append(
                 ClassifiedError(
@@ -634,7 +634,7 @@ class ErrorTracker:
 
     def is_rate_limited(
         self,
-        provider: Optional[str] = None,
+        provider: str | None = None,
         threshold: int = 5,
     ) -> bool:
         """Check whether a provider has exceeded the rate-limit error threshold.
@@ -668,7 +668,7 @@ class ErrorTracker:
 
     def is_auth_failing(
         self,
-        provider: Optional[str] = None,
+        provider: str | None = None,
         threshold: int = 3,
     ) -> bool:
         """Check whether auth errors have exceeded the threshold.
@@ -695,7 +695,7 @@ class ErrorTracker:
         self._counts.clear()
         self._provider_counts.clear()
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """Produce a summary dict suitable for logging or dashboards.
 
         Includes total count, per-reason breakdown, provider breakdown, and
@@ -779,11 +779,11 @@ class ErrorBudget:
         self,
         default_budget: int = 10,
         window_seconds: float = 60.0,
-        providers: Optional[Dict[str, int]] = None,
+        providers: dict[str, int] | None = None,
     ) -> None:
         self._default_budget = default_budget
         self._window = window_seconds
-        self._budgets: Dict[str, _ProviderBudget] = {}
+        self._budgets: dict[str, _ProviderBudget] = {}
         # Seed per-provider overrides
         if providers:
             for prov, bgt in providers.items():
@@ -871,12 +871,12 @@ class ErrorBudget:
         self._expire_budget(budget)
         return budget.remaining
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """Return a summary dict of all provider budgets.
 
         Includes total budget, remaining, and exhausted status per provider.
         """
-        summary: Dict[str, Any] = {}
+        summary: dict[str, Any] = {}
         for provider, budget in self._budgets.items():
             self._expire_budget(budget)
             summary[provider] = {

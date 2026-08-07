@@ -46,9 +46,9 @@ class MCPToolRegistry:
             mcp_client: The MCP client with connected servers.
         """
         self._client = mcp_client
-        self._tool_cache: Dict[str, MCPTool] = {}
+        self._tool_cache: dict[str, MCPTool] = {}
         # Key: qualified name ``server_name:tool_name``
-        self._qualified_index: Dict[str, str] = {}
+        self._qualified_index: dict[str, str] = {}
         self._refreshed = False
 
     # ------------------------------------------------------------------
@@ -99,9 +99,9 @@ class MCPToolRegistry:
     def search_tools(
         self,
         query: str,
-        server_name: Optional[str] = None,
+        server_name: str | None = None,
         limit: int = 50,
-    ) -> List[MCPTool]:
+    ) -> list[MCPTool]:
         """Search tools by name and description.
 
         Args:
@@ -116,7 +116,7 @@ class MCPToolRegistry:
             return list(self._tool_cache.values())[:limit]
 
         query_lower = query.lower()
-        scored: List[tuple] = []
+        scored: list[tuple] = []
 
         for cache_key, tool in self._tool_cache.items():
             # Filter by server if specified
@@ -161,7 +161,7 @@ class MCPToolRegistry:
     # Lookup
     # ------------------------------------------------------------------
 
-    def get_tool(self, name: str) -> Optional[MCPTool]:
+    def get_tool(self, name: str) -> MCPTool | None:
         """Get a tool by its unqualified name.
 
         If multiple servers have a tool with the same name, returns the
@@ -173,18 +173,18 @@ class MCPToolRegistry:
                 return tool
         return None
 
-    def get_tool_qualified(self, qualified_name: str) -> Optional[MCPTool]:
+    def get_tool_qualified(self, qualified_name: str) -> MCPTool | None:
         """Get a tool by its qualified name (``server_name:tool_name``)."""
         return self._tool_cache.get(qualified_name)
 
-    def get_tools_for_server(self, server_name: str) -> List[MCPTool]:
+    def get_tools_for_server(self, server_name: str) -> list[MCPTool]:
         """Return all tools from a specific server."""
         return [
             t for t in self._tool_cache.values()
             if t.server_name == server_name
         ]
 
-    def get_all_tools(self) -> List[MCPTool]:
+    def get_all_tools(self) -> list[MCPTool]:
         """Return all cached tools."""
         return list(self._tool_cache.values())
 
@@ -192,7 +192,7 @@ class MCPToolRegistry:
     # Statistics
     # ------------------------------------------------------------------
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Return tool statistics grouped by server.
 
         Example return value::
@@ -209,7 +209,7 @@ class MCPToolRegistry:
                 "refreshed": true,
             }
         """
-        by_server: Dict[str, Dict[str, Any]] = defaultdict(
+        by_server: dict[str, dict[str, Any]] = defaultdict(
             lambda: {"count": 0, "tools": []}
         )
 
@@ -228,7 +228,7 @@ class MCPToolRegistry:
             "refreshed": self._refreshed,
         }
 
-    def get_server_names(self) -> List[str]:
+    def get_server_names(self) -> list[str]:
         """Return list of server names that have tools in the cache."""
         return sorted(set(t.server_name for t in self._tool_cache.values()))
 
@@ -249,7 +249,7 @@ class MCPToolRegistry:
     # Schema Export
     # ------------------------------------------------------------------
 
-    def get_openai_schemas(self) -> List[Dict[str, Any]]:
+    def get_openai_schemas(self) -> list[dict[str, Any]]:
         """Return all tools in OpenAI function-calling format.
 
         Convenience method that delegates to each tool's

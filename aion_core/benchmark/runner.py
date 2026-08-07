@@ -33,12 +33,12 @@ class BenchmarkReport:
     overall_score: float
     avg_tokens: float
     avg_time: float
-    category_scores: Dict[str, float] = field(default_factory=dict)
-    difficulty_scores: Dict[str, float] = field(default_factory=dict)
-    task_results: List[Dict[str, Any]] = field(default_factory=list)
-    comparison: Optional[Dict[str, Any]] = None
+    category_scores: dict[str, float] = field(default_factory=dict)
+    difficulty_scores: dict[str, float] = field(default_factory=dict)
+    task_results: list[dict[str, Any]] = field(default_factory=list)
+    comparison: dict[str, Any] | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "run_id": self.run_id,
             "timestamp": self.timestamp,
@@ -66,10 +66,10 @@ class BenchmarkRunner:
 
     def _resolve_tasks(
         self,
-        task_ids: Optional[List[str]] = None,
-        categories: Optional[List[str]] = None,
-        difficulties: Optional[List[str]] = None,
-    ) -> List[BenchmarkTask]:
+        task_ids: list[str] | None = None,
+        categories: list[str] | None = None,
+        difficulties: list[str] | None = None,
+    ) -> list[BenchmarkTask]:
         """Filter BENCHMARK_TASKS by optional IDs, categories, and difficulties."""
         tasks = list(BENCHMARK_TASKS)
         if task_ids:
@@ -91,9 +91,9 @@ class BenchmarkRunner:
 
     async def run_suite(
         self,
-        task_ids: Optional[List[str]] = None,
-        categories: Optional[List[str]] = None,
-        difficulties: Optional[List[str]] = None,
+        task_ids: list[str] | None = None,
+        categories: list[str] | None = None,
+        difficulties: list[str] | None = None,
     ) -> BenchmarkReport:
         tasks = self._resolve_tasks(task_ids, categories, difficulties)
         return await self._run_task_list(tasks)
@@ -102,8 +102,8 @@ class BenchmarkRunner:
         logger.info("Starting full benchmark with %d tasks", len(BENCHMARK_TASKS))
         return await self._run_task_list(list(BENCHMARK_TASKS))
 
-    async def _run_task_list(self, tasks: List[BenchmarkTask]) -> BenchmarkReport:
-        results: List[TaskResult] = []
+    async def _run_task_list(self, tasks: list[BenchmarkTask]) -> BenchmarkReport:
+        results: list[TaskResult] = []
         for task in tasks:
             try:
                 result = await self.run_task(task)
@@ -113,7 +113,7 @@ class BenchmarkRunner:
             results.append(result)
         return self._compile_report(results, tasks)
 
-    def _compile_report(self, results: List[TaskResult], tasks: List[BenchmarkTask]) -> BenchmarkReport:
+    def _compile_report(self, results: list[TaskResult], tasks: list[BenchmarkTask]) -> BenchmarkReport:
         if not results:
             return BenchmarkReport(
                 run_id=str(uuid.uuid4())[:8],
@@ -129,8 +129,8 @@ class BenchmarkRunner:
         avg_tokens = sum(r.tokens_used for r in results) / total
         avg_time = sum(r.time_elapsed for r in results) / total
         task_map = {t.id: t for t in tasks}
-        category_scores: Dict[str, List[float]] = {}
-        difficulty_scores: Dict[str, List[float]] = {}
+        category_scores: dict[str, list[float]] = {}
+        difficulty_scores: dict[str, list[float]] = {}
         for r in results:
             t = task_map.get(r.task_id)
             if t is None:
@@ -154,7 +154,7 @@ class BenchmarkRunner:
     async def run_task(self, task: BenchmarkTask) -> TaskResult:
         logger.info("Running task %s: %s", task.id, task.name)
         start_time = time.monotonic()
-        metadata: Dict[str, Any] = {"tools_used": [], "turns_used": 0, "tokens_used": 0, "errors": []}
+        metadata: dict[str, Any] = {"tools_used": [], "turns_used": 0, "tokens_used": 0, "errors": []}
         agent_output = ""
         try:
             agent_output = await self._execute_agent(task, metadata)
@@ -168,14 +168,14 @@ class BenchmarkRunner:
         logger.info("Task %s complete: score=%.2f, time=%.2fs", task.id, result.score, elapsed)
         return result
 
-    def compare_with_baseline(self, current: BenchmarkReport, baseline_path: str) -> Dict[str, Any]:
+    def compare_with_baseline(self, current: BenchmarkReport, baseline_path: str) -> dict[str, Any]:
         baseline_file = Path(baseline_path)
         if not baseline_file.exists():
             logger.warning("Baseline file not found: %s", baseline_path)
             return {"error": f"Baseline not found: {baseline_path}"}
         with open(baseline_file) as f:
             baseline = json.load(f)
-        comparison: Dict[str, Any] = {
+        comparison: dict[str, Any] = {
             "baseline_run_id": baseline.get("run_id", "unknown"),
             "current_run_id": current.run_id,
             "overall_delta": round(current.overall_score - baseline.get("overall_score", 0), 4),
@@ -199,7 +199,7 @@ class BenchmarkRunner:
         current.comparison = comparison
         return comparison
 
-    async def _execute_agent(self, task: BenchmarkTask, metadata: Dict[str, Any]) -> str:
+    async def _execute_agent(self, task: BenchmarkTask, metadata: dict[str, Any]) -> str:
         prompt = task.task_prompt
         raw = await self.agent.run(prompt, max_turns=task.max_turns, max_tokens=task.max_tokens, timeout=task.timeout)
         if isinstance(raw, dict):

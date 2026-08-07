@@ -15,18 +15,19 @@ Layers:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
+import os
 import re
 import sqlite3
 import time
 import uuid
-from collections.abc import Sequence
-from dataclasses import asdict, dataclass, field
-from datetime import UTC, datetime, timedelta
+from dataclasses import dataclass, field, asdict
+from datetime import datetime, timezone, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +63,7 @@ class MemoryLayer(Enum):
         return self.value
 
 
-DEFAULT_MAX_ENTRIES_PER_LAYER: Dict[MemoryLayer, int] = {
+DEFAULT_MAX_ENTRIES_PER_LAYER: dict[MemoryLayer, int] = {
     MemoryLayer.WORKING: 200,
     MemoryLayer.SESSION: 500,
     MemoryLayer.EPISODIC: 1000,
@@ -93,7 +94,7 @@ class MemoryEntry:
     id: str = field(default_factory=lambda: _make_id())
     content: str = ""
     layer: MemoryLayer = MemoryLayer.WORKING
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
     importance: float = 0.5
     created_at: str = field(
         default_factory=lambda: _now_iso(),
@@ -102,7 +103,7 @@ class MemoryEntry:
         default_factory=lambda: _now_iso(),
     )
     access_count: int = 0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     # -- helpers --
 
@@ -110,13 +111,13 @@ class MemoryEntry:
         self.updated_at = _now_iso()
         self.access_count += 1
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
         d["layer"] = self.layer.value
         return d
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> MemoryEntry:
+    def from_dict(cls, data: dict[str, Any]) -> "MemoryEntry":
         data = dict(data)  # shallow copy
         data["layer"] = MemoryLayer(data["layer"])
         return cls(**data)
@@ -127,24 +128,24 @@ class UserProfile:
     """Accumulated user model (Hermes Honcho–inspired)."""
 
     name: str = ""
-    preferences: Dict[str, Any] = field(default_factory=dict)
-    patterns: List[str] = field(default_factory=list)
+    preferences: dict[str, Any] = field(default_factory=dict)
+    patterns: list[str] = field(default_factory=list)
     communication_style: str = ""
-    notes: List[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
     first_seen: str = field(default_factory=lambda: _now_iso())
     last_seen: str = field(default_factory=lambda: _now_iso())
     interaction_count: int = 0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def touch(self) -> None:
         self.last_seen = _now_iso()
         self.interaction_count += 1
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> UserProfile:
+    def from_dict(cls, data: dict[str, Any]) -> "UserProfile":
         return cls(**data)
 
 
@@ -154,13 +155,13 @@ class NudgeState:
 
     last_nudge_time: float = 0.0
     nudge_count: int = 0
-    pending_actions: List[Dict[str, Any]] = field(default_factory=list)
+    pending_actions: list[dict[str, Any]] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> NudgeState:
+    def from_dict(cls, data: dict[str, Any]) -> "NudgeState":
         return cls(**data)
 
 
@@ -170,9 +171,9 @@ class SearchResult:
 
     entry: MemoryEntry
     score: float
-    match_highlights: List[str] = field(default_factory=list)
+    match_highlights: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "entry": self.entry.to_dict(),
             "score": self.score,
@@ -185,15 +186,15 @@ class MemoryStats:
     """Aggregate statistics about memory usage."""
 
     total_entries: int = 0
-    entries_by_layer: Dict[str, int] = field(default_factory=dict)
+    entries_by_layer: dict[str, int] = field(default_factory=dict)
     avg_importance: float = 0.0
-    oldest_entry: Optional[str] = None
-    newest_entry: Optional[str] = None
+    oldest_entry: str | None = None
+    newest_entry: str | None = None
     total_access_count: int = 0
     user_profile_filled: bool = False
     nudge_count: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -206,7 +207,7 @@ def _make_id() -> str:
 
 
 def _now_iso() -> str:
-    return datetime.now(UTC).isoformat()
+    return datetime.now(timezone.utc).isoformat()
 
 
 def _parse_iso(s: str) -> datetime:
@@ -214,10 +215,10 @@ def _parse_iso(s: str) -> datetime:
     try:
         return datetime.fromisoformat(s)
     except (ValueError, TypeError):
-        return datetime.now(UTC)
+        return datetime.now(timezone.utc)
 
 
-def _tokenize_text(text: str) -> List[str]:
+def _tokenize_text(text: str) -> list[str]:
     """Lowercase unicode-aware tokenizer for search indexing."""
     return re.findall(r"\w+", text.lower())
 
@@ -249,7 +250,7 @@ class _MemoryStorage:
     def __init__(self, memory_dir: Path, persist: bool = True) -> None:
         self._dir = memory_dir
         self._persist = persist
-        self._entries: Dict[str, MemoryEntry] = {}
+        self._entries: dict[str, MemoryEntry] = {}
         self._user_profile = UserProfile()
         self._nudge_state = NudgeState()
         self._dirty = False
@@ -341,7 +342,7 @@ class _MemoryStorage:
         self._entries[entry.id] = entry
         self._dirty = True
 
-    def get(self, entry_id: str) -> Optional[MemoryEntry]:
+    def get(self, entry_id: str) -> MemoryEntry | None:
         return self._entries.get(entry_id)
 
     def remove(self, entry_id: str) -> bool:
@@ -354,7 +355,7 @@ class _MemoryStorage:
     def all_entries(self) -> Sequence[MemoryEntry]:
         return tuple(self._entries.values())
 
-    def entries_by_layer(self, layer: MemoryLayer) -> List[MemoryEntry]:
+    def entries_by_layer(self, layer: MemoryLayer) -> list[MemoryEntry]:
         return [e for e in self._entries.values() if e.layer == layer]
 
     # -- user profile -------------------------------------------------------
@@ -387,10 +388,10 @@ class _FTSIndex:
     SQLite build (rare, but possible on some minimal distributions).
     """
 
-    def __init__(self, db_path: Optional[Path] = None) -> None:
+    def __init__(self, db_path: Path | None = None) -> None:
         self._db_path = db_path
-        self._conn: Optional[sqlite3.Connection] = None
-        self._fts5_available: Optional[bool] = None
+        self._conn: sqlite3.Connection | None = None
+        self._fts5_available: bool | None = None
         self._indexed_ids: set[str] = set()
 
     def initialize(self) -> None:
@@ -496,8 +497,8 @@ class _FTSIndex:
         self,
         query: str,
         limit: int = 20,
-        layer_filter: Optional[str] = None,
-    ) -> List[Tuple[str, float, List[str]]]:
+        layer_filter: str | None = None,
+    ) -> list[tuple[str, float, list[str]]]:
         """Search the FTS index.
 
         Returns a list of ``(entry_id, score, highlighted_terms)`` tuples,
@@ -511,7 +512,7 @@ class _FTSIndex:
 
         tokens = _tokenize_text(query)
         highlights = list(set(tokens))
-        rows: List[Tuple[str, float, List[str]]] = []
+        rows: list[tuple[str, float, list[str]]] = []
 
         if self._fts5_available:
             # Build FTS5 query — use quoted phrase for multi-token, OR for
@@ -553,17 +554,17 @@ class _FTSIndex:
 
     def _fallback_search(
         self,
-        tokens: List[str],
-        highlights: List[str],
+        tokens: list[str],
+        highlights: list[str],
         limit: int,
-        layer_filter: Optional[str],
-    ) -> List[Tuple[str, float, List[str]]]:
+        layer_filter: str | None,
+    ) -> list[tuple[str, float, list[str]]]:
         """LIKE-based fallback when FTS5 is not available."""
         if self._conn is None:
             return []
 
         # Score based on how many tokens match
-        rows: List[Tuple[str, float, List[str]]] = []
+        rows: list[tuple[str, float, list[str]]] = []
         for token in tokens:
             pattern = f"%{token}%"
             sql = "SELECT entry_id, content FROM memory_fts WHERE content LIKE ?"
@@ -601,7 +602,7 @@ class _FTSIndex:
 # MEMORY.md / USER.md export helpers
 # ---------------------------------------------------------------------------
 
-_LAYER_MD_HEADINGS: Dict[MemoryLayer, str] = {
+_LAYER_MD_HEADINGS: dict[MemoryLayer, str] = {
     MemoryLayer.WORKING: "## Working Memory",
     MemoryLayer.SESSION: "## Session Memory",
     MemoryLayer.EPISODIC: "## Episodic Memory (Conversation Summaries)",
@@ -622,7 +623,7 @@ _LAYER_ORDER = [
 
 def _render_memory_md(entries: Sequence[MemoryEntry], profile: UserProfile) -> str:
     """Render all memories as an OpenClaw-compatible MEMORY.md string."""
-    lines: List[str] = []
+    lines: list[str] = []
     lines.append("# MEMORY.md")
     lines.append(f"Last updated: {_now_iso()}")
     lines.append("")
@@ -666,7 +667,7 @@ def _render_memory_md(entries: Sequence[MemoryEntry], profile: UserProfile) -> s
 
 def _render_user_md(profile: UserProfile) -> str:
     """Render user profile as an OpenClaw-compatible USER.md string."""
-    lines: List[str] = []
+    lines: list[str] = []
     lines.append("# USER.md")
     lines.append(f"Last updated: {profile.last_seen}")
     lines.append("")
@@ -707,7 +708,7 @@ class MemoryManager:
         self,
         memory_dir: str | Path = ".aion/memory",
         persist: bool = True,
-        max_entries: Optional[Dict[MemoryLayer, int]] = None,
+        max_entries: dict[MemoryLayer, int] | None = None,
         nudge_interval: float = DEFAULT_NUDGE_INTERVAL_SECONDS,
     ) -> None:
         self._memory_dir = Path(memory_dir)
@@ -716,7 +717,7 @@ class MemoryManager:
         self._nudge_interval = nudge_interval
 
         self._storage = _MemoryStorage(self._memory_dir, persist)
-        self._fts: Optional[_FTSIndex] = None
+        self._fts: _FTSIndex | None = None
         self._initialized = False
 
     # -- lifecycle ----------------------------------------------------------
@@ -759,9 +760,9 @@ class MemoryManager:
         self,
         content: str,
         layer: MemoryLayer = MemoryLayer.WORKING,
-        tags: Optional[List[str]] = None,
+        tags: list[str] | None = None,
         importance: float = 0.5,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> MemoryEntry:
         """Store a new memory entry.
 
@@ -795,14 +796,14 @@ class MemoryManager:
         self,
         user_message: str,
         agent_response: str,
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> List[MemoryEntry]:
+        metadata: dict[str, Any] | None = None,
+    ) -> list[MemoryEntry]:
         """Parse a user/agent exchange and store fragments into appropriate layers.
 
         Returns a list of the created ``MemoryEntry`` objects.
         """
         self._ensure_initialized()
-        entries: List[MemoryEntry] = []
+        entries: list[MemoryEntry] = []
 
         # 1. Working memory — full exchange
         exchange_text = f"User: {user_message}\nAgent: {agent_response}"
@@ -838,8 +839,8 @@ class MemoryManager:
     async def store_episodic_summary(
         self,
         summary: str,
-        tags: Optional[List[str]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        tags: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> MemoryEntry:
         """Store a conversation summary in episodic memory."""
         return await self.store(
@@ -853,7 +854,7 @@ class MemoryManager:
     async def store_knowledge(
         self,
         fact: str,
-        tags: Optional[List[str]] = None,
+        tags: list[str] | None = None,
         importance: float = 0.7,
     ) -> MemoryEntry:
         """Store a fact or knowledge item in semantic memory."""
@@ -867,7 +868,7 @@ class MemoryManager:
     async def store_procedure(
         self,
         procedure: str,
-        tags: Optional[List[str]] = None,
+        tags: list[str] | None = None,
         importance: float = 0.7,
     ) -> MemoryEntry:
         """Store a procedure / how-to in procedural memory."""
@@ -884,8 +885,8 @@ class MemoryManager:
         self,
         query: str,
         limit: int = 20,
-        layer_filter: Optional[MemoryLayer] = None,
-    ) -> List[SearchResult]:
+        layer_filter: MemoryLayer | None = None,
+    ) -> list[SearchResult]:
         """Full-text search across all memory layers.
 
         Returns results ordered by relevance score (descending).
@@ -898,13 +899,13 @@ class MemoryManager:
 
         raw_results = self._fts.search(query, limit=limit, layer_filter=layer_str)
 
-        results: List[SearchResult] = []
+        results: list[SearchResult] = []
         for entry_id, score, highlights in raw_results:
             entry = self._storage.get(entry_id)
             if entry is None:
                 continue
             # Re-rank using blended importance score
-            age_hours = (datetime.now(UTC) - _parse_iso(entry.created_at)).total_seconds() / 3600
+            age_hours = (datetime.now(timezone.utc) - _parse_iso(entry.created_at)).total_seconds() / 3600
             blended = _compute_importance_score(entry, age_hours)
             final_score = 0.6 * score + 0.4 * blended
             results.append(
@@ -955,7 +956,7 @@ class MemoryManager:
         results.sort(key=lambda r: r.score, reverse=True)
 
         # Build context string, respecting token budget
-        parts: List[str] = []
+        parts: list[str] = []
         total_chars = 0
         char_budget = max_tokens * 4
 
@@ -974,8 +975,8 @@ class MemoryManager:
         self,
         query: str,
         limit: int = 20,
-        layer_filter: Optional[MemoryLayer] = None,
-    ) -> List[str]:
+        layer_filter: MemoryLayer | None = None,
+    ) -> list[str]:
         """Convenience method: search memory and return only content strings.
 
         Unlike ``search()`` which returns :class:`SearchResult` objects,
@@ -999,7 +1000,7 @@ class MemoryManager:
 
     # -- nudging system -----------------------------------------------------
 
-    async def nudge(self) -> Optional[Dict[str, Any]]:
+    async def nudge(self) -> dict[str, Any] | None:
         """Check if a nudge is due and, if so, return a consolidation prompt.
 
         Returns ``None`` if no nudge is due, or a dict with suggested actions
@@ -1017,7 +1018,7 @@ class MemoryManager:
         state.nudge_count += 1
 
         # Analyse what needs attention
-        actions: List[Dict[str, Any]] = []
+        actions: list[dict[str, Any]] = []
 
         # 1. Check for working memory that could be consolidated to episodic
         working = self._storage.entries_by_layer(MemoryLayer.WORKING)
@@ -1036,7 +1037,7 @@ class MemoryManager:
         session = self._storage.entries_by_layer(MemoryLayer.SESSION)
         old_sessions = [
             e for e in session
-            if (datetime.now(UTC) - _parse_iso(e.updated_at)).total_seconds() > 3600
+            if (datetime.now(timezone.utc) - _parse_iso(e.updated_at)).total_seconds() > 3600
         ]
         if old_sessions:
             actions.append({
@@ -1124,11 +1125,11 @@ class MemoryManager:
 
         entries = self._storage.all_entries()
         total = len(entries)
-        by_layer: Dict[str, int] = {}
+        by_layer: dict[str, int] = {}
         imp_sum = 0.0
         access_sum = 0
-        oldest: Optional[datetime] = None
-        newest: Optional[datetime] = None
+        oldest: datetime | None = None
+        newest: datetime | None = None
 
         for e in entries:
             by_layer[e.layer.value] = by_layer.get(e.layer.value, 0) + 1
@@ -1189,7 +1190,7 @@ class MemoryManager:
         """
         self._ensure_initialized()
 
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         cutoff = now - timedelta(days=max_age_days)
         removed = 0
 
@@ -1222,11 +1223,11 @@ class MemoryManager:
 
     async def update_user_profile(
         self,
-        name: Optional[str] = None,
-        preferences: Optional[Dict[str, Any]] = None,
-        communication_style: Optional[str] = None,
-        patterns: Optional[List[str]] = None,
-        notes: Optional[List[str]] = None,
+        name: str | None = None,
+        preferences: dict[str, Any] | None = None,
+        communication_style: str | None = None,
+        patterns: list[str] | None = None,
+        notes: list[str] | None = None,
     ) -> None:
         """Update fields of the user profile."""
         self._ensure_initialized()
@@ -1268,7 +1269,7 @@ class MemoryManager:
         self,
         entry_id: str,
         target_layer: MemoryLayer,
-    ) -> Optional[MemoryEntry]:
+    ) -> MemoryEntry | None:
         """Move an entry from its current layer to a new one.
 
         Returns the updated entry, or ``None`` if not found.
@@ -1322,8 +1323,8 @@ class MemoryManager:
             return
 
         # Sort by blended importance (ascending) — evict the worst
-        now = datetime.now(UTC)
-        scored: List[Tuple[float, MemoryEntry]] = []
+        now = datetime.now(timezone.utc)
+        scored: list[tuple[float, MemoryEntry]] = []
         for entry in entries:
             age_hours = (now - _parse_iso(entry.created_at)).total_seconds() / 3600
             blended = _compute_importance_score(entry, age_hours)
@@ -1331,7 +1332,7 @@ class MemoryManager:
         scored.sort(key=lambda t: t[0])
 
         excess = len(entries) - cap
-        for _score, entry in scored[:excess]:
+        for score, entry in scored[:excess]:
             self._storage.remove(entry.id)
             if self._fts is not None:
                 self._fts.remove_entry(entry.id)
@@ -1343,10 +1344,10 @@ class MemoryManager:
             cap,
         )
 
-    def _extract_facts(self, text: str) -> List[str]:
+    def _extract_facts(self, text: str) -> list[str]:
         """Heuristic extraction of preference/fact statements from user text."""
         sentences = re.split(r'[.!?;\n]+', text)
-        facts: List[str] = []
+        facts: list[str] = []
         # Patterns that suggest preferences or personal facts
         preference_patterns = re.compile(
             r"\b(i\s+(?:prefer|like|love|hate|don'?t\s+like|always|never|usually|tend)\b"
@@ -1361,7 +1362,7 @@ class MemoryManager:
                 facts.append(s)
         return facts
 
-    def _update_user_profile_from_facts(self, facts: List[str]) -> None:
+    def _update_user_profile_from_facts(self, facts: list[str]) -> None:
         """Heuristic update of user profile from extracted facts."""
         profile = self._storage.user_profile
         for fact in facts:

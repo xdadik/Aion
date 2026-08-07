@@ -58,7 +58,7 @@ logger = logging.getLogger("aion_hand.dynamic.manager")
 # Task classification helpers
 # ============================================================================
 
-_TASK_TYPE_KEYWORDS: Dict[str, List[str]] = {
+_TASK_TYPE_KEYWORDS: dict[str, list[str]] = {
     # More specific types first — they win ties over generic ones
     # Multi-word keywords prevent false positives; single-word keywords
     # are used only when they're strongly domain-specific.
@@ -208,8 +208,8 @@ class DynamicManager:
 
     def __init__(
         self,
-        base_agent: Optional[Any] = None,
-        storage_dir: Optional[Path] = None,
+        base_agent: Any | None = None,
+        storage_dir: Path | None = None,
         max_retries: int = 2,
         retry_delay: float = 1.0,
         auto_classify: bool = True,
@@ -227,7 +227,7 @@ class DynamicManager:
         self._base_agent = base_agent
         self._storage_dir = storage_dir or Path.home() / ".aion-hand" / "dynamic"
         self._auto_classify = auto_classify
-        self._start_time: Optional[float] = None
+        self._start_time: float | None = None
 
         # Create subsystems
         self.factory = DynamicAgentFactory(
@@ -312,9 +312,9 @@ class DynamicManager:
     async def execute(
         self,
         task: str,
-        complexity: Optional[int] = None,
-        task_type: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        complexity: int | None = None,
+        task_type: str | None = None,
+    ) -> dict[str, Any]:
         """Execute a task using the full dynamic agent pipeline.
 
         Automatically classifies the task and estimates complexity
@@ -366,8 +366,8 @@ class DynamicManager:
     async def execute_quick(
         self,
         task: str,
-        roles: Optional[List[str]] = None,
-    ) -> Dict[str, Any]:
+        roles: list[str] | None = None,
+    ) -> dict[str, Any]:
         """Execute a task with a minimal, fast topology.
 
         Uses only 1-2 agents for quick turnaround. Ideal for
@@ -398,9 +398,9 @@ class DynamicManager:
     def create_plan(
         self,
         task: str,
-        complexity: Optional[int] = None,
-        task_type: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        complexity: int | None = None,
+        task_type: str | None = None,
+    ) -> dict[str, Any]:
         """Create an execution plan without running it.
 
         Useful for previewing which agents will be used and
@@ -427,7 +427,7 @@ class DynamicManager:
         )
         return plan.to_dict()
 
-    async def execute_plan_by_id(self, plan_id: str) -> Dict[str, Any]:
+    async def execute_plan_by_id(self, plan_id: str) -> dict[str, Any]:
         """Execute a previously created plan by its ID.
 
         Args:
@@ -452,7 +452,7 @@ class DynamicManager:
         self,
         topology_name: str,
         lesson: str,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Evolve a topology based on a lesson learned.
 
         Finds the topology by name and applies heuristic mutations
@@ -474,7 +474,7 @@ class DynamicManager:
         logger.warning(f"Topology '{topology_name}' not found for evolution")
         return None
 
-    def analyze_patterns(self) -> Dict[str, Any]:
+    def analyze_patterns(self) -> dict[str, Any]:
         """Analyze execution patterns across all topologies.
 
         Returns insights about which topologies work best for
@@ -489,7 +489,7 @@ class DynamicManager:
     # Statistics
     # ------------------------------------------------------------------
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Return comprehensive statistics from all subsystems.
 
         Aggregates statistics from the factory, topology manager,

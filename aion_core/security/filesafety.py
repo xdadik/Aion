@@ -130,7 +130,7 @@ class FileSafetyChecker:
     # -----------------------------------------------------------------
     _HOME = _home()
 
-    WRITE_DENIED_PATHS: Tuple[str, ...] = (
+    WRITE_DENIED_PATHS: tuple[str, ...] = (
         # -- SSH --
         os.path.join(_HOME, ".ssh", "*"),
         "/etc/ssh/*",
@@ -188,7 +188,7 @@ class FileSafetyChecker:
     )
 
     # -- Environment / secrets files (anywhere in the tree) --
-    _DOT_ENV_GLOBS: Tuple[str, ...] = (
+    _DOT_ENV_GLOBS: tuple[str, ...] = (
         ".env",
         ".env.*",
         ".env.local",
@@ -200,7 +200,7 @@ class FileSafetyChecker:
     )
 
     # -- Sensitive extensions --
-    _SENSITIVE_EXTENSIONS: FrozenSet[str] = frozenset(
+    _SENSITIVE_EXTENSIONS: frozenset[str] = frozenset(
         {
             ".pem",
             ".key",
@@ -230,13 +230,13 @@ class FileSafetyChecker:
     def __init__(
         self,
         *,
-        extra_denied_paths: Optional[Iterable[str]] = None,
-        extra_protected_extensions: Optional[Iterable[str]] = None,
+        extra_denied_paths: Iterable[str] | None = None,
+        extra_protected_extensions: Iterable[str] | None = None,
     ) -> None:
         # Mutable working copies of the built-in tuples
-        self._denied_paths: List[str] = list(self.WRITE_DENIED_PATHS)
-        self._denied_operations: Dict[str, Set[str]] = {}
-        self._protected_extensions: Set[str] = set(self._SENSITIVE_EXTENSIONS)
+        self._denied_paths: list[str] = list(self.WRITE_DENIED_PATHS)
+        self._denied_operations: dict[str, set[str]] = {}
+        self._protected_extensions: set[str] = set(self._SENSITIVE_EXTENSIONS)
 
         # Seed the operations map — every built-in denied path blocks write
         for p in self._denied_paths:
@@ -257,7 +257,7 @@ class FileSafetyChecker:
     # -----------------------------------------------------------------
 
     @staticmethod
-    def get_protected_extensions() -> FrozenSet[str]:
+    def get_protected_extensions() -> frozenset[str]:
         """Return the *full* set of sensitive file extensions (immutable copy).
 
         This is a class-level accessor so callers can inspect the defaults
@@ -265,7 +265,7 @@ class FileSafetyChecker:
         """
         return FileSafetyChecker._SENSITIVE_EXTENSIONS
 
-    def get_protected_paths(self) -> Dict[str, Set[str]]:
+    def get_protected_paths(self) -> dict[str, set[str]]:
         """Return a *copy* of the current denied-path → operations mapping."""
         return {k: set(v) for k, v in self._denied_operations.items()}
 
@@ -332,7 +332,7 @@ class FileSafetyChecker:
                 return True
         return False
 
-    def _matches_denied(self, resolved: str) -> Optional[Tuple[str, Set[str]]]:
+    def _matches_denied(self, resolved: str) -> tuple[str, set[str]] | None:
         """Check *resolved* against every denied pattern.
 
         Returns ``(pattern, blocked_operations)`` on the first match or
@@ -502,7 +502,7 @@ class FileSafetyChecker:
     def atomic_write(
         self,
         path: str,
-        content: Union[str, bytes],
+        content: str | bytes,
         *,
         mode: int = 0o644,
         encoding: str = "utf-8",
@@ -550,7 +550,7 @@ class FileSafetyChecker:
         os.makedirs(parent, exist_ok=True)
 
         # Preserve existing permissions if the file already exists
-        existing_mode: Optional[int] = None
+        existing_mode: int | None = None
         if os.path.exists(resolved):
             existing_mode = stat.S_IMODE(os.stat(resolved).st_mode)
 
@@ -632,7 +632,7 @@ class FileSafetyChecker:
 
     def validate_paths(
         self, paths: Iterable[str], operation: str = "write"
-    ) -> List[FileSafetyResult]:
+    ) -> list[FileSafetyResult]:
         """Validate a batch of *paths* for a single *operation*.
 
         Returns a list of :class:`FileSafetyResult` in the same order as
@@ -640,7 +640,7 @@ class FileSafetyChecker:
         """
         return [self.validate_operation(p, operation) for p in paths]
 
-    def batch_write_allowed(self, paths: Iterable[str]) -> Dict[str, bool]:
+    def batch_write_allowed(self, paths: Iterable[str]) -> dict[str, bool]:
         """Return ``{path: is_allowed}`` mapping for convenience."""
         return {p: self.is_write_allowed(p) for p in paths}
 

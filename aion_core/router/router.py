@@ -30,7 +30,7 @@ class ModelProfile:
     cost_per_1k_input: float
     cost_per_1k_output: float
     max_context: int  # tokens
-    capabilities: List[str] = field(default_factory=list)
+    capabilities: list[str] = field(default_factory=list)
     avg_latency_ms: float = 500.0
 
     @property
@@ -46,9 +46,9 @@ class RoutingDecision:
     tier: str
     estimated_cost: float
     reasoning: str
-    complexity: Optional[TaskComplexity] = None
+    complexity: TaskComplexity | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "model": self.model,
             "provider": self.provider,
@@ -66,7 +66,7 @@ class RoutingDecision:
 
 
 # ── Default model profiles (real names, approximate pricing as of 2024) ──
-_DEFAULT_PROFILES: List[Dict[str, Any]] = [
+_DEFAULT_PROFILES: list[dict[str, Any]] = [
     # ── Budget tier ────────────────────────────────────────────────
     {
         "name": "gpt-4o-mini",
@@ -188,13 +188,13 @@ class ModelRouter:
         * ``default_tier`` — fallback tier when no models match (default ``budget``)
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         cfg = config or {}
         self._estimator = ComplexityEstimator(cfg.get("estimator_config"))
         self._default_tier: str = cfg.get("default_tier", "budget")
 
         # Build model registry  tier -> [ModelProfile, ...]
-        self._models: Dict[str, List[ModelProfile]] = {
+        self._models: dict[str, list[ModelProfile]] = {
             "budget": [],
             "standard": [],
             "premium": [],
@@ -208,16 +208,16 @@ class ModelRouter:
             self.add_model(ModelProfile(**entry))
 
         # Routing stats
-        self._stats: Dict[str, int] = {"budget": 0, "standard": 0, "premium": 0}
+        self._stats: dict[str, int] = {"budget": 0, "standard": 0, "premium": 0}
         self._total_routed: int = 0
 
     # ── public API ─────────────────────────────────────────────────
     def route(
         self,
         task: str,
-        context: Optional[str] = None,
-        force_tier: Optional[str] = None,
-        preferred_provider: Optional[str] = None,
+        context: str | None = None,
+        force_tier: str | None = None,
+        preferred_provider: str | None = None,
     ) -> RoutingDecision:
         """Analyse *task* and return a :class:`RoutingDecision`."""
         complexity = self._estimator.estimate(task, context)
@@ -276,9 +276,9 @@ class ModelRouter:
             raise ValueError(f"No models registered for tier '{tier}'")
         return models[0]
 
-    def list_models(self) -> List[Dict[str, Any]]:
+    def list_models(self) -> list[dict[str, Any]]:
         """Return every registered model as a plain dict."""
-        result: List[Dict[str, Any]] = []
+        result: list[dict[str, Any]] = []
         for tier_profiles in self._models.values():
             for p in tier_profiles:
                 result.append({
@@ -315,7 +315,7 @@ class ModelRouter:
                 return True
         return False
 
-    def get_routing_stats(self) -> Dict[str, Any]:
+    def get_routing_stats(self) -> dict[str, Any]:
         """Return routing statistics."""
         return {
             "total_routed": self._total_routed,
@@ -338,9 +338,9 @@ class ModelRouter:
     def _select_model(
         self,
         tier: str,
-        preferred_provider: Optional[str],
+        preferred_provider: str | None,
         task: str,
-        context: Optional[str],
+        context: str | None,
     ) -> ModelProfile:
         """Pick the best model from a tier.
 
@@ -381,7 +381,7 @@ class ModelRouter:
         return max(candidates, key=lambda m: m.max_context)
 
     @staticmethod
-    def _cheapest(models: List[ModelProfile]) -> ModelProfile:
+    def _cheapest(models: list[ModelProfile]) -> ModelProfile:
         """Return the model with the lowest input + output cost."""
         return min(
             models,

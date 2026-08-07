@@ -103,7 +103,7 @@ class SubagentState(Enum):
 
 
 # Valid state transitions: current_state -> allowed next states.
-_VALID_TRANSITIONS: Dict[SubagentState, set] = {
+_VALID_TRANSITIONS: dict[SubagentState, set] = {
     SubagentState.PENDING: {SubagentState.STARTING, SubagentState.CANCELLED},
     SubagentState.STARTING: {SubagentState.RUNNING, SubagentState.FAILED, SubagentState.CANCELLED},
     SubagentState.RUNNING: {
@@ -145,8 +145,8 @@ class SubagentLaunchRequest:
     goal: str
     context: str = ""
     model: str = ""
-    allowed_tools: List[str] = field(default_factory=list)
-    blocked_tools: List[str] = field(default_factory=list)
+    allowed_tools: list[str] = field(default_factory=list)
+    blocked_tools: list[str] = field(default_factory=list)
     timeout: float = 300.0
     max_tokens: int = 4096
 
@@ -166,7 +166,7 @@ class SubagentHandle:
     parent_session_id: str
     state: SubagentState = SubagentState.PENDING
     created_at: float = field(default_factory=time.time)
-    completed_at: Optional[float] = None
+    completed_at: float | None = None
     goal: str = ""
     model: str = ""
 
@@ -232,7 +232,7 @@ class SubagentLifecycle:
     def __init__(
         self,
         parent_session_id: str = "",
-        runner_fn: Optional[Callable] = None,
+        runner_fn: Callable | None = None,
         max_concurrent: int = 5,
     ) -> None:
         self.parent_session_id = parent_session_id or str(uuid.uuid4())
@@ -241,8 +241,8 @@ class SubagentLifecycle:
         self._lock = threading.Lock()
 
         # Registries keyed by subagent_id.
-        self._handles: Dict[str, SubagentHandle] = {}
-        self._results: Dict[str, SubagentResult] = {}
+        self._handles: dict[str, SubagentHandle] = {}
+        self._results: dict[str, SubagentResult] = {}
 
         # Counters.
         self._total_launched: int = 0
@@ -414,7 +414,7 @@ class SubagentLifecycle:
             ),
         )
 
-    def wait_all(self, timeout: float = 300.0) -> List[SubagentResult]:
+    def wait_all(self, timeout: float = 300.0) -> list[SubagentResult]:
         """Wait for *all* currently active sub-agents and return their
         results (in no particular order)."""
         with self._lock:
@@ -422,7 +422,7 @@ class SubagentLifecycle:
                 sid for sid, h in self._handles.items() if h.state.is_active
             ]
 
-        results: List[SubagentResult] = []
+        results: list[SubagentResult] = []
         for sid in active_ids:
             results.append(self.wait(sid, timeout=timeout))
         return results
@@ -431,12 +431,12 @@ class SubagentLifecycle:
     # Listing
     # ---------------------------------------------------------------
 
-    def list_active(self) -> List[SubagentHandle]:
+    def list_active(self) -> list[SubagentHandle]:
         """Return handles for all non-terminal sub-agents."""
         with self._lock:
             return [h for h in self._handles.values() if h.state.is_active]
 
-    def list_completed(self) -> List[SubagentResult]:
+    def list_completed(self) -> list[SubagentResult]:
         """Return results for all terminal sub-agents."""
         with self._lock:
             return list(self._results.values())
@@ -475,9 +475,9 @@ class SubagentLifecycle:
     # Statistics
     # ---------------------------------------------------------------
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Return aggregate statistics about the sub-agent pool."""
-        state_counts: Dict[str, int] = {}
+        state_counts: dict[str, int] = {}
         for state in SubagentState:
             state_counts[state.value] = 0
         for handle in self._handles.values():
@@ -534,12 +534,12 @@ class DelegationContext:
             assert not ctx.is_delegated()
     """
 
-    _var: contextvars.ContextVar[Optional[str]]
+    _var: contextvars.ContextVar[str | None]
 
     def __init__(self, var_name: str = "aion_delegation_chain") -> None:
         self._var = contextvars.ContextVar(var_name, default=None)
 
-    def get_current_delegation(self) -> Optional[str]:
+    def get_current_delegation(self) -> str | None:
         """Return the current delegation ID, or *None* if not delegated."""
         return self._var.get()
 

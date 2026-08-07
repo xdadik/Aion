@@ -25,7 +25,7 @@ import logging
 import os
 import re
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional, Set, Tuple
 
@@ -36,7 +36,7 @@ logger = logging.getLogger("aion_hand.security.sandbox")
 # Constants
 # ======================================================================
 
-_DEFAULT_BLACKLIST_PATTERNS: List[str] = [
+_DEFAULT_BLACKLIST_PATTERNS: list[str] = [
     r"rm\s+-rf\s+/",          # Dangerous recursive removal
     r"rm\s+-rf\s+\.",         # Remove current directory tree
     r"mkfs",                   # Format filesystem
@@ -60,7 +60,7 @@ _DEFAULT_BLACKLIST_PATTERNS: List[str] = [
     r"systemctl\s+(stop|disable|mask)",  # Disable critical services
 ]
 
-_DEFAULT_ALLOWED_MODULES: List[str] = [
+_DEFAULT_ALLOWED_MODULES: list[str] = [
     "math",
     "json",
     "re",
@@ -122,13 +122,13 @@ class CommandValidator:
 
     def __init__(
         self,
-        whitelist: Optional[List[str]] = None,
-        blacklist: Optional[List[str]] = None,
+        whitelist: list[str] | None = None,
+        blacklist: list[str] | None = None,
     ) -> None:
-        self._whitelist_patterns: List[re.Pattern[str]] = [
+        self._whitelist_patterns: list[re.Pattern[str]] = [
             re.compile(p, re.IGNORECASE) for p in (whitelist or [])
         ]
-        self._blacklist_patterns: List[re.Pattern[str]] = [
+        self._blacklist_patterns: list[re.Pattern[str]] = [
             re.compile(p, re.IGNORECASE) for p in (blacklist or _DEFAULT_BLACKLIST_PATTERNS)
         ]
         logger.debug(
@@ -139,7 +139,7 @@ class CommandValidator:
 
     # -- Public API -------------------------------------------------------
 
-    def validate(self, command: str) -> Tuple[bool, str]:
+    def validate(self, command: str) -> tuple[bool, str]:
         """Validate a shell command string.
 
         Returns:
@@ -222,12 +222,12 @@ class CommandValidator:
     # -- Introspection ----------------------------------------------------
 
     @property
-    def whitelist_patterns(self) -> List[str]:
+    def whitelist_patterns(self) -> list[str]:
         """Return raw whitelist pattern strings."""
         return [p.pattern for p in self._whitelist_patterns]
 
     @property
-    def blacklist_patterns(self) -> List[str]:
+    def blacklist_patterns(self) -> list[str]:
         """Return raw blacklist pattern strings."""
         return [p.pattern for p in self._blacklist_patterns]
 
@@ -270,9 +270,9 @@ class ApprovalManager:
             self._mode = ApprovalMode.AUTO
 
         # approval_id -> {tool_name, params, reason, created_at, status}
-        self._pending_approvals: Dict[str, dict] = {}
-        self._approved_commands: Set[str] = set()
-        self._denied_commands: Set[str] = set()
+        self._pending_approvals: dict[str, dict] = {}
+        self._approved_commands: set[str] = set()
+        self._denied_commands: set[str] = set()
         self._ttl: int = self._DEFAULT_TTL_SECONDS
 
         logger.info("ApprovalManager initialised in %s mode", self._mode.value)
@@ -282,7 +282,7 @@ class ApprovalManager:
     async def request_approval(
         self,
         tool_name: str,
-        params: Dict[str, Any],
+        params: dict[str, Any],
         reason: str,
     ) -> bool:
         """Request approval for a tool / command execution.
@@ -333,7 +333,7 @@ class ApprovalManager:
             "tool_name": tool_name,
             "params": params,
             "reason": reason,
-            "created_at": datetime.now(UTC).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
             "status": "pending",
             "command_key": command_key,
         }
@@ -434,19 +434,19 @@ class ApprovalManager:
 
         # Resolve pending tickets based on new mode
         if new_mode == ApprovalMode.AUTO:
-            for _tid, ticket in list(self._pending_approvals.items()):
+            for tid, ticket in list(self._pending_approvals.items()):
                 if ticket["status"] == "pending":
                     ticket["status"] = "approved"
                     self._approved_commands.add(ticket["command_key"])
         elif new_mode == ApprovalMode.DENY:
-            for _tid, ticket in list(self._pending_approvals.items()):
+            for tid, ticket in list(self._pending_approvals.items()):
                 if ticket["status"] == "pending":
                     ticket["status"] = "denied"
                     self._denied_commands.add(ticket["command_key"])
 
         logger.info("Approval mode changed: %s -> %s", old_mode.value, new_mode.value)
 
-    def list_pending(self) -> List[Dict[str, Any]]:
+    def list_pending(self) -> list[dict[str, Any]]:
         """Return a list of all currently pending approval tickets."""
         self._cleanup_expired()
         return [
@@ -466,8 +466,8 @@ class ApprovalManager:
 
     def _cleanup_expired(self) -> None:
         """Remove tickets whose TTL has elapsed."""
-        now = datetime.now(UTC)
-        expired: List[str] = []
+        now = datetime.now(timezone.utc)
+        expired: list[str] = []
         for tid, ticket in self._pending_approvals.items():
             try:
                 created = datetime.fromisoformat(ticket["created_at"])
@@ -511,10 +511,10 @@ class Sandbox:
 
     def __init__(
         self,
-        allowed_modules: Optional[List[str]] = None,
+        allowed_modules: list[str] | None = None,
         timeout: int = _DEFAULT_TIMEOUT,
     ) -> None:
-        self._allowed_modules: List[str] = allowed_modules or list(_DEFAULT_ALLOWED_MODULES)
+        self._allowed_modules: list[str] = allowed_modules or list(_DEFAULT_ALLOWED_MODULES)
         self._timeout: int = timeout
         self._validator = CommandValidator()
         self._execution_count: int = 0
@@ -531,8 +531,8 @@ class Sandbox:
     async def execute_python(
         self,
         code: str,
-        timeout: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        timeout: int | None = None,
+    ) -> dict[str, Any]:
         """Execute Python code in a sandboxed subprocess.
 
         The subprocess environment restricts which modules can be imported
@@ -584,7 +584,7 @@ class Sandbox:
             stdout_str = stdout_bytes.decode("utf-8", errors="replace")
             stderr_str = stderr_bytes.decode("utf-8", errors="replace")
 
-            result: Dict[str, Any] = {
+            result: dict[str, Any] = {
                 "exit_code": process.returncode,
                 "stdout": stdout_str,
                 "stderr": stderr_str,
@@ -605,7 +605,7 @@ class Sandbox:
 
             return result
 
-        except TimeoutError:
+        except asyncio.TimeoutError:
             duration = _time.monotonic() - start
             self._total_time += duration
             logger.warning(
@@ -642,8 +642,8 @@ class Sandbox:
     async def execute_shell(
         self,
         command: str,
-        timeout: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        timeout: int | None = None,
+    ) -> dict[str, Any]:
         """Execute a shell command with prior validation.
 
         The command is first passed through the :class:`CommandValidator`.  If
@@ -701,7 +701,7 @@ class Sandbox:
             stdout_str = stdout_bytes.decode("utf-8", errors="replace")
             stderr_str = stderr_bytes.decode("utf-8", errors="replace")
 
-            result: Dict[str, Any] = {
+            result: dict[str, Any] = {
                 "exit_code": process.returncode,
                 "stdout": stdout_str,
                 "stderr": stderr_str,
@@ -722,7 +722,7 @@ class Sandbox:
 
             return result
 
-        except TimeoutError:
+        except asyncio.TimeoutError:
             duration = _time.monotonic() - start
             self._total_time += duration
             logger.warning(
@@ -757,7 +757,7 @@ class Sandbox:
 
     # -- Introspection ----------------------------------------------------
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Return execution statistics."""
         return {
             "execution_count": self._execution_count,
@@ -774,7 +774,7 @@ class Sandbox:
     # -- Internal --------------------------------------------------------
 
     @staticmethod
-    def _build_restricted_env() -> Dict[str, str]:
+    def _build_restricted_env() -> dict[str, str]:
         """Construct a minimal environment for sandboxed subprocesses.
 
         Removes variables that could be used to escape the sandbox (e.g.
@@ -782,7 +782,7 @@ class Sandbox:
         restrictive ``PATH``.
         """
         # Start with a minimal safe set
-        env: Dict[str, str] = {
+        env: dict[str, str] = {
             "HOME": os.environ.get("HOME", "/tmp"),
             "PATH": "/usr/bin:/bin",
             "LANG": "en_US.UTF-8",
@@ -968,14 +968,14 @@ class SecurityManager:
         )
 
         # Audit log – lightweight in-memory ring buffer
-        self._audit_log: List[Dict[str, Any]] = []
+        self._audit_log: list[dict[str, Any]] = []
         self._max_audit_entries: int = getattr(cfg, "max_audit_entries", 1000)
 
         logger.info("SecurityManager initialised")
 
     # -- Public API -------------------------------------------------------
 
-    async def check_command(self, command: str) -> Tuple[bool, str]:
+    async def check_command(self, command: str) -> tuple[bool, str]:
         """Validate a command through the :class:`CommandValidator`.
 
         Returns ``(is_safe, reason)``.  The result is recorded in the audit
@@ -988,7 +988,7 @@ class SecurityManager:
     async def request_tool_approval(
         self,
         tool_name: str,
-        params: Dict[str, Any],
+        params: dict[str, Any],
         reason: str,
     ) -> bool:
         """Request approval for a tool execution.
@@ -1010,8 +1010,8 @@ class SecurityManager:
         self,
         code_or_cmd: str,
         exec_type: str = "python",
-        timeout: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        timeout: int | None = None,
+    ) -> dict[str, Any]:
         """Execute code or a shell command in the sandbox.
 
         Args:
@@ -1042,7 +1042,7 @@ class SecurityManager:
 
         return result
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """Return a comprehensive status snapshot of the security subsystem.
 
         Includes validator state, approval mode and pending count, sandbox
@@ -1086,11 +1086,11 @@ class SecurityManager:
 
     # -- Audit helpers ----------------------------------------------------
 
-    def _audit(self, event_type: str, data: Dict[str, Any]) -> None:
+    def _audit(self, event_type: str, data: dict[str, Any]) -> None:
         """Append an entry to the in-memory audit log."""
-        entry: Dict[str, Any] = {
+        entry: dict[str, Any] = {
             "event_type": event_type,
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             **data,
         }
         self._audit_log.append(entry)

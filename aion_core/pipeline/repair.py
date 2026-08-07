@@ -20,13 +20,13 @@ class RepairResult:
     """Result of a repair attempt."""
     success: bool = False
     repaired_output: Any = None
-    repairs_made: List[str] = field(default_factory=list)
+    repairs_made: list[str] = field(default_factory=list)
     tokens_used: int = 0
     elapsed: float = 0.0
-    error: Optional[str] = None
+    error: str | None = None
     attempts: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "success": self.success,
             "repaired_output": self._safe_output(),
@@ -85,8 +85,8 @@ Return ONLY the JSON. No markdown, no explanation."""
         task: str,
         result: Any,
         critique: CritiqueResult,
-        verifications: List[VerificationResult],
-        mission: Optional[MissionAnalysis] = None,
+        verifications: list[VerificationResult],
+        mission: MissionAnalysis | None = None,
     ) -> RepairResult:
         start_time = time.monotonic()
 
@@ -189,9 +189,9 @@ Return ONLY the JSON. No markdown, no explanation."""
 
     def _collect_issues(
         self,
-        verifications: List[VerificationResult],
+        verifications: list[VerificationResult],
         critique: CritiqueResult,
-    ) -> List[str]:
+    ) -> list[str]:
         issues = []
         noise_prefixes = [
             "No ", "No code", "No factual", "No security", "No logical",
@@ -212,9 +212,9 @@ Return ONLY the JSON. No markdown, no explanation."""
 
     def _collect_suggestions(
         self,
-        verifications: List[VerificationResult],
+        verifications: list[VerificationResult],
         critique: CritiqueResult,
-    ) -> List[str]:
+    ) -> list[str]:
         suggestions = []
         for v in verifications:
             for suggestion in v.suggestions:
@@ -230,8 +230,8 @@ Return ONLY the JSON. No markdown, no explanation."""
     def _apply_heuristic_repairs(
         self,
         result: Any,
-        issues: List[str],
-        suggestions: List[str],
+        issues: list[str],
+        suggestions: list[str],
     ) -> tuple:
         if not isinstance(result, str):
             return result, []
@@ -291,11 +291,11 @@ Return ONLY the JSON. No markdown, no explanation."""
         self,
         task: str,
         result: Any,
-        issues: List[str],
-        all_issues: List[str],
-        suggestions: List[str],
-        previous_repairs: List[str],
-        mission: Optional[MissionAnalysis] = None,
+        issues: list[str],
+        all_issues: list[str],
+        suggestions: list[str],
+        previous_repairs: list[str],
+        mission: MissionAnalysis | None = None,
     ) -> RepairResult:
         start_time = time.monotonic()
 

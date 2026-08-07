@@ -65,7 +65,7 @@ class ToolCallRequest:
     """Represents a single tool call requested by the LLM."""
     id: str
     name: str
-    arguments: Dict[str, Any]
+    arguments: dict[str, Any]
 
 
 @dataclass
@@ -75,7 +75,7 @@ class ToolCallResult:
     tool_name: str
     success: bool
     result: Any
-    error: Optional[str] = None
+    error: str | None = None
     elapsed_seconds: float = 0.0
 
 
@@ -92,7 +92,7 @@ class TokenUsage:
         self.completion_tokens += other.completion_tokens
         self.total_tokens += other.total_tokens
 
-    def to_dict(self) -> Dict[str, int]:
+    def to_dict(self) -> dict[str, int]:
         return {
             "prompt": self.prompt_tokens,
             "completion": self.completion_tokens,
@@ -105,15 +105,15 @@ class ConversationMessage:
     """A single message in the conversation history."""
     role: str  # "system", "user", "assistant", "tool"
     content: str
-    tool_call_id: Optional[str] = None
-    tool_calls: Optional[List[ToolCallRequest]] = None
-    name: Optional[str] = None  # For tool result messages, the tool name
+    tool_call_id: str | None = None
+    tool_calls: list[ToolCallRequest] | None = None
+    name: str | None = None  # For tool result messages, the tool name
     timestamp: float = field(default_factory=time.time)
     token_count: int = 0  # Approximate token count for context budgeting
 
-    def to_provider_dict(self) -> Dict[str, Any]:
+    def to_provider_dict(self) -> dict[str, Any]:
         """Convert to the format expected by LLM providers."""
-        msg: Dict[str, Any] = {"role": self.role, "content": self.content}
+        msg: dict[str, Any] = {"role": self.role, "content": self.content}
         if self.tool_call_id is not None:
             msg["tool_call_id"] = self.tool_call_id
         if self.name is not None:
@@ -137,10 +137,10 @@ class ConversationMessage:
 class LoopResult:
     """The final result of an agent loop execution."""
     content: str
-    tools_used: List[str] = field(default_factory=list)
-    tokens: Dict[str, int] = field(default_factory=dict)
+    tools_used: list[str] = field(default_factory=list)
+    tokens: dict[str, int] = field(default_factory=dict)
     turns: int = 0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -186,12 +186,12 @@ class ContextCompressor:
                 total += self.estimate_tokens(json.dumps(tc.arguments))
         return total
 
-    def _total_tokens(self, messages: List[ConversationMessage]) -> int:
+    def _total_tokens(self, messages: list[ConversationMessage]) -> int:
         """Sum of estimated tokens across all messages."""
         return sum(self._message_tokens(m) for m in messages)
 
     def needs_compression(
-        self, messages: List[ConversationMessage], min_messages: int = 6
+        self, messages: list[ConversationMessage], min_messages: int = 6
     ) -> bool:
         """Check whether the message list exceeds the context budget."""
         if len(messages) < min_messages:
@@ -200,9 +200,9 @@ class ContextCompressor:
 
     def compress(
         self,
-        messages: List[ConversationMessage],
+        messages: list[ConversationMessage],
         keep_recent: int = 4,
-    ) -> tuple[List[ConversationMessage], bool]:
+    ) -> tuple[list[ConversationMessage], bool]:
         """
         Compress older messages, keeping the most recent ones intact.
 
@@ -231,7 +231,7 @@ class ContextCompressor:
             return messages, False
 
         # Build a compressed summary of old messages
-        summary_parts: List[str] = []
+        summary_parts: list[str] = []
         for msg in old_messages:
             if msg.role == "user":
                 summary_parts.append(f"[User]: {msg.content[:200]}")
@@ -282,11 +282,11 @@ class ContextCompressor:
 class ExecutionRecord:
     """A single execution result stored for feedback learning."""
     task: str
-    tools_used: List[str] = field(default_factory=list)
+    tools_used: list[str] = field(default_factory=list)
     tokens: int = 0
     elapsed: float = 0.0
     success: bool = True
-    errors: List[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
     timestamp: float = field(default_factory=time.time)
 
 
@@ -312,11 +312,11 @@ class FeedbackLoop:
     def record(
         self,
         task: str,
-        tools_used: List[str],
+        tools_used: list[str],
         tokens: int,
         elapsed: float,
         success: bool,
-        errors: Optional[List[str]] = None,
+        errors: list[str] | None = None,
     ) -> None:
         """Append an execution record, evicting the oldest if at capacity."""
         self._records.append(
@@ -335,7 +335,7 @@ class FeedbackLoop:
         )
 
     @property
-    def records(self) -> List[ExecutionRecord]:
+    def records(self) -> list[ExecutionRecord]:
         """Return a snapshot of all stored records."""
         return list(self._records)
 
@@ -346,7 +346,7 @@ class FeedbackLoop:
 
     # -- Analysis -------------------------------------------------------------
 
-    def analyze_patterns(self) -> Dict[str, Any]:
+    def analyze_patterns(self) -> dict[str, Any]:
         """Find common failure patterns across stored executions.
 
         Returns a dictionary with:
@@ -382,7 +382,7 @@ class FeedbackLoop:
             for err in rec.errors:
                 error_counter[err[:60]] += 1
 
-        def _avg(values: List[float]) -> float:
+        def _avg(values: list[float]) -> float:
             return sum(values) / len(values) if values else 0.0
 
         return {
@@ -412,7 +412,7 @@ class FeedbackLoop:
             return ""
 
         task_keywords = set(task.lower().split())
-        scored: List[tuple[float, ExecutionRecord]] = []
+        scored: list[tuple[float, ExecutionRecord]] = []
 
         for rec in self._records:
             rec_keywords = set(rec.task.lower().split())
@@ -430,11 +430,11 @@ class FeedbackLoop:
         failures = [rec for _, rec in top if not rec.success]
         successes = [rec for _, rec in top if rec.success]
 
-        parts: List[str] = []
+        parts: list[str] = []
 
         if failures:
             failed_tools = Counter()
-            error_snippets: List[str] = []
+            error_snippets: list[str] = []
             for rec in failures:
                 for t in rec.tools_used:
                     failed_tools[t] += 1
@@ -461,7 +461,7 @@ class FeedbackLoop:
 
         return "\n".join(parts)
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Return a summary dict suitable for inclusion in result metadata."""
         patterns = self.analyze_patterns()
         return {
@@ -540,11 +540,11 @@ class AgentLoop:
         self._personality = personality
 
         # Conversation state per session
-        self._sessions: Dict[str, List[ConversationMessage]] = {}
+        self._sessions: dict[str, list[ConversationMessage]] = {}
 
         # Loop execution state
         self._state: LoopState = LoopState.IDLE
-        self._current_task: Optional[asyncio.Task] = None
+        self._current_task: asyncio.Task | None = None
         self._interrupt_event: asyncio.Event = asyncio.Event()
 
         # Context compressor
@@ -554,10 +554,10 @@ class AgentLoop:
         )
 
         # Tool schemas cache (built once, updated on skill/tool changes)
-        self._tool_schemas: List[Dict[str, Any]] = []
+        self._tool_schemas: list[dict[str, Any]] = []
 
         # Streaming callback (optional, set externally)
-        self._on_stream_token: Optional[Callable[[str], Any]] = None
+        self._on_stream_token: Callable[[str], Any] | None = None
 
         # Feedback loop for self-improvement
         self._feedback = FeedbackLoop()
@@ -581,7 +581,7 @@ class AgentLoop:
 
     def _refresh_tool_schemas(self) -> None:
         """Rebuild the tool schemas list from registry + skills."""
-        schemas: List[Dict[str, Any]] = []
+        schemas: list[dict[str, Any]] = []
 
         if self._tools is not None:
             try:
@@ -623,7 +623,7 @@ class AgentLoop:
         user_message: str,
         system_context: str,
         session_id: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Run the full agent loop for a single user message.
 
         This is the primary entry point. It orchestrates the full
@@ -655,11 +655,11 @@ class AgentLoop:
         # Session bookkeeping
         if session_id not in self._sessions:
             self._sessions[session_id] = []
-        history: List[ConversationMessage] = self._sessions[session_id]
+        history: list[ConversationMessage] = self._sessions[session_id]
 
         # Tracking accumulators
         usage = TokenUsage()
-        tools_used: Set[str] = set()
+        tools_used: set[str] = set()
         turn = 0
         compressed = False
         final_content = ""
@@ -801,7 +801,7 @@ class AgentLoop:
 
         # Determine run success and collect any errors
         is_success = self._state in (LoopState.COMPLETED,)
-        run_errors: List[str] = []
+        run_errors: list[str] = []
         if self._state == LoopState.ERROR:
             run_errors.append(final_content)
         if self._state == LoopState.MAX_TURNS_REACHED:
@@ -817,7 +817,7 @@ class AgentLoop:
             errors=run_errors,
         )
 
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "content": final_content,
             "tools_used": sorted(tools_used),
             "tokens": usage.to_dict(),
@@ -850,7 +850,7 @@ class AgentLoop:
         user_message: str,
         system_context: str,
         session_id: str,
-    ) -> AsyncIterator[Dict[str, Any]]:
+    ) -> AsyncIterator[dict[str, Any]]:
         """Run the agent loop with streaming output.
 
         Yields dictionaries with a ``type`` key:
@@ -867,10 +867,10 @@ class AgentLoop:
 
         if session_id not in self._sessions:
             self._sessions[session_id] = []
-        history: List[ConversationMessage] = self._sessions[session_id]
+        history: list[ConversationMessage] = self._sessions[session_id]
 
         usage = TokenUsage()
-        tools_used: Set[str] = set()
+        tools_used: set[str] = set()
         turn = 0
         compressed = False
         collected_content = ""
@@ -902,7 +902,7 @@ class AgentLoop:
 
                 # Call provider with streaming
                 response_content = ""
-                response_tool_calls: List[ToolCallRequest] = []
+                response_tool_calls: list[ToolCallRequest] = []
                 turn_usage = TokenUsage()
 
                 try:
@@ -1026,8 +1026,8 @@ class AgentLoop:
     # ------------------------------------------------------------------
 
     async def _call_provider(
-        self, messages: List[Dict[str, Any]]
-    ) -> tuple[Optional[str], Optional[List[ToolCallRequest]], TokenUsage]:
+        self, messages: list[dict[str, Any]]
+    ) -> tuple[str | None, list[ToolCallRequest] | None, TokenUsage]:
         """Non-streaming provider call.
 
         Returns:
@@ -1044,7 +1044,7 @@ class AgentLoop:
         raw_tool_calls = response.get("tool_calls")
         usage_raw = response.get("usage", {})
 
-        tool_calls: Optional[List[ToolCallRequest]] = None
+        tool_calls: list[ToolCallRequest] | None = None
         if raw_tool_calls:
             tool_calls = []
             for tc in raw_tool_calls:
@@ -1072,8 +1072,8 @@ class AgentLoop:
         return content, tool_calls, usage
 
     async def _call_provider_streaming(
-        self, messages: List[Dict[str, Any]]
-    ) -> tuple[Optional[str], Optional[List[ToolCallRequest]], TokenUsage]:
+        self, messages: list[dict[str, Any]]
+    ) -> tuple[str | None, list[ToolCallRequest] | None, TokenUsage]:
         """Streaming provider call that collects the full response.
 
         Streams tokens through ``_on_stream_token`` callback if set,
@@ -1082,8 +1082,8 @@ class AgentLoop:
         Returns:
             Tuple of (content, tool_calls, token_usage).
         """
-        content_parts: List[str] = []
-        tool_calls_map: Dict[str, Dict[str, Any]] = {}
+        content_parts: list[str] = []
+        tool_calls_map: dict[str, dict[str, Any]] = {}
         usage = TokenUsage()
 
         async for chunk in self._provider.chat_stream(
@@ -1129,7 +1129,7 @@ class AgentLoop:
 
         full_content = "".join(content_parts) if content_parts else None
 
-        parsed_tool_calls: Optional[List[ToolCallRequest]] = None
+        parsed_tool_calls: list[ToolCallRequest] | None = None
         if tool_calls_map:
             parsed_tool_calls = []
             for tc_data in tool_calls_map.values():
@@ -1154,8 +1154,8 @@ class AgentLoop:
     # ------------------------------------------------------------------
 
     async def _process_tool_calls(
-        self, tool_calls: List[ToolCallRequest]
-    ) -> List[ToolCallResult]:
+        self, tool_calls: list[ToolCallRequest]
+    ) -> list[ToolCallResult]:
         """Execute a batch of tool calls, potentially in parallel.
 
         Each tool call is dispatched to the tool registry. Errors are
@@ -1167,7 +1167,7 @@ class AgentLoop:
         Returns:
             List of tool call results in the same order.
         """
-        results: List[ToolCallResult] = []
+        results: list[ToolCallResult] = []
 
         # Execute tool calls concurrently (Hermes-inspired parallel execution)
         tasks = [
@@ -1176,7 +1176,7 @@ class AgentLoop:
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Convert exceptions to error results
-        final_results: List[ToolCallResult] = []
+        final_results: list[ToolCallResult] = []
         for i, result in enumerate(results):
             if isinstance(result, Exception):
                 final_results.append(
@@ -1282,7 +1282,7 @@ class AgentLoop:
 
     def get_session_history(
         self, session_id: str
-    ) -> List[ConversationMessage]:
+    ) -> list[ConversationMessage]:
         """Retrieve the conversation history for a session.
 
         Args:
@@ -1308,7 +1308,7 @@ class AgentLoop:
             return True
         return False
 
-    def list_sessions(self) -> List[str]:
+    def list_sessions(self) -> list[str]:
         """List all active session IDs."""
         return list(self._sessions.keys())
 
@@ -1317,8 +1317,8 @@ class AgentLoop:
     # ------------------------------------------------------------------
 
     async def _compress_context(
-        self, messages: List[ConversationMessage]
-    ) -> List[ConversationMessage]:
+        self, messages: list[ConversationMessage]
+    ) -> list[ConversationMessage]:
         """Public-facing context compression (wraps ``ContextCompressor``).
 
         This method exists as an explicit API for callers that need to
@@ -1336,7 +1336,7 @@ class AgentLoop:
         return compressed
 
     def set_stream_callback(
-        self, callback: Optional[Callable[[str], Any]]
+        self, callback: Callable[[str], Any] | None
     ) -> None:
         """Set a callback invoked for each streaming token.
 

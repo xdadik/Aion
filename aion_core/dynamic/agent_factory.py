@@ -50,7 +50,7 @@ AgentRole = Literal[
     "fact_checker",
 ]
 
-VALID_ROLES: Set[str] = {
+VALID_ROLES: set[str] = {
     "planner", "coder", "researcher", "verifier",
     "critic", "repairer", "summarizer", "fact_checker",
 }
@@ -81,12 +81,12 @@ class AgentProfile:
     name: str
     role: AgentRole
     system_prompt: str
-    tools_allowed: List[str] = field(default_factory=list)
-    model: Optional[str] = None
+    tools_allowed: list[str] = field(default_factory=list)
+    model: str | None = None
     temperature: float = 0.7
     max_turns: int = 10
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "role": self.role,
@@ -98,7 +98,7 @@ class AgentProfile:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> AgentProfile:
+    def from_dict(cls, data: dict[str, Any]) -> AgentProfile:
         return cls(**data)
 
 
@@ -124,14 +124,14 @@ class DynamicAgent:
     id: str
     profile: AgentProfile
     status: str = "created"
-    parent_task: Optional[str] = None
+    parent_task: str | None = None
     created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
     tokens_used: int = 0
-    results: List[Dict[str, Any]] = field(default_factory=list)
-    child_agents: List[str] = field(default_factory=list)
+    results: list[dict[str, Any]] = field(default_factory=list)
+    child_agents: list[str] = field(default_factory=list)
     error_count: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "profile": self.profile.to_dict(),
@@ -150,7 +150,7 @@ class DynamicAgent:
 # ============================================================================
 
 
-def _load_default_templates() -> Dict[str, AgentProfile]:
+def _load_default_templates() -> dict[str, AgentProfile]:
     """Return 8 predefined agent profiles for each supported role."""
     return {
         "planner": AgentProfile(
@@ -382,8 +382,8 @@ class DynamicAgentFactory:
 
     def __init__(
         self,
-        base_agent: Optional[Any] = None,
-        storage_dir: Optional[Path] = None,
+        base_agent: Any | None = None,
+        storage_dir: Path | None = None,
         max_retries: int = DEFAULT_MAX_RETRIES,
         retry_delay: float = DEFAULT_RETRY_DELAY,
     ) -> None:
@@ -398,9 +398,9 @@ class DynamicAgentFactory:
         self._base_agent = base_agent
         self._storage_dir = storage_dir or Path.home() / ".aion-hand" / "dynamic"
         self._storage_dir.mkdir(parents=True, exist_ok=True)
-        self._templates: Dict[str, AgentProfile] = _load_default_templates()
-        self._agents: Dict[str, DynamicAgent] = {}
-        self._archive: List[Dict[str, Any]] = []
+        self._templates: dict[str, AgentProfile] = _load_default_templates()
+        self._agents: dict[str, DynamicAgent] = {}
+        self._archive: list[dict[str, Any]] = []
         self._max_retries = max_retries
         self._retry_delay = retry_delay
         self._stats = {
@@ -410,7 +410,7 @@ class DynamicAgentFactory:
             "total_tokens": 0,
             "total_retries": 0,
         }
-        self._event_hooks: Dict[str, List[Callable]] = {
+        self._event_hooks: dict[str, list[Callable]] = {
             "on_create": [],
             "on_execute": [],
             "on_destroy": [],
@@ -451,8 +451,8 @@ class DynamicAgentFactory:
         self,
         role: AgentRole,
         task: str,
-        parent_task: Optional[str] = None,
-        config_override: Optional[Dict[str, Any]] = None,
+        parent_task: str | None = None,
+        config_override: dict[str, Any] | None = None,
     ) -> DynamicAgent:
         """Create a dynamic agent from a built-in role template.
 
@@ -499,7 +499,7 @@ class DynamicAgentFactory:
         self,
         profile: AgentProfile,
         task: str,
-        parent_task: Optional[str] = None,
+        parent_task: str | None = None,
     ) -> DynamicAgent:
         """Create a dynamic agent from a fully custom profile.
 
@@ -534,8 +534,8 @@ class DynamicAgentFactory:
         self,
         agent_id: str,
         task: str,
-        context: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        context: str | None = None,
+    ) -> dict[str, Any]:
         """Run a dynamic agent on the given task with retry support.
 
         Args:
@@ -611,8 +611,8 @@ class DynamicAgentFactory:
         return error_result
 
     async def _run_agent_loop(
-        self, agent: DynamicAgent, task: str, context: Optional[str]
-    ) -> Dict[str, Any]:
+        self, agent: DynamicAgent, task: str, context: str | None
+    ) -> dict[str, Any]:
         """Internal: run the agent's conversation loop.
 
         Delegates to the base agent's LLM provider if available,
@@ -631,7 +631,7 @@ class DynamicAgentFactory:
             ]
 
             total_tokens = 0
-            tools_used: List[str] = []
+            tools_used: list[str] = []
             last_content = ""
             turns = 0
 
@@ -724,19 +724,19 @@ class DynamicAgentFactory:
     # Queries
     # ------------------------------------------------------------------
 
-    def list_active(self) -> List[DynamicAgent]:
+    def list_active(self) -> list[DynamicAgent]:
         """Return all non-archived agents."""
         return [a for a in self._agents.values() if a.status != "archived"]
 
-    def get_agent(self, agent_id: str) -> Optional[DynamicAgent]:
+    def get_agent(self, agent_id: str) -> DynamicAgent | None:
         """Get an agent by ID, or None if not found."""
         return self._agents.get(agent_id)
 
-    def get_templates(self) -> Dict[str, AgentProfile]:
+    def get_templates(self) -> dict[str, AgentProfile]:
         """Return a copy of all available agent templates."""
         return dict(self._templates)
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Return comprehensive factory statistics."""
         active = self.list_active()
         return {
@@ -747,14 +747,14 @@ class DynamicAgentFactory:
             "archive_size": len(self._archive),
         }
 
-    def _count_by_role(self, agents: List[DynamicAgent]) -> Dict[str, int]:
-        counts: Dict[str, int] = {}
+    def _count_by_role(self, agents: list[DynamicAgent]) -> dict[str, int]:
+        counts: dict[str, int] = {}
         for a in agents:
             counts[a.profile.role] = counts.get(a.profile.role, 0) + 1
         return counts
 
-    def _count_by_status(self) -> Dict[str, int]:
-        counts: Dict[str, int] = {}
+    def _count_by_status(self) -> dict[str, int]:
+        counts: dict[str, int] = {}
         for agent in self._agents.values():
             counts[agent.status] = counts.get(agent.status, 0) + 1
         return counts

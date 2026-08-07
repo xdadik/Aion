@@ -61,16 +61,16 @@ class AgentTopology:
 
     id: str
     name: str
-    agents: List[str]
-    connections: List[Dict[str, str]]
+    agents: list[str]
+    connections: list[dict[str, str]]
     success_rate: float = 0.0
     avg_tokens: float = 0.0
     avg_time: float = 0.0
-    task_types: List[str] = field(default_factory=list)
+    task_types: list[str] = field(default_factory=list)
     usage_count: int = 0
     is_default: bool = False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "name": self.name,
@@ -85,7 +85,7 @@ class AgentTopology:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> AgentTopology:
+    def from_dict(cls, data: dict[str, Any]) -> AgentTopology:
         return cls(**data)
 
     def compatibility_score(self, task_type: str, complexity: int) -> float:
@@ -142,7 +142,7 @@ class TopologyManager:
         patterns = mgr.analyze_patterns()
     """
 
-    def __init__(self, storage_dir: Optional[Path] = None) -> None:
+    def __init__(self, storage_dir: Path | None = None) -> None:
         """Initialize the topology manager.
 
         Args:
@@ -150,8 +150,8 @@ class TopologyManager:
         """
         self._storage_dir = storage_dir or Path.home() / ".aion-hand" / "dynamic"
         self._storage_dir.mkdir(parents=True, exist_ok=True)
-        self._topologies: Dict[str, AgentTopology] = {}
-        self._execution_log: List[Dict[str, Any]] = []
+        self._topologies: dict[str, AgentTopology] = {}
+        self._execution_log: list[dict[str, Any]] = []
         self._seed_default_topologies()
         logger.info(
             f"TopologyManager initialized with {len(self._topologies)} topologies"
@@ -286,7 +286,7 @@ class TopologyManager:
         self,
         task_type: str,
         complexity: int = 5,
-    ) -> Optional[AgentTopology]:
+    ) -> AgentTopology | None:
         """Return the best topology for the given task type and complexity.
 
         Scores all topologies and returns the one with the highest
@@ -302,7 +302,7 @@ class TopologyManager:
         if not self._topologies:
             return None
 
-        scored: List[Tuple[float, AgentTopology]] = [
+        scored: list[tuple[float, AgentTopology]] = [
             (t.compatibility_score(task_type, complexity), t)
             for t in self._topologies.values()
         ]
@@ -321,10 +321,10 @@ class TopologyManager:
 
     def create_topology(
         self,
-        agents: List[str],
-        connections: List[Dict[str, str]],
-        task_types: Optional[List[str]] = None,
-        name: Optional[str] = None,
+        agents: list[str],
+        connections: list[dict[str, str]],
+        task_types: list[str] | None = None,
+        name: str | None = None,
     ) -> AgentTopology:
         """Create and register a new topology.
 
@@ -370,7 +370,7 @@ class TopologyManager:
         self,
         topology_id: str,
         lesson: str,
-    ) -> Optional[AgentTopology]:
+    ) -> AgentTopology | None:
         """Apply a lesson to a topology, producing a modified copy.
 
         Uses heuristic mutations based on keywords in the lesson text.
@@ -493,7 +493,7 @@ class TopologyManager:
     # Analysis
     # ------------------------------------------------------------------
 
-    def get_best_topologies(self, limit: int = 5) -> List[AgentTopology]:
+    def get_best_topologies(self, limit: int = 5) -> list[AgentTopology]:
         """Return top-performing topologies sorted by success rate.
 
         Args:
@@ -509,7 +509,7 @@ class TopologyManager:
         )
         return sorted_topos[:limit]
 
-    def analyze_patterns(self) -> Dict[str, Any]:
+    def analyze_patterns(self) -> dict[str, Any]:
         """Analyze execution log to find patterns in successful topologies.
 
         Returns:
@@ -524,7 +524,7 @@ class TopologyManager:
             }
 
         # Group by topology
-        by_topo: Dict[str, List[Dict]] = defaultdict(list)
+        by_topo: dict[str, list[dict]] = defaultdict(list)
         for entry in self._execution_log:
             by_topo[entry["topology_id"]].append(entry)
 
@@ -536,7 +536,7 @@ class TopologyManager:
             success_rate = len(successes) / len(entries) if entries else 0
 
             # Most common successful task type
-            task_counts: Dict[str, int] = defaultdict(int)
+            task_counts: dict[str, int] = defaultdict(int)
             for e in successes:
                 task_counts[e["task_type"]] += 1
             best_task = max(task_counts, key=task_counts.get) if task_counts else "unknown"
@@ -612,7 +612,7 @@ class TopologyManager:
             )
 
     @staticmethod
-    def _generate_recommendations(patterns: List[Dict]) -> List[str]:
+    def _generate_recommendations(patterns: list[dict]) -> list[str]:
         """Generate actionable recommendations from pattern analysis."""
         recommendations = []
 
@@ -690,15 +690,15 @@ class TopologyManager:
     # Queries
     # ------------------------------------------------------------------
 
-    def get_topology(self, topology_id: str) -> Optional[AgentTopology]:
+    def get_topology(self, topology_id: str) -> AgentTopology | None:
         """Get a topology by ID."""
         return self._topologies.get(topology_id)
 
-    def list_topologies(self) -> List[AgentTopology]:
+    def list_topologies(self) -> list[AgentTopology]:
         """Return all registered topologies."""
         return list(self._topologies.values())
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Return comprehensive topology statistics."""
         return {
             "topology_count": len(self._topologies),

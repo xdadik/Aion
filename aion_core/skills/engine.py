@@ -70,8 +70,8 @@ class Skill:
     content: str = ""
     version: str = "1.0.0"
     status: SkillStatus = SkillStatus.DRAFT
-    tags: List[str] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    tags: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
     created_at: str = field(
         default_factory=lambda: datetime.now(UTC).isoformat()
     )
@@ -136,7 +136,7 @@ class Skill:
         ])
         return "\n".join(parts)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary."""
         return {
             "skill_id": self.skill_id,
@@ -154,7 +154,7 @@ class Skill:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> Skill:
+    def from_dict(cls, data: dict[str, Any]) -> Skill:
         """Deserialize from dictionary."""
         data = dict(data)  # copy
         data["status"] = SkillStatus(data.get("status", "draft"))
@@ -172,7 +172,7 @@ class Skill:
         lines = md_text.strip().split("\n")
         name = "unnamed"
         description = ""
-        sections: Dict[str, List[str]] = {}
+        sections: dict[str, list[str]] = {}
         current_section = "_header"
         sections[current_section] = []
 
@@ -195,7 +195,7 @@ class Skill:
                 desc_lines.append(hl)
         description = " ".join(desc_lines)
 
-        metadata: Dict[str, Any] = {}
+        metadata: dict[str, Any] = {}
         lessons = sections.get("lessons_learned", [])
         lessons_clean = [l.strip().lstrip("0123456789. ") for l in lessons if l.strip()]
         if lessons_clean:
@@ -242,8 +242,8 @@ class SkillEngine:
       - Persistent storage via JSON files
     """
 
-    def __init__(self, storage_dir: Optional[Path] = None):
-        self._skills: Dict[str, Skill] = {}
+    def __init__(self, storage_dir: Path | None = None):
+        self._skills: dict[str, Skill] = {}
         self._storage_dir = storage_dir or Path.home() / ".aion-hand" / "skills"
         self._auto_create_enabled = True
 
@@ -254,8 +254,8 @@ class SkillEngine:
         name: str,
         description: str = "",
         content: str = "",
-        tags: Optional[List[str]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        tags: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> Skill:
         """Create a new skill."""
         skill = Skill(
@@ -269,11 +269,11 @@ class SkillEngine:
         logger.info(f"Skill created: {skill.name} ({skill.skill_id})")
         return skill
 
-    def get_skill(self, skill_id: str) -> Optional[Skill]:
+    def get_skill(self, skill_id: str) -> Skill | None:
         """Get a skill by ID."""
         return self._skills.get(skill_id)
 
-    def get_skill_by_name(self, name: str) -> Optional[Skill]:
+    def get_skill_by_name(self, name: str) -> Skill | None:
         """Get a skill by name."""
         for skill in self._skills.values():
             if skill.name.lower() == name.lower():
@@ -282,9 +282,9 @@ class SkillEngine:
 
     def list_skills(
         self,
-        status: Optional[SkillStatus] = None,
-        tag: Optional[str] = None,
-    ) -> List[Skill]:
+        status: SkillStatus | None = None,
+        tag: str | None = None,
+    ) -> list[Skill]:
         """List skills with optional filtering."""
         skills = list(self._skills.values())
         if status is not None:
@@ -300,7 +300,7 @@ class SkillEngine:
             return True
         return False
 
-    def update_skill(self, skill_id: str, **kwargs) -> Optional[Skill]:
+    def update_skill(self, skill_id: str, **kwargs) -> Skill | None:
         """Update a skill's fields."""
         skill = self._skills.get(skill_id)
         if skill is None:
@@ -313,11 +313,11 @@ class SkillEngine:
 
     # --- Skill Discovery ---
 
-    def find_relevant(self, query: str, limit: int = 5) -> List[Skill]:
+    def find_relevant(self, query: str, limit: int = 5) -> list[Skill]:
         """Find skills relevant to a query using keyword + tag matching."""
         query_lower = query.lower()
         query_words = set(re.findall(r"\w+", query_lower))
-        scored: List[tuple] = []
+        scored: list[tuple] = []
 
         for skill in self._skills.values():
             if skill.status == SkillStatus.ARCHIVED:
@@ -365,9 +365,9 @@ class SkillEngine:
         self,
         name: str,
         task: str,
-        lessons_learned: Optional[List[str]] = None,
-        tags: Optional[List[str]] = None,
-    ) -> Optional[Skill]:
+        lessons_learned: list[str] | None = None,
+        tags: list[str] | None = None,
+    ) -> Skill | None:
         """Create a new skill from a completed task and lessons learned."""
         if not self._auto_create_enabled:
             return None
@@ -403,7 +403,7 @@ class SkillEngine:
         task: str,
         outcome: str,
         tokens_used: int = 0,
-    ) -> Optional[Skill]:
+    ) -> Skill | None:
         """Evaluate if a completed task should result in a new skill.
 
         Heuristics:
@@ -444,8 +444,8 @@ class SkillEngine:
     def evolve_skill(
         self,
         skill_id: str,
-        new_lessons: List[str],
-    ) -> Optional[Skill]:
+        new_lessons: list[str],
+    ) -> Skill | None:
         """Evolve an existing skill with new lessons learned."""
         skill = self._skills.get(skill_id)
         if skill is None:
@@ -473,7 +473,7 @@ class SkillEngine:
 
     # --- Persistence ---
 
-    def save(self, directory: Optional[Path] = None) -> int:
+    def save(self, directory: Path | None = None) -> int:
         """Save all skills to JSON files."""
         save_dir = directory or self._storage_dir
         save_dir.mkdir(parents=True, exist_ok=True)
@@ -495,7 +495,7 @@ class SkillEngine:
         logger.info(f"Saved {count} skills to {save_dir}")
         return count
 
-    def load(self, directory: Optional[Path] = None) -> int:
+    def load(self, directory: Path | None = None) -> int:
         """Load skills from JSON files."""
         load_dir = directory or self._storage_dir
         if not load_dir.exists():
@@ -526,7 +526,7 @@ class SkillEngine:
     def skill_count(self) -> int:
         return len(self._skills)
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Return skill engine statistics."""
         skills = list(self._skills.values())
         active = [s for s in skills if s.status == SkillStatus.ACTIVE]
@@ -539,7 +539,7 @@ class SkillEngine:
             "storage_dir": str(self._storage_dir),
         }
 
-    def export_all_markdown(self, directory: Optional[Path] = None) -> int:
+    def export_all_markdown(self, directory: Path | None = None) -> int:
         """Export all skills as SKILL.md files."""
         export_dir = directory or self._storage_dir / "exported"
         export_dir.mkdir(parents=True, exist_ok=True)

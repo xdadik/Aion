@@ -32,16 +32,19 @@ import asyncio
 import logging
 import time
 import uuid
-from collections import deque
-from collections.abc import Awaitable
+from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import (
     Any,
+    Awaitable,
+    Callable,
     Dict,
+    FrozenSet,
     List,
     Optional,
     Set,
+    Tuple,
 )
 
 logger = logging.getLogger("aion_hand.orchestration")
@@ -116,16 +119,16 @@ class SubAgentResult:
     """
 
     task: str
-    content: Optional[str] = None
-    tools_used: List[str] = field(default_factory=list)
+    content: str | None = None
+    tools_used: list[str] = field(default_factory=list)
     tokens: int = -1
     elapsed: float = 0.0
     success: bool = True
-    error: Optional[str] = None
+    error: str | None = None
 
     # ---- helpers --------------------------------------------------------
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialise to a plain dict (safe for JSON / logging)."""
         return {
             "task": self.task,
@@ -169,19 +172,19 @@ class SubAgent:
         self,
         task: str,
         agent: Any,
-        tools: Optional[List[str]] = None,
-        personality: Optional[str] = None,
+        tools: list[str] | None = None,
+        personality: str | None = None,
         timeout: float = 300.0,
-        subagent_id: Optional[str] = None,
+        subagent_id: str | None = None,
     ) -> None:
         self.id: str = subagent_id or uuid.uuid4().hex[:12]
         self.task: str = task
         self._agent = agent
-        self.tools: List[str] = list(tools or [])
-        self.personality: Optional[str] = personality
+        self.tools: list[str] = list(tools or [])
+        self.personality: str | None = personality
         self.timeout: float = timeout
         self.status: SubAgentStatus = SubAgentStatus.PENDING
-        self.last_result: Optional[SubAgentResult] = None
+        self.last_result: SubAgentResult | None = None
         self.created_at: float = time.monotonic()
         self._cancel_event: asyncio.Event = asyncio.Event()
         logger.debug("SubAgent %s created for task: %s", self.id, self.task[:80])
@@ -227,7 +230,7 @@ class SubAgent:
                 self.last_result.tools_used,
             )
 
-        except TimeoutError:
+        except asyncio.TimeoutError:
             elapsed = time.monotonic() - start
             self.last_result = SubAgentResult(
                 task=self.task,
@@ -263,7 +266,7 @@ class SubAgent:
 
         return self.last_result
 
-    async def _execute_chat(self, prompt: str) -> Dict[str, Any]:
+    async def _execute_chat(self, prompt: str) -> dict[str, Any]:
         """Call the parent agent's ``chat()`` and return its result dict."""
         # The agent object is provided at construction time; we only call
         # ``.chat()`` so we never need to import aion_core.agent.core.
@@ -279,7 +282,7 @@ class SubAgent:
 
     def _build_prompt(self) -> str:
         """Build a scoped prompt for the sub-agent."""
-        parts: List[str] = []
+        parts: list[str] = []
         if self.personality:
             parts.append(f"## Sub-Agent Personality\n{self.personality}")
         if self.tools:
@@ -303,7 +306,7 @@ class SubAgent:
         self._cancel_event.set()
         self.status = SubAgentStatus.CANCELLED
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialise state for inspection."""
         return {
             "id": self.id,
@@ -339,21 +342,21 @@ class WorkflowNode:
         node_id: str,
         name: str,
         node_type: NodeType,
-        config: Optional[Dict[str, Any]] = None,
-        dependencies: Optional[List[str]] = None,
+        config: dict[str, Any] | None = None,
+        dependencies: list[str] | None = None,
         timeout: float = 0.0,
     ) -> None:
         self.id: str = node_id
         self.name: str = name
         self.node_type: NodeType = node_type
-        self.config: Dict[str, Any] = dict(config or {})
-        self.dependencies: List[str] = list(dependencies or [])
+        self.config: dict[str, Any] = dict(config or {})
+        self.dependencies: list[str] = list(dependencies or [])
         self.timeout: float = timeout
         self.status: NodeStatus = NodeStatus.PENDING
         self.result: Any = None
-        self.error: Optional[str] = None
-        self.started_at: Optional[float] = None
-        self.finished_at: Optional[float] = None
+        self.error: str | None = None
+        self.started_at: float | None = None
+        self.finished_at: float | None = None
 
     @property
     def elapsed(self) -> float:
@@ -363,7 +366,7 @@ class WorkflowNode:
         end = self.finished_at or time.monotonic()
         return end - self.started_at
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "name": self.name,
@@ -385,7 +388,7 @@ class WorkflowNode:
     # ---- factory --------------------------------------------------------
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> WorkflowNode:
+    def from_dict(cls, data: dict[str, Any]) -> "WorkflowNode":
         """Create a ``WorkflowNode`` from a plain dictionary."""
         node_type = NodeType(data.get("type", "agent"))
         return cls(
@@ -432,20 +435,20 @@ class Workflow:
     def __init__(
         self,
         name: str,
-        nodes: Optional[List[WorkflowNode]] = None,
-        engine: Optional[Any] = None,
+        nodes: list[WorkflowNode] | None = None,
+        engine: Any | None = None,
         timeout: float = 0.0,
     ) -> None:
         self.name: str = name
-        self.nodes: Dict[str, WorkflowNode] = {}
+        self.nodes: dict[str, WorkflowNode] = {}
         self.engine = engine  # OrchestrationEngine reference (avoid circular import)
         self.timeout: float = timeout
         self.status: WorkflowStatus = WorkflowStatus.PENDING
-        self.context: Dict[str, Any] = {}
-        self.results: Dict[str, Any] = {}  # node_id -> result value
-        self.errors: Dict[str, str] = {}
-        self.started_at: Optional[float] = None
-        self.finished_at: Optional[float] = None
+        self.context: dict[str, Any] = {}
+        self.results: dict[str, Any] = {}  # node_id -> result value
+        self.errors: dict[str, str] = {}
+        self.started_at: float | None = None
+        self.finished_at: float | None = None
         self._cancel_event: asyncio.Event = asyncio.Event()
 
         for n in nodes or []:
@@ -467,11 +470,11 @@ class Workflow:
                 if node_id in n.dependencies:
                     n.dependencies.remove(node_id)
 
-    def get_root_nodes(self) -> List[WorkflowNode]:
+    def get_root_nodes(self) -> list[WorkflowNode]:
         """Return nodes with no dependencies (entry points)."""
         return [n for n in self.nodes.values() if not n.dependencies]
 
-    def get_downstream(self, node_id: str) -> List[WorkflowNode]:
+    def get_downstream(self, node_id: str) -> list[WorkflowNode]:
         """Return nodes that depend on *node_id*."""
         return [
             n for n in self.nodes.values() if node_id in n.dependencies
@@ -479,14 +482,14 @@ class Workflow:
 
     # ---- topological helpers --------------------------------------------
 
-    def _topological_layers(self) -> List[List[WorkflowNode]]:
+    def _topological_layers(self) -> list[list[WorkflowNode]]:
         """Return nodes grouped into layers where each layer can run in parallel.
 
         Raises:
             ValueError: If the graph contains a cycle.
         """
-        in_degree: Dict[str, int] = {nid: 0 for nid in self.nodes}
-        adj: Dict[str, List[str]] = {nid: [] for nid in self.nodes}
+        in_degree: dict[str, int] = {nid: 0 for nid in self.nodes}
+        adj: dict[str, list[str]] = {nid: [] for nid in self.nodes}
         for n in self.nodes.values():
             for dep in n.dependencies:
                 if dep not in self.nodes:
@@ -498,8 +501,8 @@ class Workflow:
 
         # Kahn's algorithm
         queue = deque(nid for nid, deg in in_degree.items() if deg == 0)
-        layers: List[List[WorkflowNode]] = []
-        visited: Set[str] = set()
+        layers: list[list[WorkflowNode]] = []
+        visited: set[str] = set()
 
         while queue:
             layer_ids = list(queue)
@@ -523,8 +526,8 @@ class Workflow:
 
     async def execute(
         self,
-        context: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Execute the workflow DAG.
 
         Args:
@@ -576,7 +579,7 @@ class Workflow:
                 WorkflowStatus.FAILED if has_errors else WorkflowStatus.COMPLETED
             )
 
-        except TimeoutError:
+        except asyncio.TimeoutError:
             self.status = WorkflowStatus.FAILED
             logger.error(
                 "Workflow '%s' timed out after %.1fs", self.name, self.timeout
@@ -626,14 +629,14 @@ class Workflow:
             "elapsed": round(elapsed, 4),
         }
 
-    async def _run_layers(self, layers: List[List[WorkflowNode]]) -> None:
+    async def _run_layers(self, layers: list[list[WorkflowNode]]) -> None:
         """Execute topological layers sequentially; nodes within a layer run in parallel."""
-        for _layer_idx, layer in enumerate(layers):
+        for layer_idx, layer in enumerate(layers):
             if self._cancel_event.is_set():
                 raise asyncio.CancelledError()
 
             # Check if upstream had failures — skip downstream if so
-            tasks: List[Awaitable[None]] = []
+            tasks: list[Awaitable[None]] = []
             for node in layer:
                 # Verify all dependencies succeeded
                 deps_ok = all(
@@ -792,7 +795,7 @@ class Workflow:
             branch_key = str(result)
 
         # Determine which downstream nodes to activate/skip
-        chosen_branches: Set[str] = set()
+        chosen_branches: set[str] = set()
         for bkey, bval in branches.items():
             if bkey == branch_key or (isinstance(bval, list) and branch_key in bval):
                 chosen_branches.add(bkey)
@@ -818,9 +821,9 @@ class Workflow:
         )
         return branch_key
 
-    def _run_merge_node(self, node: WorkflowNode) -> List[Any]:
+    def _run_merge_node(self, node: WorkflowNode) -> list[Any]:
         """Run a MERGE node — collect results from all dependencies."""
-        merged: List[Any] = []
+        merged: list[Any] = []
         for dep_id in node.dependencies:
             if dep_id in self.nodes:
                 dep = self.nodes[dep_id]
@@ -831,7 +834,7 @@ class Workflow:
         )
         return merged
 
-    async def _run_sub_workflow_node(self, node: WorkflowNode) -> Dict[str, Any]:
+    async def _run_sub_workflow_node(self, node: WorkflowNode) -> dict[str, Any]:
         """Run a SUB_WORKFLOW node — execute a nested workflow."""
         if self.engine is None:
             raise RuntimeError(
@@ -880,7 +883,7 @@ class Workflow:
 
         return _re.sub(r"\{\{(.+?)\}\}", _replace, template)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialise the full workflow state."""
         return {
             "name": self.name,
@@ -895,8 +898,8 @@ class Workflow:
 
     @classmethod
     def from_dict(
-        cls, data: Dict[str, Any], engine: Optional[Any] = None
-    ) -> Workflow:
+        cls, data: dict[str, Any], engine: Any | None = None
+    ) -> "Workflow":
         """Create a :class:`Workflow` from a definition dictionary.
 
         Expected structure::
@@ -978,8 +981,8 @@ class OrchestrationEngine:
         self._default_timeout: float = timeout
 
         # Registries
-        self._subagents: Dict[str, SubAgent] = {}
-        self._workflows: Dict[str, Workflow] = {}
+        self._subagents: dict[str, SubAgent] = {}
+        self._workflows: dict[str, Workflow] = {}
 
         # State
         self._initialized: bool = False
@@ -987,7 +990,7 @@ class OrchestrationEngine:
         self._lock: asyncio.Lock = asyncio.Lock()
 
         # Statistics
-        self._stats: Dict[str, Any] = {
+        self._stats: dict[str, Any] = {
             "subagents_spawned": 0,
             "subagents_completed": 0,
             "subagents_failed": 0,
@@ -1033,7 +1036,7 @@ class OrchestrationEngine:
         self._initialized = False
         logger.info("OrchestrationEngine shutdown complete")
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """Return a snapshot of engine state and statistics."""
         active_subagents = [
             sa.to_dict()
@@ -1061,10 +1064,10 @@ class OrchestrationEngine:
     async def spawn_subagent(
         self,
         task: str,
-        tools: Optional[List[str]] = None,
-        personality: Optional[str] = None,
-        timeout: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        tools: list[str] | None = None,
+        personality: str | None = None,
+        timeout: float | None = None,
+    ) -> dict[str, Any]:
         """Spawn a sub-agent, execute its task, and return the result.
 
         Args:
@@ -1146,7 +1149,7 @@ class OrchestrationEngine:
                 del self._subagents[sid]
             logger.debug("Pruned %d old sub-agent records", to_remove)
 
-    def list_active_subagents(self) -> List[Dict[str, Any]]:
+    def list_active_subagents(self) -> list[dict[str, Any]]:
         """Return serialised state of all currently active sub-agents."""
         return [
             sa.to_dict()
@@ -1174,7 +1177,7 @@ class OrchestrationEngine:
 
     # ---- workflow management --------------------------------------------
 
-    def create_workflow(self, definition_dict: Dict[str, Any]) -> Workflow:
+    def create_workflow(self, definition_dict: dict[str, Any]) -> Workflow:
         """Build a :class:`Workflow` from a definition dictionary and register it.
 
         The definition format is the same as :meth:`Workflow.from_dict`.
@@ -1204,8 +1207,8 @@ class OrchestrationEngine:
     async def execute_workflow(
         self,
         name: str,
-        context: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Execute a registered workflow by name.
 
         Args:
@@ -1240,7 +1243,7 @@ class OrchestrationEngine:
 
         return result
 
-    def list_workflows(self) -> List[Dict[str, Any]]:
+    def list_workflows(self) -> list[dict[str, Any]]:
         """Return summary info for all registered workflows."""
         return [
             {

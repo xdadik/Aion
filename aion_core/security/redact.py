@@ -57,7 +57,7 @@ class RedactionMode(enum.Enum):
 # 1.  API-key prefix patterns  (sk-, pk-, rk-, key_live-, etc.)
 # ---------------------------------------------------------------------------
 
-_API_KEY_PREFIX_PATTERNS: List[re.Pattern] = [
+_API_KEY_PREFIX_PATTERNS: list[re.Pattern] = [
     re.compile(r"(sk_live-[A-Za-z0-9_\-]{20,})", re.IGNORECASE),
     re.compile(r"(sk_test-[A-Za-z0-9_\-]{20,})", re.IGNORECASE),
     re.compile(r"(sk_ant-[A-Za-z0-9_\-]{20,})", re.IGNORECASE),
@@ -76,7 +76,7 @@ _API_KEY_PREFIX_PATTERNS: List[re.Pattern] = [
 # 2.  Vendor-specific patterns  (30+ services)
 # ---------------------------------------------------------------------------
 
-_VENDOR_PATTERNS: List[re.Pattern] = [
+_VENDOR_PATTERNS: list[re.Pattern] = [
     # ---- OpenAI ----
     re.compile(r"(sk-proj-[A-Za-z0-9_\-]{40,})", re.IGNORECASE),
 
@@ -238,7 +238,7 @@ _VENDOR_PATTERNS: List[re.Pattern] = [
 # 3.  Generic: Bearer, Basic, JWT, long hex / base64 blobs
 # ---------------------------------------------------------------------------
 
-_GENERIC_PATTERNS: List[re.Pattern] = [
+_GENERIC_PATTERNS: list[re.Pattern] = [
     # Bearer token in Authorization header
     re.compile(r"(Bearer\s+[A-Za-z0-9_\-\.]{20,})", re.IGNORECASE),
     # Basic auth
@@ -258,7 +258,7 @@ _GENERIC_PATTERNS: List[re.Pattern] = [
 #     Matches  KEY_NAME=value  and  KEY_NAME = 'value'  /  "value"
 # ---------------------------------------------------------------------------
 
-_ENV_ASSIGNMENT_PATTERNS: List[re.Pattern] = [
+_ENV_ASSIGNMENT_PATTERNS: list[re.Pattern] = [
     re.compile(r"(API_KEY\s*=\s*)([^\s'\"]+)", re.IGNORECASE),
     re.compile(r"(API_SECRET\s*=\s*)([^\s'\"]+)", re.IGNORECASE),
     re.compile(r"(API_TOKEN\s*=\s*)([^\s'\"]+)", re.IGNORECASE),
@@ -288,7 +288,7 @@ _ENV_ASSIGNMENT_PATTERNS: List[re.Pattern] = [
 # 5.  Config-file patterns  (key = value,  key: value,  key value)
 # ---------------------------------------------------------------------------
 
-_CONFIG_FILE_PATTERNS: List[re.Pattern] = [
+_CONFIG_FILE_PATTERNS: list[re.Pattern] = [
     re.compile(r"(password\s*[=: ]+)([^\s'\"]+)", re.IGNORECASE),
     re.compile(r"(secret_key\s*[=: ]+)([^\s'\"]+)", re.IGNORECASE),
     re.compile(r"(api_key\s*[=: ]+)([^\s'\"]+)", re.IGNORECASE),
@@ -311,7 +311,7 @@ _CONFIG_FILE_PATTERNS: List[re.Pattern] = [
 # 6.  URL query-parameter patterns  (?token=value, &api_key=value, …)
 # ---------------------------------------------------------------------------
 
-_URL_QUERY_PATTERNS: List[re.Pattern] = [
+_URL_QUERY_PATTERNS: list[re.Pattern] = [
     re.compile(r"(\?|&)(access_token=)([^&\s'\"']+)(?=&|$|\s|')", re.IGNORECASE),
     re.compile(r"(\?|&)(client_secret=)([^&\s'\"']+)(?=&|$|\s|')", re.IGNORECASE),
     re.compile(r"(\?|&)(api_key=)([^&\s'\"']+)(?=&|$|\s|')", re.IGNORECASE),
@@ -330,7 +330,7 @@ _URL_QUERY_PATTERNS: List[re.Pattern] = [
 # 7.  Private-key block patterns  (PEM armoured blocks)
 # ---------------------------------------------------------------------------
 
-_PRIVATE_KEY_PATTERNS: List[re.Pattern] = [
+_PRIVATE_KEY_PATTERNS: list[re.Pattern] = [
     re.compile(r"(-----BEGIN RSA PRIVATE KEY-----[\s\S]*?-----END RSA PRIVATE KEY-----)"),
     re.compile(r"(-----BEGIN EC PRIVATE KEY-----[\s\S]*?-----END EC PRIVATE KEY-----)"),
     re.compile(r"(-----BEGIN OPENSSH PRIVATE KEY-----[\s\S]*?-----END OPENSSH PRIVATE KEY-----)"),
@@ -346,7 +346,7 @@ _PRIVATE_KEY_PATTERNS: List[re.Pattern] = [
 # 8.  Miscellaneous / high-signal patterns
 # ---------------------------------------------------------------------------
 
-_MISC_PATTERNS: List[re.Pattern] = [
+_MISC_PATTERNS: list[re.Pattern] = [
     # UUID v4 used as a secret token in context (lookbehind / prefix hint)
     re.compile(
         r"(?:secret|token|key|password|credential)\s*[=:]\s*"
@@ -366,7 +366,7 @@ _MISC_PATTERNS: List[re.Pattern] = [
 # Flat combined list:  (category_name, compiled_pattern)
 # ---------------------------------------------------------------------------
 
-_ALL_PATTERNS: List[Tuple[str, re.Pattern]] = [
+_ALL_PATTERNS: list[tuple[str, re.Pattern]] = [
     *[("api_key_prefix", p) for p in _API_KEY_PREFIX_PATTERNS],
     *[("vendor_specific", p) for p in _VENDOR_PATTERNS],
     *[("generic", p) for p in _GENERIC_PATTERNS],
@@ -381,7 +381,7 @@ _ALL_PATTERNS: List[Tuple[str, re.Pattern]] = [
 # Known sensitive env-var names (case-insensitive)
 # ---------------------------------------------------------------------------
 
-_SENSITIVE_ENV_NAMES: Set[str] = {
+_SENSITIVE_ENV_NAMES: set[str] = {
     # ---- generic ----
     "api_key", "apikey", "api_secret", "api_token",
     "secret", "secret_key", "secret_token",
@@ -489,8 +489,8 @@ class SecretRedactor:
         self._frozen: bool = False
 
         # Shallow-copy module-level data so the instance is independent.
-        self._patterns: List[Tuple[str, re.Pattern]] = list(_ALL_PATTERNS)
-        self._sensitive_env_names: Set[str] = set(_SENSITIVE_ENV_NAMES)
+        self._patterns: list[tuple[str, re.Pattern]] = list(_ALL_PATTERNS)
+        self._sensitive_env_names: set[str] = set(_SENSITIVE_ENV_NAMES)
 
         self._frozen = True
 
@@ -526,7 +526,7 @@ class SecretRedactor:
     # Core: _mask_secret
     # ------------------------------------------------------------------
 
-    def _mask_secret(self, secret: str, *, mode: Optional[RedactionMode] = None) -> str:
+    def _mask_secret(self, secret: str, *, mode: RedactionMode | None = None) -> str:
         """Apply masking to a single detected secret.
 
         Parameters
@@ -566,7 +566,7 @@ class SecretRedactor:
     # Core: detect_secrets
     # ------------------------------------------------------------------
 
-    def detect_secrets(self, text: str) -> List[Tuple[int, int, str]]:
+    def detect_secrets(self, text: str) -> list[tuple[int, int, str]]:
         """Scan *text* for secrets and return non-overlapping match ranges.
 
         Returns
@@ -578,7 +578,7 @@ class SecretRedactor:
         if not self._enabled or not text:
             return []
 
-        raw: List[Tuple[int, int, str]] = []
+        raw: list[tuple[int, int, str]] = []
         with self._lock:
             for category, pattern in self._patterns:
                 for m in pattern.finditer(text):
@@ -631,7 +631,7 @@ class SecretRedactor:
 
         # De-duplicate / remove overlaps (longest first, then stable sort)
         raw.sort(key=lambda r: (r[0], -(r[1] - r[0])))
-        cleaned: List[Tuple[int, int, str]] = []
+        cleaned: list[tuple[int, int, str]] = []
         last_end = -1
         for start, end, name in raw:
             if start >= last_end:
@@ -669,7 +669,7 @@ class SecretRedactor:
     # Core: redact_dict
     # ------------------------------------------------------------------
 
-    def redact_dict(self, d: Dict[str, Any]) -> Dict[str, Any]:
+    def redact_dict(self, d: dict[str, Any]) -> dict[str, Any]:
         """Recursively redact every string value in *d*.
 
         Keys whose name matches :meth:`is_sensitive_env_var` are redacted
@@ -678,7 +678,7 @@ class SecretRedactor:
         if not self._enabled:
             return d
 
-        out: Dict[str, Any] = {}
+        out: dict[str, Any] = {}
         for key, value in d.items():
             if isinstance(value, str):
                 if self.is_sensitive_env_var(str(key)):
@@ -733,10 +733,10 @@ class SecretRedactor:
         """Total number of compiled regex patterns loaded."""
         return len(self._patterns)
 
-    def get_categories(self) -> List[str]:
+    def get_categories(self) -> list[str]:
         """Unique category names in load order."""
-        seen: Set[str] = set()
-        result: List[str] = []
+        seen: set[str] = set()
+        result: list[str] = []
         for name, _ in self._patterns:
             if name not in seen:
                 result.append(name)
@@ -746,7 +746,7 @@ class SecretRedactor:
     def summary(self) -> str:
         """Human-readable summary of the redactor's state."""
         cats = self.get_categories()
-        per_cat: Dict[str, int] = {}
+        per_cat: dict[str, int] = {}
         for name, _ in self._patterns:
             per_cat[name] = per_cat.get(name, 0) + 1
 
@@ -780,12 +780,12 @@ def redact_string(text: str) -> str:
     return redactor.redact_string(text)
 
 
-def redact_dict(d: Dict[str, Any]) -> Dict[str, Any]:
+def redact_dict(d: dict[str, Any]) -> dict[str, Any]:
     """Recursively redact secrets in *d* using the module-level singleton."""
     return redactor.redact_dict(d)
 
 
-def detect_secrets(text: str) -> List[Tuple[int, int, str]]:
+def detect_secrets(text: str) -> list[tuple[int, int, str]]:
     """Detect secrets in *text* without redacting."""
     return redactor.detect_secrets(text)
 

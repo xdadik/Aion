@@ -20,11 +20,11 @@ class VerificationResult:
     """Result of a single verification check."""
     passed: bool = False
     confidence: float = 0.5
-    issues: List[str] = field(default_factory=list)
-    suggestions: List[str] = field(default_factory=list)
+    issues: list[str] = field(default_factory=list)
+    suggestions: list[str] = field(default_factory=list)
     checked_by: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "passed": self.passed,
             "confidence": round(self.confidence, 3),
@@ -40,17 +40,17 @@ class Verifier(ABC):
     name: str = "base_verifier"
 
     @abstractmethod
-    async def verify(self, task: str, result: Any, context: Dict) -> VerificationResult:
+    async def verify(self, task: str, result: Any, context: dict) -> VerificationResult:
         pass
 
-    def is_applicable(self, task: str, result: Any, context: Dict) -> bool:
+    def is_applicable(self, task: str, result: Any, context: dict) -> bool:
         return True
 
 
 class LogicVerifier(Verifier):
     name = "logic_verifier"
 
-    async def verify(self, task: str, result: Any, context: Dict) -> VerificationResult:
+    async def verify(self, task: str, result: Any, context: dict) -> VerificationResult:
         issues = []
         suggestions = []
         result_str = str(result) if result else ""
@@ -93,15 +93,15 @@ Respond in JSON: {{"factual_issues": [], "suggestions": [], "confidence": 0.0}}
 
 Return ONLY JSON."""
 
-    def __init__(self, agent: Optional[Any] = None):
+    def __init__(self, agent: Any | None = None):
         self._agent = agent
 
-    def is_applicable(self, task: str, result: Any, context: Dict) -> bool:
+    def is_applicable(self, task: str, result: Any, context: dict) -> bool:
         if self._agent is None:
             return False
         return len(str(result or "")) > 100
 
-    async def verify(self, task: str, result: Any, context: Dict) -> VerificationResult:
+    async def verify(self, task: str, result: Any, context: dict) -> VerificationResult:
         issues = []
         suggestions = []
         confidence = 0.7
@@ -150,11 +150,11 @@ class CodeVerifier(Verifier):
         (r"(?i)api_key\s*=\s*[""][^""]+", "Hardcoded API key detected"),
     ]
 
-    def is_applicable(self, task: str, result: Any, context: Dict) -> bool:
+    def is_applicable(self, task: str, result: Any, context: dict) -> bool:
         result_str = str(result) if result else ""
         return any(ind in result_str for ind in ["def ", "class ", "import ", "from ", "return "])
 
-    async def verify(self, task: str, result: Any, context: Dict) -> VerificationResult:
+    async def verify(self, task: str, result: Any, context: dict) -> VerificationResult:
         issues = []
         suggestions = []
         result_str = str(result) if result else ""
@@ -207,7 +207,7 @@ class SecurityVerifier(Verifier):
         (r"(?i)BEGIN\s+(RSA|EC|DSA|OPENSSH)\s+PRIVATE", "Private key detected"),
     ]
 
-    async def verify(self, task: str, result: Any, context: Dict) -> VerificationResult:
+    async def verify(self, task: str, result: Any, context: dict) -> VerificationResult:
         issues = []
         suggestions = []
         result_str = str(result) if result else ""
@@ -228,10 +228,10 @@ class SecurityVerifier(Verifier):
 class CompletenessVerifier(Verifier):
     name = "completeness_verifier"
 
-    def __init__(self, agent: Optional[Any] = None):
+    def __init__(self, agent: Any | None = None):
         self._agent = agent
 
-    async def verify(self, task: str, result: Any, context: Dict) -> VerificationResult:
+    async def verify(self, task: str, result: Any, context: dict) -> VerificationResult:
         issues = []
         suggestions = []
         mission = context.get("mission")
@@ -266,7 +266,7 @@ class CompletenessVerifier(Verifier):
 
 class VerificationPipeline:
     def __init__(self):
-        self._verifiers: List[Verifier] = []
+        self._verifiers: list[Verifier] = []
 
     def add_verifier(self, verifier: Verifier) -> None:
         if any(v.name == verifier.name for v in self._verifiers):
@@ -279,10 +279,10 @@ class VerificationPipeline:
         self._verifiers = [v for v in self._verifiers if v.name != name]
         return len(self._verifiers) < before
 
-    def get_verifiers(self) -> List[str]:
+    def get_verifiers(self) -> list[str]:
         return [v.name for v in self._verifiers]
 
-    async def verify(self, task: str, result: Any, mission: Optional[MissionAnalysis] = None) -> List[VerificationResult]:
+    async def verify(self, task: str, result: Any, mission: MissionAnalysis | None = None) -> list[VerificationResult]:
         context = {"mission": mission}
         applicable = [v for v in self._verifiers if v.is_applicable(task, result, context)]
         logger.info(f"Running {len(applicable)}/{len(self._verifiers)} verifiers")

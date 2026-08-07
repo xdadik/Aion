@@ -48,13 +48,13 @@ class ChatMessage:
 
     role: str  # system, user, assistant, tool
     content: str
-    name: Optional[str] = None
-    tool_calls: Optional[List[Dict[str, Any]]] = None
-    tool_call_id: Optional[str] = None
+    name: str | None = None
+    tool_calls: list[dict[str, Any]] | None = None
+    tool_call_id: str | None = None
 
-    def to_openai_dict(self) -> Dict[str, Any]:
+    def to_openai_dict(self) -> dict[str, Any]:
         """Convert to OpenAI-compatible API dict."""
-        d: Dict[str, Any] = {"role": self.role, "content": self.content}
+        d: dict[str, Any] = {"role": self.role, "content": self.content}
         if self.name is not None:
             d["name"] = self.name
         if self.tool_calls is not None:
@@ -63,7 +63,7 @@ class ChatMessage:
             d["tool_call_id"] = self.tool_call_id
         return d
 
-    def to_anthropic_dict(self) -> Dict[str, Any]:
+    def to_anthropic_dict(self) -> dict[str, Any]:
         """Convert to Anthropic-compatible API dict.
 
         Anthropic uses 'content' as a list of blocks and separates
@@ -71,17 +71,17 @@ class ChatMessage:
         """
         if self.role == "system":
             return {"role": "user", "content": self.content}
-        d: Dict[str, Any] = {"role": self.role, "content": self.content}
+        d: dict[str, Any] = {"role": self.role, "content": self.content}
         return d
 
-    def to_google_dict(self) -> Dict[str, Any]:
+    def to_google_dict(self) -> dict[str, Any]:
         """Convert to Google Gemini-compatible API dict."""
         role_map = {"assistant": "model"}
         role = role_map.get(self.role, self.role)
         return {"role": role, "parts": [{"text": self.content}]}
 
     @classmethod
-    def from_openai_dict(cls, d: Dict[str, Any]) -> ChatMessage:
+    def from_openai_dict(cls, d: dict[str, Any]) -> ChatMessage:
         """Create ChatMessage from OpenAI API response dict."""
         return cls(
             role=d.get("role", "user"),
@@ -92,7 +92,7 @@ class ChatMessage:
         )
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> ChatMessage:
+    def from_dict(cls, d: dict[str, Any]) -> ChatMessage:
         """Create ChatMessage from a generic dict."""
         return cls(
             role=d.get("role", "user"),
@@ -111,7 +111,7 @@ class UsageInfo:
     completion_tokens: int = 0
     total_tokens: int = 0
 
-    def to_dict(self) -> Dict[str, int]:
+    def to_dict(self) -> dict[str, int]:
         return {
             "prompt_tokens": self.prompt_tokens,
             "completion_tokens": self.completion_tokens,
@@ -119,7 +119,7 @@ class UsageInfo:
         }
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> UsageInfo:
+    def from_dict(cls, d: dict[str, Any]) -> UsageInfo:
         return cls(
             prompt_tokens=d.get("prompt_tokens", 0),
             completion_tokens=d.get("completion_tokens", 0),
@@ -132,11 +132,11 @@ class ProviderResponse:
     """Unified response from any LLM provider."""
 
     content: str
-    tool_calls: Optional[List[Dict[str, Any]]] = None
+    tool_calls: list[dict[str, Any]] | None = None
     usage: UsageInfo = field(default_factory=UsageInfo)
     model: str = ""
-    raw_response: Optional[Dict[str, Any]] = None
-    finish_reason: Optional[str] = None
+    raw_response: dict[str, Any] | None = None
+    finish_reason: str | None = None
 
 
 # ============================================================================
@@ -153,7 +153,7 @@ class RetryHandler:
         base_delay: float = 1.0,
         max_delay: float = 60.0,
         exponential_base: float = 2.0,
-        retryable_status_codes: Optional[Tuple[int, ...]] = None,
+        retryable_status_codes: tuple[int, ...] | None = None,
     ):
         self.max_retries = max_retries
         self.base_delay = base_delay
@@ -191,7 +191,7 @@ class RetryHandler:
         The function should return a tuple of (status_code, result) or
         raise an exception. On retryable errors, it will be retried.
         """
-        last_exception: Optional[Exception] = None
+        last_exception: Exception | None = None
 
         for attempt in range(self.max_retries + 1):
             try:
@@ -274,10 +274,10 @@ class RateLimiter:
 
 async def _http_post_json(
     url: str,
-    headers: Dict[str, str],
-    payload: Dict[str, Any],
+    headers: dict[str, str],
+    payload: dict[str, Any],
     timeout: float = 120.0,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Make an async HTTP POST with JSON body.
 
     Uses the 'aiohttp' library if available, otherwise falls back to
@@ -320,10 +320,10 @@ async def _http_post_json(
 
 async def _http_post_stream(
     url: str,
-    headers: Dict[str, str],
-    payload: Dict[str, Any],
+    headers: dict[str, str],
+    payload: dict[str, Any],
     timeout: float = 120.0,
-) -> AsyncIterator[Dict[str, Any]]:
+) -> AsyncIterator[dict[str, Any]]:
     """Make an async HTTP POST and yield server-sent event chunks.
 
     Returns an async iterator of parsed JSON delta objects.
@@ -391,9 +391,9 @@ class BaseProvider(ABC):
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        default_model: Optional[str] = None,
-        base_url: Optional[str] = None,
+        api_key: str | None = None,
+        default_model: str | None = None,
+        base_url: str | None = None,
         max_retries: int = 3,
         rate_limit_rpm: float = 60.0,
         timeout: float = 120.0,
@@ -413,11 +413,11 @@ class BaseProvider(ABC):
     @abstractmethod
     async def chat(
         self,
-        messages: List[Union[ChatMessage, Dict[str, Any]]],
-        model: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        tools: Optional[List[Dict[str, Any]]] = None,
+        messages: list[ChatMessage | dict[str, Any]],
+        model: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        tools: list[dict[str, Any]] | None = None,
         **kwargs: Any,
     ) -> ProviderResponse:
         """Send a chat completion request and return a unified response."""
@@ -426,18 +426,18 @@ class BaseProvider(ABC):
     @abstractmethod
     async def chat_stream(
         self,
-        messages: List[Union[ChatMessage, Dict[str, Any]]],
-        model: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        tools: Optional[List[Dict[str, Any]]] = None,
+        messages: list[ChatMessage | dict[str, Any]],
+        model: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        tools: list[dict[str, Any]] | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[str]:
         """Stream chat completion tokens as an async iterator."""
         ...  # type: ignore[misc]
 
     @abstractmethod
-    async def list_models(self) -> List[str]:
+    async def list_models(self) -> list[str]:
         """List available models for this provider."""
         ...
 
@@ -452,10 +452,10 @@ class BaseProvider(ABC):
 
     def _normalize_messages(
         self,
-        messages: List[Union[ChatMessage, Dict[str, Any]]],
-    ) -> List[ChatMessage]:
+        messages: list[ChatMessage | dict[str, Any]],
+    ) -> list[ChatMessage]:
         """Ensure all entries are ChatMessage instances."""
-        result: List[ChatMessage] = []
+        result: list[ChatMessage] = []
         for m in messages:
             if isinstance(m, ChatMessage):
                 result.append(m)
@@ -486,7 +486,7 @@ class OpenAIProvider(BaseProvider):
     BASE_URL = "https://api.openai.com/v1"
     PROVIDER_NAME = "openai"
 
-    _KNOWN_MODELS: List[str] = [
+    _KNOWN_MODELS: list[str] = [
         "gpt-4o",
         "gpt-4o-mini",
         "gpt-4-turbo",
@@ -505,7 +505,7 @@ class OpenAIProvider(BaseProvider):
     def get_default_model(self) -> str:
         return "gpt-4o"
 
-    def _build_headers(self) -> Dict[str, str]:
+    def _build_headers(self) -> dict[str, str]:
         return {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -513,15 +513,15 @@ class OpenAIProvider(BaseProvider):
 
     def _build_payload(
         self,
-        messages: List[ChatMessage],
+        messages: list[ChatMessage],
         model: str,
-        temperature: Optional[float],
-        max_tokens: Optional[int],
-        tools: Optional[List[Dict[str, Any]]],
+        temperature: float | None,
+        max_tokens: int | None,
+        tools: list[dict[str, Any]] | None,
         stream: bool = False,
         **kwargs: Any,
-    ) -> Dict[str, Any]:
-        payload: Dict[str, Any] = {
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {
             "model": model,
             "messages": [m.to_openai_dict() for m in messages],
             "stream": stream,
@@ -537,11 +537,11 @@ class OpenAIProvider(BaseProvider):
 
     async def chat(
         self,
-        messages: List[Union[ChatMessage, Dict[str, Any]]],
-        model: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        tools: Optional[List[Dict[str, Any]]] = None,
+        messages: list[ChatMessage | dict[str, Any]],
+        model: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        tools: list[dict[str, Any]] | None = None,
         **kwargs: Any,
     ) -> ProviderResponse:
         normalized = self._normalize_messages(messages)
@@ -562,11 +562,11 @@ class OpenAIProvider(BaseProvider):
 
     async def chat_stream(
         self,
-        messages: List[Union[ChatMessage, Dict[str, Any]]],
-        model: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        tools: Optional[List[Dict[str, Any]]] = None,
+        messages: list[ChatMessage | dict[str, Any]],
+        model: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        tools: list[dict[str, Any]] | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[str]:
         normalized = self._normalize_messages(messages)
@@ -589,7 +589,7 @@ class OpenAIProvider(BaseProvider):
                 if content:
                     yield content
 
-    async def list_models(self) -> List[str]:
+    async def list_models(self) -> list[str]:
         """List available models from the OpenAI API."""
         try:
             import urllib.request
@@ -612,7 +612,7 @@ class OpenAIProvider(BaseProvider):
             logger.warning("Failed to list OpenAI models: %s", exc)
             return list(self._KNOWN_MODELS)
 
-    def _parse_response(self, raw: Dict[str, Any], model: str) -> ProviderResponse:
+    def _parse_response(self, raw: dict[str, Any], model: str) -> ProviderResponse:
         """Parse the OpenAI API response into a ProviderResponse."""
         choice = raw.get("choices", [{}])[0]
         message = choice.get("message", {})
@@ -643,7 +643,7 @@ class AnthropicProvider(BaseProvider):
     BASE_URL = "https://api.anthropic.com/v1"
     PROVIDER_NAME = "anthropic"
 
-    _KNOWN_MODELS: List[str] = [
+    _KNOWN_MODELS: list[str] = [
         "claude-sonnet-4-20250514",
         "claude-opus-4-20250514",
         "claude-3-5-sonnet-20241022",
@@ -667,7 +667,7 @@ class AnthropicProvider(BaseProvider):
     def get_default_model(self) -> str:
         return "claude-3-5-sonnet-20241022"
 
-    def _build_headers(self) -> Dict[str, str]:
+    def _build_headers(self) -> dict[str, str]:
         return {
             "x-api-key": self.api_key,
             "anthropic-version": self._ANTHROPIC_VERSION,
@@ -676,17 +676,17 @@ class AnthropicProvider(BaseProvider):
 
     def _build_payload(
         self,
-        messages: List[ChatMessage],
+        messages: list[ChatMessage],
         model: str,
-        temperature: Optional[float],
-        max_tokens: Optional[int],
-        tools: Optional[List[Dict[str, Any]]],
+        temperature: float | None,
+        max_tokens: int | None,
+        tools: list[dict[str, Any]] | None,
         stream: bool = False,
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         # Anthropic separates system messages from the messages array.
         system_content: str = ""
-        api_messages: List[Dict[str, Any]] = []
+        api_messages: list[dict[str, Any]] = []
 
         for msg in messages:
             if msg.role == "system":
@@ -694,7 +694,7 @@ class AnthropicProvider(BaseProvider):
             else:
                 api_messages.append(msg.to_anthropic_dict())
 
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "model": model,
             "messages": api_messages,
             "max_tokens": max_tokens or 4096,
@@ -723,11 +723,11 @@ class AnthropicProvider(BaseProvider):
 
     async def chat(
         self,
-        messages: List[Union[ChatMessage, Dict[str, Any]]],
-        model: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        tools: Optional[List[Dict[str, Any]]] = None,
+        messages: list[ChatMessage | dict[str, Any]],
+        model: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        tools: list[dict[str, Any]] | None = None,
         **kwargs: Any,
     ) -> ProviderResponse:
         normalized = self._normalize_messages(messages)
@@ -748,11 +748,11 @@ class AnthropicProvider(BaseProvider):
 
     async def chat_stream(
         self,
-        messages: List[Union[ChatMessage, Dict[str, Any]]],
-        model: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        tools: Optional[List[Dict[str, Any]]] = None,
+        messages: list[ChatMessage | dict[str, Any]],
+        model: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        tools: list[dict[str, Any]] | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[str]:
         normalized = self._normalize_messages(messages)
@@ -792,16 +792,16 @@ class AnthropicProvider(BaseProvider):
             elif event_type == "content_block_stop":
                 pass
 
-    async def list_models(self) -> List[str]:
+    async def list_models(self) -> list[str]:
         """Anthropic doesn't have a public models list endpoint.
         Return known models.
         """
         return list(self._KNOWN_MODELS)
 
-    def _parse_response(self, raw: Dict[str, Any], model: str) -> ProviderResponse:
+    def _parse_response(self, raw: dict[str, Any], model: str) -> ProviderResponse:
         """Parse the Anthropic API response into a ProviderResponse."""
         content_text = ""
-        tool_calls: List[Dict[str, Any]] = []
+        tool_calls: list[dict[str, Any]] = []
 
         for block in raw.get("content", []):
             if block.get("type") == "text":
@@ -859,7 +859,7 @@ class GoogleProvider(BaseProvider):
     BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
     PROVIDER_NAME = "google"
 
-    _KNOWN_MODELS: List[str] = [
+    _KNOWN_MODELS: list[str] = [
         "gemini-2.5-pro-preview-06-05",
         "gemini-2.5-flash-preview-05-20",
         "gemini-2.0-flash",
@@ -888,15 +888,15 @@ class GoogleProvider(BaseProvider):
 
     def _build_payload(
         self,
-        messages: List[ChatMessage],
+        messages: list[ChatMessage],
         model: str,
-        temperature: Optional[float],
-        max_tokens: Optional[int],
-        tools: Optional[List[Dict[str, Any]]],
+        temperature: float | None,
+        max_tokens: int | None,
+        tools: list[dict[str, Any]] | None,
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         system_instruction = None
-        gemini_contents: List[Dict[str, Any]] = []
+        gemini_contents: list[dict[str, Any]] = []
 
         for msg in messages:
             if msg.role == "system":
@@ -904,14 +904,14 @@ class GoogleProvider(BaseProvider):
             else:
                 gemini_contents.append(msg.to_google_dict())
 
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "contents": gemini_contents,
         }
 
         if system_instruction:
             payload["systemInstruction"] = system_instruction
 
-        generation_config: Dict[str, Any] = {}
+        generation_config: dict[str, Any] = {}
         if temperature is not None:
             generation_config["temperature"] = temperature
         if max_tokens is not None:
@@ -936,11 +936,11 @@ class GoogleProvider(BaseProvider):
 
     async def chat(
         self,
-        messages: List[Union[ChatMessage, Dict[str, Any]]],
-        model: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        tools: Optional[List[Dict[str, Any]]] = None,
+        messages: list[ChatMessage | dict[str, Any]],
+        model: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        tools: list[dict[str, Any]] | None = None,
         **kwargs: Any,
     ) -> ProviderResponse:
         normalized = self._normalize_messages(messages)
@@ -961,11 +961,11 @@ class GoogleProvider(BaseProvider):
 
     async def chat_stream(
         self,
-        messages: List[Union[ChatMessage, Dict[str, Any]]],
-        model: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        tools: Optional[List[Dict[str, Any]]] = None,
+        messages: list[ChatMessage | dict[str, Any]],
+        model: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        tools: list[dict[str, Any]] | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[str]:
         normalized = self._normalize_messages(messages)
@@ -989,7 +989,7 @@ class GoogleProvider(BaseProvider):
                     if text:
                         yield text
 
-    async def list_models(self) -> List[str]:
+    async def list_models(self) -> list[str]:
         """List available Gemini models."""
         try:
             import urllib.request
@@ -1012,11 +1012,11 @@ class GoogleProvider(BaseProvider):
             logger.warning("Failed to list Google models: %s", exc)
             return list(self._KNOWN_MODELS)
 
-    def _parse_response(self, raw: Dict[str, Any], model: str) -> ProviderResponse:
+    def _parse_response(self, raw: dict[str, Any], model: str) -> ProviderResponse:
         """Parse the Google Gemini API response into a ProviderResponse."""
         candidates = raw.get("candidates", [])
         content_text = ""
-        tool_calls: Optional[List[Dict[str, Any]]] = None
+        tool_calls: list[dict[str, Any]] | None = None
         finish_reason = None
 
         if candidates:
@@ -1088,7 +1088,7 @@ class OpenRouterProvider(BaseProvider):
     def get_default_model(self) -> str:
         return "openai/gpt-4o"
 
-    def _build_headers(self) -> Dict[str, str]:
+    def _build_headers(self) -> dict[str, str]:
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -1103,17 +1103,17 @@ class OpenRouterProvider(BaseProvider):
 
     async def chat(
         self,
-        messages: List[Union[ChatMessage, Dict[str, Any]]],
-        model: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        tools: Optional[List[Dict[str, Any]]] = None,
+        messages: list[ChatMessage | dict[str, Any]],
+        model: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        tools: list[dict[str, Any]] | None = None,
         **kwargs: Any,
     ) -> ProviderResponse:
         normalized = self._normalize_messages(messages)
         model = model or self.default_model
 
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "model": model,
             "messages": [m.to_openai_dict() for m in normalized],
         }
@@ -1137,17 +1137,17 @@ class OpenRouterProvider(BaseProvider):
 
     async def chat_stream(
         self,
-        messages: List[Union[ChatMessage, Dict[str, Any]]],
-        model: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        tools: Optional[List[Dict[str, Any]]] = None,
+        messages: list[ChatMessage | dict[str, Any]],
+        model: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        tools: list[dict[str, Any]] | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[str]:
         normalized = self._normalize_messages(messages)
         model = model or self.default_model
 
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "model": model,
             "messages": [m.to_openai_dict() for m in normalized],
             "stream": True,
@@ -1173,7 +1173,7 @@ class OpenRouterProvider(BaseProvider):
                 if content:
                     yield content
 
-    async def list_models(self) -> List[str]:
+    async def list_models(self) -> list[str]:
         """List models available on OpenRouter."""
         try:
             import urllib.request
@@ -1195,7 +1195,7 @@ class OpenRouterProvider(BaseProvider):
             return []
 
     def _parse_openai_response(
-        self, raw: Dict[str, Any], model: str
+        self, raw: dict[str, Any], model: str
     ) -> ProviderResponse:
         """Parse OpenAI-format response (shared by OpenRouter)."""
         choice = raw.get("choices", [{}])[0]
@@ -1234,7 +1234,7 @@ class OllamaProvider(BaseProvider):
     def get_default_model(self) -> str:
         return "llama3"
 
-    def _build_headers(self) -> Dict[str, str]:
+    def _build_headers(self) -> dict[str, str]:
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
@@ -1242,15 +1242,15 @@ class OllamaProvider(BaseProvider):
 
     def _build_payload(
         self,
-        messages: List[ChatMessage],
+        messages: list[ChatMessage],
         model: str,
-        temperature: Optional[float],
-        max_tokens: Optional[int],
-        tools: Optional[List[Dict[str, Any]]],
+        temperature: float | None,
+        max_tokens: int | None,
+        tools: list[dict[str, Any]] | None,
         stream: bool = False,
         **kwargs: Any,
-    ) -> Dict[str, Any]:
-        payload: Dict[str, Any] = {
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {
             "model": model,
             "messages": [m.to_openai_dict() for m in messages],
             "stream": stream,
@@ -1268,11 +1268,11 @@ class OllamaProvider(BaseProvider):
 
     async def chat(
         self,
-        messages: List[Union[ChatMessage, Dict[str, Any]]],
-        model: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        tools: Optional[List[Dict[str, Any]]] = None,
+        messages: list[ChatMessage | dict[str, Any]],
+        model: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        tools: list[dict[str, Any]] | None = None,
         **kwargs: Any,
     ) -> ProviderResponse:
         normalized = self._normalize_messages(messages)
@@ -1294,11 +1294,11 @@ class OllamaProvider(BaseProvider):
 
     async def chat_stream(
         self,
-        messages: List[Union[ChatMessage, Dict[str, Any]]],
-        model: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        tools: Optional[List[Dict[str, Any]]] = None,
+        messages: list[ChatMessage | dict[str, Any]],
+        model: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        tools: list[dict[str, Any]] | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[str]:
         normalized = self._normalize_messages(messages)
@@ -1323,7 +1323,7 @@ class OllamaProvider(BaseProvider):
             if chunk.get("done", False):
                 break
 
-    async def list_models(self) -> List[str]:
+    async def list_models(self) -> list[str]:
         """List locally available Ollama models."""
         try:
             import urllib.request
@@ -1342,7 +1342,7 @@ class OllamaProvider(BaseProvider):
             logger.warning("Failed to list Ollama models: %s", exc)
             return ["llama3"]
 
-    def _parse_response(self, raw: Dict[str, Any], model: str) -> ProviderResponse:
+    def _parse_response(self, raw: dict[str, Any], model: str) -> ProviderResponse:
         """Parse the Ollama native API response."""
         message = raw.get("message", {})
         content = message.get("content", "")
@@ -1396,7 +1396,7 @@ class CustomProvider(BaseProvider):
             "default_model", "default"
         )
 
-    def _build_headers(self) -> Dict[str, str]:
+    def _build_headers(self) -> dict[str, str]:
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
@@ -1407,17 +1407,17 @@ class CustomProvider(BaseProvider):
 
     async def chat(
         self,
-        messages: List[Union[ChatMessage, Dict[str, Any]]],
-        model: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        tools: Optional[List[Dict[str, Any]]] = None,
+        messages: list[ChatMessage | dict[str, Any]],
+        model: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        tools: list[dict[str, Any]] | None = None,
         **kwargs: Any,
     ) -> ProviderResponse:
         normalized = self._normalize_messages(messages)
         model = model or self.default_model
 
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "model": model,
             "messages": [m.to_openai_dict() for m in normalized],
         }
@@ -1440,17 +1440,17 @@ class CustomProvider(BaseProvider):
 
     async def chat_stream(
         self,
-        messages: List[Union[ChatMessage, Dict[str, Any]]],
-        model: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        tools: Optional[List[Dict[str, Any]]] = None,
+        messages: list[ChatMessage | dict[str, Any]],
+        model: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        tools: list[dict[str, Any]] | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[str]:
         normalized = self._normalize_messages(messages)
         model = model or self.default_model
 
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "model": model,
             "messages": [m.to_openai_dict() for m in normalized],
             "stream": True,
@@ -1476,7 +1476,7 @@ class CustomProvider(BaseProvider):
                 if content:
                     yield content
 
-    async def list_models(self) -> List[str]:
+    async def list_models(self) -> list[str]:
         """Try to list models from the custom endpoint."""
         try:
             import urllib.request
@@ -1497,7 +1497,7 @@ class CustomProvider(BaseProvider):
             logger.warning("Failed to list custom provider models: %s", exc)
             return []
 
-    def _parse_response(self, raw: Dict[str, Any], model: str) -> ProviderResponse:
+    def _parse_response(self, raw: dict[str, Any], model: str) -> ProviderResponse:
         """Parse OpenAI-format response from custom endpoint."""
         choice = raw.get("choices", [{}])[0]
         message = choice.get("message", {})
@@ -1519,7 +1519,7 @@ class CustomProvider(BaseProvider):
 
 
 # Registry mapping provider names (lowercase) to provider classes.
-_PROVIDER_REGISTRY: Dict[str, Type[BaseProvider]] = {
+_PROVIDER_REGISTRY: dict[str, type[BaseProvider]] = {
     "openai": OpenAIProvider,
     "anthropic": AnthropicProvider,
     "google": GoogleProvider,
@@ -1554,8 +1554,8 @@ class ProviderFactory:
     @staticmethod
     def create(
         provider_name: str,
-        config: Optional[Dict[str, Any]] = None,
-        default_model: Optional[str] = None,
+        config: dict[str, Any] | None = None,
+        default_model: str | None = None,
     ) -> BaseProvider:
         """Create a provider instance by name.
 
@@ -1586,7 +1586,7 @@ class ProviderFactory:
             )
 
         # Build the kwargs for the provider constructor.
-        kwargs: Dict[str, Any] = {}
+        kwargs: dict[str, Any] = {}
 
         # Standard config keys.
         standard_keys = {
@@ -1648,7 +1648,7 @@ class ProviderFactory:
         }
         prefix = env_prefix_map.get(name_key, name_key.upper())
 
-        config: Dict[str, Any] = {}
+        config: dict[str, Any] = {}
 
         api_key = os.environ.get(f"{prefix}_API_KEY")
         if api_key and name_key != "ollama":
@@ -1663,7 +1663,7 @@ class ProviderFactory:
     @staticmethod
     def register_provider(
         name: str,
-        provider_cls: Type[BaseProvider],
+        provider_cls: type[BaseProvider],
     ) -> None:
         """Register a custom provider class.
 
@@ -1686,7 +1686,7 @@ class ProviderFactory:
         logger.info("Registered provider: %s -> %s", name, provider_cls.__name__)
 
     @staticmethod
-    def list_providers() -> List[str]:
+    def list_providers() -> list[str]:
         """Return a sorted list of all registered provider names."""
         return sorted(_PROVIDER_REGISTRY.keys())
 

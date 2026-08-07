@@ -42,9 +42,9 @@ class ConfidenceEstimator:
     def estimate(
         self,
         result: Any,
-        verifications: List[VerificationResult],
+        verifications: list[VerificationResult],
         critique: CritiqueResult,
-        execution_results: Optional[Dict[str, ExecutionResult]] = None,
+        execution_results: dict[str, ExecutionResult] | None = None,
     ) -> float:
         """Estimate overall confidence in the result.
 
@@ -100,7 +100,7 @@ class ConfidenceEstimator:
         return confidence
 
     def _verification_signal(
-        self, verifications: List[VerificationResult]
+        self, verifications: list[VerificationResult]
     ) -> tuple:
         """Compute verification signal: pass rate * average confidence."""
         if not verifications:
@@ -135,7 +135,7 @@ class ConfidenceEstimator:
         return (score, weight)
 
     def _execution_signal(
-        self, execution_results: Optional[Dict[str, ExecutionResult]]
+        self, execution_results: dict[str, ExecutionResult] | None
     ) -> tuple:
         """Compute execution signal: success rate across plan nodes."""
         if not execution_results:
