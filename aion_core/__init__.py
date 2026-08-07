@@ -1,65 +1,90 @@
-"""
-Aion Hand - The Ultimate Autonomous AI Agent Framework
-=========================================================
+"""Aion Hand public package API.
 
-A modular autonomous agent runtime with provider abstraction, persistent
-memory, tool use, orchestration, automation, and security controls.
+The package initializer is intentionally lightweight.  Importing ``aion_core``
+must not initialize every optional subsystem (network adapters, messaging,
+MCP, model providers, etc.).  Heavy modules are exposed lazily through
+``__getattr__`` so a small component such as the security policy can be used
+without importing the entire application graph.
 """
+
+from __future__ import annotations
+
+from importlib import import_module
+from typing import Any
 
 __version__ = "0.3.0"
 __author__ = "Aion Hand Contributors"
 __license__ = "MIT"
 
-try:
-    from aion_core.agent.core import AionHand
-except ImportError:
-    AionHand = None  # type: ignore[assignment,misc]
-try:
-    from aion_core.agent.loop import AgentLoop
-except ImportError:
-    AgentLoop = None  # type: ignore[assignment,misc]
-try:
-    from aion_core.memory.manager import MemoryManager
-except ImportError:
-    MemoryManager = None  # type: ignore[assignment,misc]
-try:
-    from aion_core.tools.registry import ToolRegistry
-except ImportError:
-    ToolRegistry = None  # type: ignore[assignment,misc]
-try:
-    from aion_core.skills.engine import SkillEngine
-except ImportError:
-    SkillEngine = None  # type: ignore[assignment,misc]
-try:
-    from aion_core.providers.factory import ProviderFactory
-except ImportError:
-    ProviderFactory = None  # type: ignore[assignment,misc]
+_LAZY_IMPORTS: dict[str, tuple[str, str]] = {
+    "AionHand": ("aion_core.agent.core", "AionHand"),
+    "AgentLoop": ("aion_core.agent.loop", "AgentLoop"),
+    "MemoryManager": ("aion_core.memory.manager", "MemoryManager"),
+    "ToolRegistry": ("aion_core.tools.registry", "ToolRegistry"),
+    "SkillEngine": ("aion_core.skills.engine", "SkillEngine"),
+    "ProviderFactory": ("aion_core.providers.factory", "ProviderFactory"),
+    "AionConfig": ("aion_core.config.manager", "AionConfig"),
+    "load_config": ("aion_core.config.manager", "load_config"),
+    "save_config": ("aion_core.config.manager", "save_config"),
+    "get_aion_home": ("aion_core.config.manager", "get_aion_home"),
+    "ClassifiedError": ("aion_core.agent.error_classifier", "ClassifiedError"),
+    "FailoverReason": ("aion_core.agent.error_classifier", "FailoverReason"),
+    "classify_error": ("aion_core.agent.error_classifier", "classify_error"),
+    "ErrorTracker": ("aion_core.agent.error_classifier", "ErrorTracker"),
+    "get_recovery_strategy": ("aion_core.agent.error_classifier", "get_recovery_strategy"),
+    "ToolGuardrails": ("aion_core.agent.tool_guardrails", "ToolGuardrails"),
+    "ConcurrentToolExecutor": ("aion_core.agent.tool_guardrails", "ConcurrentToolExecutor"),
+    "ToolGuardrailConfig": ("aion_core.agent.tool_guardrails", "ToolGuardrailConfig"),
+    "ContextWindowManager": ("aion_core.agent.context_engine", "ContextWindowManager"),
+    "SummaryCompressor": ("aion_core.agent.context_engine", "SummaryCompressor"),
+    "PruningCompressor": ("aion_core.agent.context_engine", "PruningCompressor"),
+    "ThreeTierPromptBuilder": ("aion_core.agent.context_engine", "ThreeTierPromptBuilder"),
+    "SubagentLifecycle": ("aion_core.agent.subagent_lifecycle", "SubagentLifecycle"),
+    "SubagentLaunchRequest": ("aion_core.agent.subagent_lifecycle", "SubagentLaunchRequest"),
+    "SubagentHandle": ("aion_core.agent.subagent_lifecycle", "SubagentHandle"),
+    "SubagentResult": ("aion_core.agent.subagent_lifecycle", "SubagentResult"),
+    "DelegationContext": ("aion_core.agent.subagent_lifecycle", "DelegationContext"),
+    "CredentialPool": ("aion_core.agent.credential_pool", "CredentialPool"),
+    "PooledCredential": ("aion_core.agent.credential_pool", "PooledCredential"),
+    "RotationStrategy": ("aion_core.agent.credential_pool", "RotationStrategy"),
+    "MixtureOfAgents": ("aion_core.agent.moa_loop", "MixtureOfAgents"),
+    "MOAConfig": ("aion_core.agent.moa_loop", "MOAConfig"),
+    "MOAResult": ("aion_core.agent.moa_loop", "MOAResult"),
+    "BackgroundReviewer": ("aion_core.agent.background_review", "BackgroundReviewer"),
+    "SecretRedactor": ("aion_core.security.redact", "SecretRedactor"),
+    "redact_string": ("aion_core.security.redact", "redact_string"),
+    "redact_dict": ("aion_core.security.redact", "redact_dict"),
+    "detect_secrets": ("aion_core.security.redact", "detect_secrets"),
+    "FileSafetyChecker": ("aion_core.security.filesafety", "FileSafetyChecker"),
+    "PlatformType": ("aion_core.messaging.platforms", "PlatformType"),
+    "PlatformAdapter": ("aion_core.messaging.platforms", "PlatformAdapter"),
+    "PlatformRegistry": ("aion_core.messaging.platforms", "PlatformRegistry"),
+    "create_platform": ("aion_core.messaging.platforms", "create_platform"),
+    "RuntimeStatus": ("aion_core.runtime.production", "RuntimeStatus"),
+    "build_provider": ("aion_core.runtime.production", "build_provider"),
+    "provider_health_check": ("aion_core.runtime.production", "provider_health_check"),
+    "resolve_api_key": ("aion_core.runtime.production", "resolve_api_key"),
+    "runtime_diagnostics": ("aion_core.runtime.production", "runtime_diagnostics"),
+    "create_production_agent": ("aion_core.runtime.agent", "create_production_agent"),
+    "AutonomousRunner": ("aion_core.automation.autonomous", "AutonomousRunner"),
+    "AutomationResult": ("aion_core.automation.autonomous", "AutomationResult"),
+    "AutomationTask": ("aion_core.automation.autonomous", "AutomationTask"),
+}
 
-from aion_core.config.manager import AionConfig, get_aion_home, load_config, save_config
-from aion_core.agent.error_classifier import ClassifiedError, FailoverReason, classify_error, ErrorTracker, get_recovery_strategy
-from aion_core.agent.tool_guardrails import ToolGuardrails, ConcurrentToolExecutor, ToolGuardrailConfig
-from aion_core.agent.context_engine import ContextWindowManager, SummaryCompressor, PruningCompressor, ThreeTierPromptBuilder
-from aion_core.agent.subagent_lifecycle import SubagentLifecycle, SubagentLaunchRequest, SubagentHandle, SubagentResult, DelegationContext
-from aion_core.agent.credential_pool import CredentialPool, PooledCredential, RotationStrategy
-from aion_core.agent.moa_loop import MixtureOfAgents, MOAConfig, MOAResult
-from aion_core.agent.background_review import BackgroundReviewer
-from aion_core.security.redact import SecretRedactor, redact_string, redact_dict, detect_secrets
-from aion_core.security.filesafety import FileSafetyChecker
-from aion_core.messaging.platforms import PlatformType, PlatformAdapter, PlatformRegistry, create_platform
-from aion_core.runtime.production import RuntimeStatus, build_provider, provider_health_check, resolve_api_key, runtime_diagnostics
-from aion_core.runtime.agent import create_production_agent
-from aion_core.automation.autonomous import AutonomousRunner, AutomationResult, AutomationTask
+__all__ = list(_LAZY_IMPORTS)
 
-__all__ = [
-    "AionHand", "AgentLoop", "MemoryManager", "ToolRegistry", "SkillEngine", "ProviderFactory",
-    "AionConfig", "load_config", "save_config", "get_aion_home",
-    "ClassifiedError", "FailoverReason", "classify_error", "ErrorTracker", "get_recovery_strategy",
-    "ToolGuardrails", "ConcurrentToolExecutor", "ToolGuardrailConfig",
-    "ContextWindowManager", "SummaryCompressor", "PruningCompressor", "ThreeTierPromptBuilder",
-    "SubagentLifecycle", "SubagentLaunchRequest", "SubagentHandle", "SubagentResult", "DelegationContext",
-    "CredentialPool", "PooledCredential", "RotationStrategy", "MixtureOfAgents", "MOAConfig", "MOAResult",
-    "BackgroundReviewer", "SecretRedactor", "redact_string", "redact_dict", "detect_secrets", "FileSafetyChecker",
-    "PlatformType", "PlatformAdapter", "PlatformRegistry", "create_platform",
-    "RuntimeStatus", "build_provider", "provider_health_check", "resolve_api_key", "runtime_diagnostics",
-    "create_production_agent", "AutonomousRunner", "AutomationResult", "AutomationTask",
-]
+
+def __getattr__(name: str) -> Any:
+    """Load public components only when they are actually requested."""
+    target = _LAZY_IMPORTS.get(name)
+    if target is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module_name, attribute_name = target
+    module = import_module(module_name)
+    value = getattr(module, attribute_name)
+    globals()[name] = value
+    return value
+
+
+def __dir__() -> list[str]:
+    return sorted(set(globals()) | set(__all__))
