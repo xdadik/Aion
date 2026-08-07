@@ -22,10 +22,10 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-      - name: Install project and development dependencies
-        run: python -m pip install -e ".[all,dev]"
+      - name: Install test dependencies
+        run: python -m pip install --upgrade pip pytest pytest-asyncio pytest-cov
       - name: Run test suite
-        run: python -m pytest -q --cov=aion_core --cov-report=term-missing --cov-report=xml
+        run: python -m pytest -q --cov=aion_core --cov-report=term-missing
       - name: Compile Python sources
         run: python -m compileall -q aion_core aion_hand_cli
 
@@ -38,8 +38,8 @@ jobs:
         with:
           python-version: '3.11'
           cache: pip
-      - name: Install development dependencies
-        run: python -m pip install -e ".[all,dev]"
+      - name: Install quality tools
+        run: python -m pip install --upgrade pip ruff black
       - name: Ruff
         run: python -m ruff check aion_core aion_hand_cli tests
       - name: Black check
@@ -54,7 +54,7 @@ jobs:
         with:
           python-version: '3.11'
           cache: pip
-      - name: Install project and test dependencies
-        run: python -m pip install -e ".[all,dev]"
+      - name: Install test runner
+        run: python -m pip install --upgrade pip pytest
       - name: Run security regression tests
         run: python -m pytest -q tests/test_secure_sandbox.py
