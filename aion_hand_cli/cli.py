@@ -14,6 +14,7 @@ import asyncio
 import contextlib
 import importlib
 import json
+import logging
 import os
 import sys
 import textwrap
@@ -21,6 +22,7 @@ import threading
 import time
 import uuid
 from datetime import datetime
+from pathlib import Path
 
 try:
     import readline  # noqa: F401 - imported for history support
@@ -596,6 +598,39 @@ class AionHandCLI:
             help="Set active provider and model",
         )
         providers_p.set_defaults(func=self._cmd_providers)
+
+        # ── doctor ───────────────────────────────────────────────────────
+        doctor_p = subparsers.add_parser(
+            "doctor",
+            help="Diagnose Aion installation health",
+            description="Run a series of health checks on your Aion installation: Python version, dependencies, config, providers, MCP servers, skills, personas.",
+        )
+        doctor_p.add_argument("--fix", action="store_true", help="Attempt to fix detected issues")
+        doctor_p.set_defaults(func=self._cmd_doctor)
+
+        # ── backup ───────────────────────────────────────────────────────
+        backup_p = subparsers.add_parser(
+            "backup",
+            help="Backup / restore agent state",
+            description="Create a backup archive of ~/.aion-hand/ or restore from one.",
+        )
+        backup_p.add_argument("--create", action="store_true", help="Create a new backup")
+        backup_p.add_argument("--restore", type=str, default=None, metavar="PATH", help="Restore from archive")
+        backup_p.add_argument("--list", action="store_true", help="List existing backups")
+        backup_p.add_argument("--cleanup", type=int, default=None, metavar="KEEP", help="Delete old backups, keep newest N")
+        backup_p.add_argument("--label", type=str, default="", help="Label for the backup")
+        backup_p.set_defaults(func=self._cmd_backup)
+
+        # ── serve ────────────────────────────────────────────────────────
+        serve_p = subparsers.add_parser(
+            "serve",
+            help="Start the HTTP API server",
+            description="Run the Aion HTTP API server for the web UI and external clients.",
+        )
+        serve_p.add_argument("--host", default="0.0.0.0", help="Bind host (default: 0.0.0.0)")
+        serve_p.add_argument("--port", type=int, default=8000, help="Bind port (default: 8000)")
+        serve_p.add_argument("--log-level", default="INFO", help="Log level (default: INFO)")
+        serve_p.set_defaults(func=self._cmd_serve)
 
         # ── Default: no command → interactive REPL ─────────────────────
         parser.set_defaults(func=self._cmd_chat)
@@ -2101,6 +2136,191 @@ class AionHandCLI:
             f"  {Colors.GREEN}✔{Colors.RESET} Active provider/model set to "
             f"{Colors.BRIGHT_CYAN}{full_id}{Colors.RESET}\n"
         )
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  DOCTOR / BACKUP / SERVE
+    # ══════════════════════════════════════════════════════════════════════
+
+    async def _cmd_doctor(self, args: argparse.Namespace):
+        """Diagnose Aion installation health."""
+        self._print_colored(f"\n  {Colors.BOLD}Aion Hand Doctor{Colors.RESET}\n", Colors.CYAN)
+        self._print_colored("  " + "─" * 62 + "\n", Colors.DIM)
+
+        checks_passed = 0
+        checks_failed = 0
+        warnings = 0
+
+        # Check 1: Python version
+        import sys as _sys
+        py_ok = _sys.version_info >= (3, 11)
+        status = f"{Colors.GREEN}✔{Colors.RESET}" if py_ok else f"{Colors.RED}✘{Colors.RESET}"
+        self._print_colored(f"  {status} Python {_sys.version.split()[0]} (>= 3.11 required)\n")
+        checks_passed += int(py_ok); checks_failed += int(not py_ok)
+
+        # Check 2: Aion importable
+        try:
+            import aion_core  # noqa: F401
+            self._print_colored(f"  {Colors.GREEN}✔{Colors.RESET} aion_core importable\n")
+            checks_passed += 1
+        except ImportError as exc:
+            self._print_colored(f"  {Colors.RED}✘{Colors.RESET} aion_core not importable: {exc}\n")
+            checks_failed += 1
+
+        # Check 3: Optional deps
+        for dep_name, dep_module in [
+            ("rich", "rich"),
+            ("pyyaml", "yaml"),
+            ("aiohttp", "aiohttp"),
+            ("prompt_toolkit", "prompt_toolkit"),
+        ]:
+            try:
+                __import__(dep_module)
+                self._print_colored(f"  {Colors.GREEN}✔{Colors.RESET} optional dep: {dep_name}\n")
+                checks_passed += 1
+            except ImportError:
+                self._print_colored(f"  {Colors.YELLOW}⚠{Colors.RESET} optional dep missing: {dep_name}\n")
+                warnings += 1
+
+        # Check 4: Config dir
+        home_dir = Path.home() / ".aion-hand"
+        if home_dir.is_dir():
+            self._print_colored(f"  {Colors.GREEN}✔{Colors.RESET} config dir: {home_dir}\n")
+            checks_passed += 1
+        else:
+            self._print_colored(f"  {Colors.YELLOW}⚠{Colors.RESET} config dir not created yet: {home_dir}\n")
+            if getattr(args, "fix", False):
+                home_dir.mkdir(parents=True, exist_ok=True)
+                self._print_colored(f"  {Colors.GREEN}✔{Colors.RESET} created config dir\n")
+                checks_passed += 1
+            else:
+                warnings += 1
+
+        # Check 5: Skills
+        skills_dir = home_dir / "skills"
+        n_skills = len(list(skills_dir.glob("*.md"))) if skills_dir.is_dir() else 0
+        if n_skills > 0:
+            self._print_colored(f"  {Colors.GREEN}✔{Colors.RESET} {n_skills} skills in {skills_dir}\n")
+            checks_passed += 1
+        else:
+            self._print_colored(f"  {Colors.YELLOW}⚠{Colors.RESET} no user skills installed (use 'aion-hand skills --list')\n")
+            warnings += 1
+
+        # Check 6: Personas
+        try:
+            from aion_core.persona import PersonaManager
+            mgr = PersonaManager()
+            n_personas = len(mgr.list_personas())
+            self._print_colored(f"  {Colors.GREEN}✔{Colors.RESET} {n_personas} personas available (active: {mgr.get_active_name()})\n")
+            checks_passed += 1
+        except Exception as exc:  # noqa: BLE001
+            self._print_colored(f"  {Colors.RED}✘{Colors.RESET} persona system error: {exc}\n")
+            checks_failed += 1
+
+        # Check 7: API key (any provider)
+        has_key = any(os.environ.get(k) for k in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GROQ_API_KEY"))
+        if has_key:
+            self._print_colored(f"  {Colors.GREEN}✔{Colors.RESET} LLM API key found in env\n")
+            checks_passed += 1
+        else:
+            self._print_colored(f"  {Colors.YELLOW}⚠{Colors.RESET} no LLM API key in env (set OPENAI_API_KEY etc.)\n")
+            warnings += 1
+
+        # Summary
+        self._print_colored("  " + "─" * 62 + "\n", Colors.DIM)
+        summary_color = Colors.GREEN if checks_failed == 0 else Colors.RED
+        self._print_colored(
+            f"  {summary_color}{checks_passed} passed{Colors.RESET}, "
+            f"{Colors.RED if checks_failed else Colors.DIM}{checks_failed} failed{Colors.RESET}, "
+            f"{Colors.YELLOW if warnings else Colors.DIM}{warnings} warnings{Colors.RESET}\n\n"
+        )
+
+        if checks_failed > 0 and not getattr(args, "fix", False):
+            self._print_colored(
+                f"  {Colors.DIM}Run with --fix to attempt automatic fixes.\n\n",
+                Colors.DIM,
+            )
+
+    async def _cmd_backup(self, args: argparse.Namespace):
+        """Backup / restore agent state."""
+        try:
+            from aion_core.backup import BackupManager
+        except ImportError as exc:
+            self._print_colored(f"  {Colors.RED}✘{Colors.RESET} backup module not available: {exc}\n")
+            return
+
+        bm = BackupManager()
+
+        if args.create:
+            self._print_colored(f"\n  {Colors.BOLD}Creating backup…{Colors.RESET}\n", Colors.CYAN)
+            archive = await bm.backup(label=args.label)
+            self._print_colored(
+                f"  {Colors.GREEN}✔{Colors.RESET} Backup created: {archive}\n"
+                f"  {Colors.DIM}Size: {archive.stat().st_size / 1024:.1f} KB\n\n",
+                Colors.DIM,
+            )
+            return
+
+        if args.restore:
+            self._print_colored(f"\n  {Colors.BOLD}Restoring from {args.restore}…{Colors.RESET}\n", Colors.CYAN)
+            result = await bm.restore(args.restore, overwrite=True)
+            self._print_colored(
+                f"  {Colors.GREEN}✔{Colors.RESET} Restored {len(result['extracted'])} items, "
+                f"skipped {len(result['skipped'])}\n\n"
+            )
+            return
+
+        if args.cleanup is not None:
+            deleted = bm.cleanup_old(keep=args.cleanup)
+            self._print_colored(
+                f"  {Colors.GREEN}✔{Colors.RESET} Deleted {deleted} old backups (kept newest {args.cleanup})\n\n"
+            )
+            return
+
+        # Default: list
+        entries = bm.list_backups()
+        if not entries:
+            self._print_colored(f"\n  {Colors.DIM}No backups found. Use 'aion-hand backup --create' to create one.\n\n")
+            return
+        self._print_colored(f"\n  {Colors.BOLD}Backups{Colors.RESET}\n", Colors.CYAN)
+        self._print_colored("  " + "─" * 62 + "\n", Colors.DIM)
+        for e in entries:
+            size_kb = e.size_bytes / 1024
+            self._print_colored(
+                f"  {Colors.WHITE}{e.path.name:50s}{Colors.RESET} "
+                f"{Colors.DIM}{size_kb:8.1f} KB  {e.age_days:6.1f} days old{Colors.RESET}\n"
+            )
+        self._print_colored("\n")
+
+    async def _cmd_serve(self, args: argparse.Namespace):
+        """Start the HTTP API server."""
+        try:
+            from aion_core.api.server import APIServer, APIConfig
+        except ImportError as exc:
+            self._print_colored(f"  {Colors.RED}✘{Colors.RESET} API module not available: {exc}\n")
+            self._print_colored(
+                f"  {Colors.DIM}Install with: pip install aiohttp{Colors.RESET}\n"
+            )
+            return
+
+        logging.basicConfig(
+            level=args.log_level.upper(),
+            format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        )
+
+        self._print_colored(
+            f"\n  {Colors.BOLD}Starting Aion HTTP API server{Colors.RESET}\n"
+            f"  {Colors.DIM}Host: {args.host}  Port: {args.port}{Colors.RESET}\n\n",
+            Colors.CYAN,
+        )
+
+        from aion_core.agent.core import AionHand
+        agent = AionHand()
+        await agent.start()
+        try:
+            server = APIServer(agent=agent, config=APIConfig(host=args.host, port=args.port))
+            await server.serve()
+        finally:
+            await agent.shutdown()
 
     # ══════════════════════════════════════════════════════════════════════
     #  INTERACTIVE REPL
