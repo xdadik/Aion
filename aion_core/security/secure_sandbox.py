@@ -1,11 +1,13 @@
-"""Hardened execution primitives for Aion Hand.
+"""Hardened execution policy primitives for Aion Hand.
 
-This module is intentionally conservative: untrusted Python is parsed with an
-AST import policy, shell commands are executed without a shell, and filesystem
-paths are constrained to an explicit workspace root.
+This module provides conservative building blocks for agent-controlled
+execution. It does not claim to be a kernel/container sandbox: truly
+untrusted code must run in an OS/container sandbox with dropped privileges.
 
-The existing sandbox module is kept for compatibility. New integrations should
-prefer :class:`SecureSandbox` and migrate tools to these primitives.
+The primitives here enforce three important boundaries before that layer:
+1. Python imports are explicit-allowlist based (not denylist based).
+2. Shell metacharacters cannot be interpreted because commands use argv.
+3. File paths are constrained to an explicit workspace root.
 """
 from __future__ import annotations
 
@@ -27,7 +29,6 @@ DEFAULT_PYTHON_IMPORTS = frozenset({
     "hashlib", "hmac", "itertools", "json", "math", "operator", "re",
     "statistics", "string", "textwrap", "unicodedata",
 })
-
 DEFAULT_ENV_KEYS = frozenset({"LANG", "LC_ALL", "TZ"})
 
 
@@ -56,7 +57,7 @@ class PythonImportPolicy(ast.NodeVisitor):
 
 
 def validate_python_source(code: str, allowed_imports: Iterable[str] = DEFAULT_PYTHON_IMPORTS) -> None:
-    """Parse *code* and enforce the import policy before execution."""
+    """Parse source and enforce the import policy before execution."""
     if not code or len(code) > 256_000:
         raise SecurityPolicyError("Python source is empty or exceeds the 256 KiB limit")
     try:
@@ -69,7 +70,8 @@ def validate_python_source(code: str, allowed_imports: Iterable[str] = DEFAULT_P
 def resolve_workspace_path(workspace: Path | str, requested: Path | str) -> Path:
     """Resolve a path and guarantee it remains inside *workspace*."""
     root = Path(workspace).expanduser().resolve(strict=False)
-    candidate = (root / requested).resolve(strict=False) if not Path(requested).is_absolute() else Path(requested).resolve(strict=False)
+    requested_path = Path(requested)
+    candidate = (root / requested_path).resolve(strict=False) if not requested_path.is_absolute() else requested_path.resolve(strict=False)
     try:
         candidate.relative_to(root)
     except ValueError as exc:
@@ -122,6 +124,7 @@ class SecureSandbox:
         *,
         cwd: Path | str | None = None,
         env: Mapping[str, str] | None = None,
+        stdin_data: bytes | None = None,
     ) -> dict[str, object]:
         """Execute an argv vector. A shell is never involved."""
         if not argv or any("\x00" in arg for arg in argv):
@@ -131,13 +134,13 @@ class SecureSandbox:
             *argv,
             cwd=str(workdir),
             env=self._environment(env),
-            stdin=asyncio.subprocess.DEVNULL,
+            stdin=asyncio.subprocess.PIPE if stdin_data is not None else asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             start_new_session=True,
         )
         try:
-            stdout, stderr = await asyncio.wait_for(process.communicate(), self.timeout)
+            stdout, stderr = await asyncio.wait_for(process.communicate(stdin_data), self.timeout)
         except asyncio.TimeoutError:
             try:
                 os.killpg(process.pid, signal.SIGKILL)
@@ -153,16 +156,20 @@ class SecureSandbox:
         }
 
     async def execute_python(self, code: str) -> dict[str, object]:
-        """Execute policy-checked Python in a separate interpreter process."""
+        """Execute import-policy-checked Python in a separate interpreter.
+
+        For production multi-tenant/untrusted execution, put this process in
+        a real container/VM with a read-only image, dropped capabilities,
+        seccomp/AppArmor, a non-root UID, CPU/memory limits and no network.
+        """
         validate_python_source(code, self.allowed_python_imports)
         runner = (
             "import sys\n"
             "code=sys.stdin.read()\n"
             "exec(compile(code, '<aion-sandbox>', 'exec'), {'__name__':'__main__'})\n"
         )
-        # The AST import policy is the first line of defense; the subprocess
-        # and workspace/env restrictions are additional containment layers.
         return await self.execute_argv(
             [sys.executable, "-I", "-c", runner],
             env={"AION_SANDBOX": "1"},
+            stdin_data=code.encode("utf-8"),
         )
