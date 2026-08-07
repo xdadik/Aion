@@ -25,9 +25,9 @@ import logging
 import os
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any
 
 logger = logging.getLogger("aion_hand.security.sandbox")
 
@@ -333,7 +333,7 @@ class ApprovalManager:
             "tool_name": tool_name,
             "params": params,
             "reason": reason,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
             "status": "pending",
             "command_key": command_key,
         }
@@ -466,7 +466,7 @@ class ApprovalManager:
 
     def _cleanup_expired(self) -> None:
         """Remove tickets whose TTL has elapsed."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         expired: list[str] = []
         for tid, ticket in self._pending_approvals.items():
             try:
@@ -605,7 +605,7 @@ class Sandbox:
 
             return result
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             duration = _time.monotonic() - start
             self._total_time += duration
             logger.warning(
@@ -722,7 +722,7 @@ class Sandbox:
 
             return result
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             duration = _time.monotonic() - start
             self._total_time += duration
             logger.warning(
@@ -1090,7 +1090,7 @@ class SecurityManager:
         """Append an entry to the in-memory audit log."""
         entry: dict[str, Any] = {
             "event_type": event_type,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             **data,
         }
         self._audit_log.append(entry)

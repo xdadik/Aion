@@ -32,20 +32,13 @@ import asyncio
 import logging
 import time
 import uuid
-from collections import defaultdict, deque
+from collections import deque
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import (
     Any,
-    Awaitable,
-    Callable,
-    Dict,
-    FrozenSet,
-    List,
-    Optional,
-    Set,
-    Tuple,
 )
+from collections.abc import Awaitable
 
 logger = logging.getLogger("aion_hand.orchestration")
 
@@ -230,7 +223,7 @@ class SubAgent:
                 self.last_result.tools_used,
             )
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             elapsed = time.monotonic() - start
             self.last_result = SubAgentResult(
                 task=self.task,
@@ -388,7 +381,7 @@ class WorkflowNode:
     # ---- factory --------------------------------------------------------
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "WorkflowNode":
+    def from_dict(cls, data: dict[str, Any]) -> WorkflowNode:
         """Create a ``WorkflowNode`` from a plain dictionary."""
         node_type = NodeType(data.get("type", "agent"))
         return cls(
@@ -579,7 +572,7 @@ class Workflow:
                 WorkflowStatus.FAILED if has_errors else WorkflowStatus.COMPLETED
             )
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             self.status = WorkflowStatus.FAILED
             logger.error(
                 "Workflow '%s' timed out after %.1fs", self.name, self.timeout
@@ -899,7 +892,7 @@ class Workflow:
     @classmethod
     def from_dict(
         cls, data: dict[str, Any], engine: Any | None = None
-    ) -> "Workflow":
+    ) -> Workflow:
         """Create a :class:`Workflow` from a definition dictionary.
 
         Expected structure::

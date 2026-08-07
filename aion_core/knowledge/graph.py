@@ -8,13 +8,12 @@ full CRUD, graph traversal (BFS/DFS), clustering, persistence, and search.
 from __future__ import annotations
 
 import json
-import os
 import uuid
 from collections import defaultdict, deque
 from dataclasses import dataclass, field, asdict
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any
 
 
 # ---------------------------------------------------------------------------
@@ -42,23 +41,23 @@ class Entity:
     entity_type: str = "concept"
     properties: dict[str, Any] = field(default_factory=dict)
     created_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat(),
+        default_factory=lambda: datetime.now(UTC).isoformat(),
     )
     updated_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat(),
+        default_factory=lambda: datetime.now(UTC).isoformat(),
     )
     access_count: int = 0
 
     def touch(self) -> None:
         """Update the *updated_at* timestamp and bump access count."""
-        self.updated_at = datetime.now(timezone.utc).isoformat()
+        self.updated_at = datetime.now(UTC).isoformat()
         self.access_count += 1
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Entity":
+    def from_dict(cls, data: dict[str, Any]) -> Entity:
         return cls(**data)
 
 
@@ -73,14 +72,14 @@ class Relation:
     weight: float = 0.5
     properties: dict[str, Any] = field(default_factory=dict)
     created_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat(),
+        default_factory=lambda: datetime.now(UTC).isoformat(),
     )
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Relation":
+    def from_dict(cls, data: dict[str, Any]) -> Relation:
         return cls(**data)
 
 
@@ -558,7 +557,7 @@ class KnowledgeGraph:
         # Load entities
         entity_file = path / "entities.json"
         if entity_file.exists():
-            with open(entity_file, "r", encoding="utf-8") as f:
+            with open(entity_file, encoding="utf-8") as f:
                 data = json.load(f)
             for item in data:
                 entity = Entity.from_dict(item)
@@ -569,7 +568,7 @@ class KnowledgeGraph:
         # Load relations
         relation_file = path / "relations.json"
         if relation_file.exists():
-            with open(relation_file, "r", encoding="utf-8") as f:
+            with open(relation_file, encoding="utf-8") as f:
                 data = json.load(f)
             for item in data:
                 rel = Relation.from_dict(item)

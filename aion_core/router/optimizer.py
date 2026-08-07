@@ -11,8 +11,8 @@ import logging
 import os
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timedelta, UTC
+from typing import Any
 
 from .router import ModelProfile, ModelRouter
 
@@ -336,4 +336,4 @@ class CostOptimizer:
         }
         if period not in deltas:
             raise ValueError(f"Unknown period '{period}'. Use: {', '.join(deltas)}")
-        return (datetime.utcnow() - deltas[period]).timestamp()
+        return (datetime.now(UTC) - deltas[period]).timestamp()

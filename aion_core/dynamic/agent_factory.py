@@ -28,9 +28,9 @@ import time
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Set
+from typing import Any, Literal
 
 logger = logging.getLogger("aion_hand.dynamic.factory")
 
@@ -125,7 +125,7 @@ class DynamicAgent:
     profile: AgentProfile
     status: str = "created"
     parent_task: str | None = None
-    created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat().replace("+00:00", "Z"))
     tokens_used: int = 0
     results: list[dict[str, Any]] = field(default_factory=list)
     child_agents: list[str] = field(default_factory=list)

@@ -7,7 +7,7 @@ It delegates to :class:`ModelRouter` for routing decisions and
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 from .optimizer import CostOptimizer
 from .router import ModelRouter, RoutingDecision

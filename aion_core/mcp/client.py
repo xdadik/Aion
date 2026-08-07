@@ -21,12 +21,11 @@ import asyncio
 import json
 import logging
 import os
-import sys
 import time
 import urllib.request
 import urllib.error
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger("aion_hand.mcp.client")
 
@@ -284,7 +283,7 @@ class _StdioConnection:
                     err.get("data"),
                 )
             return response.get("result", {})
-        except asyncio.TimeoutError:
+        except TimeoutError:
             self._pending.pop(rid, None)
             raise TimeoutError(
                 f"MCP request '{method}' timed out after {timeout}s"
@@ -317,7 +316,7 @@ class _StdioConnection:
                     await self.process.stdin.wait_closed()
                 self.process.terminate()
                 await asyncio.wait_for(self.process.wait(), timeout=5)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning("Stdio process did not terminate, killing")
                 self.process.kill()
                 await self.process.wait()
@@ -414,7 +413,7 @@ class _SSEConnection:
                 loop.run_in_executor(None, _do_connect),
                 timeout=SSE_CONNECT_TIMEOUT,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             raise TimeoutError(
                 f"SSE connection to {self.url} timed out after {SSE_CONNECT_TIMEOUT}s"
             )
@@ -498,7 +497,7 @@ class _SSEConnection:
                     loop.run_in_executor(None, _do_post),
                     timeout=timeout,
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 raise TimeoutError(
                     f"SSE request '{method}' timed out after {timeout}s"
                 )

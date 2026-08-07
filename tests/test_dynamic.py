@@ -7,7 +7,6 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
 
 # Ensure project root is importable
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -16,12 +15,11 @@ from aion_core.dynamic.agent_factory import (
     AgentProfile,
     DynamicAgent,
     DynamicAgentFactory,
-    AgentRole,
     VALID_ROLES,
 )
 from aion_core.dynamic.topology import AgentTopology, TopologyManager
 from aion_core.dynamic.orchestrator import DynamicOrchestrator, DynamicOrchestrationPlan
-from aion_core.dynamic.manager import DynamicManager, classify_task, estimate_complexity
+from aion_core.dynamic.manager import classify_task, estimate_complexity
 
 
 # ===================================================================
