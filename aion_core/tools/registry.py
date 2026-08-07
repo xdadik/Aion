@@ -24,26 +24,24 @@ from __future__ import annotations
 
 import asyncio
 import calendar
+import contextlib
 import json
 import logging
 import math
 import os
 import platform
-import subprocess
 import sys
 import time
 import uuid
-from datetime import datetime, timezone
+from collections.abc import Awaitable, Callable, Sequence
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
 from typing import (
     Any,
-    Awaitable,
-    Callable,
     Dict,
     List,
     Optional,
-    Sequence,
     Tuple,
 )
 
@@ -410,7 +408,7 @@ async def _handle_code_execute(
                 "exit_code": proc.returncode,
                 "language": language,
             }
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return {
                 "success": False,
                 "error": f"Code execution timed out after {timeout}s",
@@ -469,7 +467,7 @@ async def _handle_shell_command(
             "exit_code": proc.returncode,
             "working_dir": cwd or os.getcwd(),
         }
-    except asyncio.TimeoutError:
+    except TimeoutError:
         return {
             "success": False,
             "command": command,
@@ -653,7 +651,7 @@ async def _handle_date_time(
             "day_of_week": calendar.day_name[now.weekday()],
         }
     except Exception:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return {
             "success": True,
             "datetime": now.isoformat(),
@@ -860,7 +858,7 @@ async def _handle_note_create(
         "title": title,
         "content": content,
         "tags": tag_list,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "message": f"Note '{title}' created with id={note_id}.",
     }
 
@@ -907,7 +905,7 @@ async def _handle_email_send(
         "subject": subject,
         "body_preview": body[:100] + ("..." if len(body) > 100 else ""),
         "html": html,
-        "sent_at": datetime.now(timezone.utc).isoformat(),
+        "sent_at": datetime.now(UTC).isoformat(),
         "note": "Email sending is stubbed. Configure SMTP for real delivery.",
     }
 
@@ -934,7 +932,7 @@ async def _handle_calendar_manage(
         "action": action,
         "event_id": result_id,
         "title": title,
-        "start_time": start_time or datetime.now(timezone.utc).isoformat(),
+        "start_time": start_time or datetime.now(UTC).isoformat(),
         "end_time": end_time,
         "description": description,
         "note": "Calendar management is stubbed. Connect a calendar API for real events.",
@@ -1678,10 +1676,8 @@ class ToolRegistry:
         # Remove from toolset index
         names = self._toolsets.get(tool.toolset)
         if names:
-            try:
+            with contextlib.suppress(ValueError):
                 names.remove(tool_name)
-            except ValueError:
-                pass
             if not names:
                 del self._toolsets[tool.toolset]
         logger.info(f"Unregistered tool '{tool_name}'")
@@ -1944,7 +1940,7 @@ class ToolRegistry:
                 elapsed=elapsed,
             )
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             elapsed = time.monotonic() - start
             tool._call_count += 1
             tool._error_count += 1

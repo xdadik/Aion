@@ -1,11 +1,10 @@
-# Aion Hand - Dynamic Planner
+﻿# Aion Hand - Dynamic Planner
 # Creates execution graphs (DAGs) from mission analysis.
 
 import json
-import uuid
 import logging
-from dataclasses import dataclass, field, asdict
-from typing import List, Dict, Any, Optional
+from dataclasses import asdict, dataclass, field
+from typing import Any, Dict, List, Optional
 
 from .mission import MissionAnalysis
 
@@ -58,7 +57,7 @@ class ExecutionPlan:
 
 class DynamicPlanner:
     """Creates execution plans (DAGs) based on mission analysis.
-    
+
     Simple tasks get a linear chain: analyze -> execute -> verify
     Complex tasks get parallel branches, merge points, and conditional routing.
     Always terminates with a verification node.
@@ -97,11 +96,11 @@ Return ONLY the JSON array. No markdown, no explanation."""
         lessons: Optional[List[Any]] = None,
     ) -> ExecutionPlan:
         """Build an execution plan from mission analysis.
-        
+
         Args:
             mission: The analyzed mission from MissionAnalyzer.
             lessons: Optional past lessons to inform planning decisions.
-            
+
         Returns:
             A complete ExecutionPlan with all nodes and dependencies.
         """
@@ -148,14 +147,14 @@ Return ONLY the JSON array. No markdown, no explanation."""
         self, plan: ExecutionPlan, failure_point: str, error: str
     ) -> ExecutionPlan:
         """Dynamically modify a plan based on execution failure.
-        
+
         Adds repair nodes, alternative paths, and retry strategies.
-        
+
         Args:
             plan: The original execution plan.
             failure_point: The node ID that failed.
             error: The error message from the failure.
-            
+
         Returns:
             A modified ExecutionPlan with repair strategies.
         """
@@ -238,7 +237,7 @@ Return ONLY the JSON array. No markdown, no explanation."""
         exec_prompt = (
             f"Task: {mission.raw_task}\n\n"
             f"Goals:\n" + "\n".join(f"- {g}" for g in mission.goals) + "\n\n"
-            f"Please complete this task thoroughly."
+            "Please complete this task thoroughly."
         )
         if mission.constraints:
             exec_prompt += "\n\nConstraints:\n" + "\n".join(f"- {c}" for c in mission.constraints)
@@ -403,8 +402,8 @@ Return ONLY the JSON array. No markdown, no explanation."""
                 f"Analyze this task and gather necessary information:\n\n"
                 f"Task: {mission.raw_task}\n\n"
                 f"Goals:\n" + "\n".join(f"- {g}" for g in mission.goals) + "\n\n"
-                f"Identify what information is needed, what approach to take, "
-                f"and any potential issues. Provide a clear analysis."
+                "Identify what information is needed, what approach to take, "
+                "and any potential issues. Provide a clear analysis."
             )
             nodes[research_id] = PlanNode(
                 id=research_id,
@@ -422,7 +421,7 @@ Return ONLY the JSON array. No markdown, no explanation."""
 
         if len(mission.goals) > 1 and mission.complexity > 0.5:
             group_id = "parallel_goals"
-            for i, goal in enumerate(mission.goals[:5]):
+            for _i, goal in enumerate(mission.goals[:5]):
                 goal_id = next_id("goal")
                 goal_prompt = (
                     f"Complete this specific goal:\n\n"
@@ -450,9 +449,9 @@ Return ONLY the JSON array. No markdown, no explanation."""
                 f"coherent, comprehensive response:\n\n"
                 f"Original task: {mission.raw_task}\n\n"
                 f"Goals:\n" + "\n".join(f"- {g}" for g in mission.goals) + "\n\n"
-                f"Upstream results: {{upstream_results}}\n\n"
-                f"Synthesize all results into a unified, well-organized response. "
-                f"Resolve any conflicts between parallel results."
+                "Upstream results: {upstream_results}\n\n"
+                "Synthesize all results into a unified, well-organized response. "
+                "Resolve any conflicts between parallel results."
             )
             nodes[merge_id] = PlanNode(
                 id=merge_id,
@@ -516,10 +515,10 @@ Return ONLY the JSON array. No markdown, no explanation."""
             f"Verify the following task execution results:\n\n"
             f"Original task: {mission.raw_task}\n\n"
             f"Goals to verify:\n" + "\n".join(f"- {g}" for g in mission.goals) + "\n\n"
-            f"Upstream results: {{upstream_results}}\n\n"
-            f"Check: 1) All goals are addressed, 2) Results are consistent, "
-            f"3) No contradictions, 4) Constraints are respected. "
-            f"Provide a verification summary."
+            "Upstream results: {upstream_results}\n\n"
+            "Check: 1) All goals are addressed, 2) Results are consistent, "
+            "3) No contradictions, 4) Constraints are respected. "
+            "Provide a verification summary."
         )
         plan.nodes[verify_id] = PlanNode(
             id=verify_id,

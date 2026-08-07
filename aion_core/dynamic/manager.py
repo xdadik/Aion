@@ -48,8 +48,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from aion_core.dynamic.agent_factory import DynamicAgentFactory
-from aion_core.dynamic.topology import TopologyManager
 from aion_core.dynamic.orchestrator import DynamicOrchestrator
+from aion_core.dynamic.topology import TopologyManager
 
 logger = logging.getLogger("aion_hand.dynamic.manager")
 
@@ -381,28 +381,9 @@ class DynamicManager:
         Returns:
             Orchestration result dict.
         """
+
         if not self.initialized:
             raise RuntimeError("DynamicManager not initialized")
-
-        roles = roles or ["coder"]
-        if len(roles) > 2:
-            roles = roles[:2]
-
-        # Create a lightweight topology
-        connections = []
-        for i in range(len(roles) - 1):
-            connections.append({
-                "from": roles[i],
-                "to": roles[i + 1],
-                "label": "output",
-            })
-
-        topo = self.topology_manager.create_topology(
-            agents=roles,
-            connections=connections,
-            task_types=["quick"],
-            name="Quick Execution",
-        )
 
         return await self.orchestrator.orchestrate(
             task=task,

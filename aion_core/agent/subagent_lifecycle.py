@@ -44,15 +44,15 @@ Typical usage::
 
 from __future__ import annotations
 
-import abc
 import contextvars
 import logging
 import threading
 import time
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("aion_hand.agent.subagent_lifecycle")
 

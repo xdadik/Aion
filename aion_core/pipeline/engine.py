@@ -5,24 +5,24 @@
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 
-from .mission import MissionAnalyzer, MissionAnalysis
+from .confidence import ConfidenceEstimator
+from .critic import Critic, CritiqueResult
+from .executor import ExecutionResult, ParallelExecutor
+from .learning import RuntimeLearning
+from .mission import MissionAnalysis, MissionAnalyzer
 from .planner import DynamicPlanner, ExecutionPlan
-from .executor import ParallelExecutor, ExecutionResult
+from .repair import RepairEngine, RepairResult
 from .verification import (
-    VerificationPipeline,
-    LogicVerifier,
-    CompletenessVerifier,
-    SecurityVerifier,
     CodeVerifier,
+    CompletenessVerifier,
     FactChecker,
+    LogicVerifier,
+    SecurityVerifier,
+    VerificationPipeline,
     VerificationResult,
 )
-from .critic import Critic, CritiqueResult
-from .repair import RepairEngine, RepairResult
-from .confidence import ConfidenceEstimator
-from .learning import RuntimeLearning, TaskLesson
 
 logger = logging.getLogger("aion_hand.pipeline")
 
@@ -506,7 +506,7 @@ class PipelineEngine:
 
         # Last resort: concatenate all successful outputs
         outputs = []
-        for node_id, r in results.items():
+        for _node_id, r in results.items():
             if r.status == "success" and r.output:
                 outputs.append(str(r.output))
         return "\n\n".join(outputs) if outputs else None

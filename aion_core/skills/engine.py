@@ -23,15 +23,13 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import re
-import time
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -75,10 +73,10 @@ class Skill:
     tags: List[str] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
     created_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+        default_factory=lambda: datetime.now(UTC).isoformat()
     )
     modified_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+        default_factory=lambda: datetime.now(UTC).isoformat()
     )
     usage_count: int = 0
     success_count: int = 0
@@ -310,7 +308,7 @@ class SkillEngine:
         for key, value in kwargs.items():
             if hasattr(skill, key):
                 setattr(skill, key, value)
-        skill.modified_at = datetime.now(timezone.utc).isoformat()
+        skill.modified_at = datetime.now(UTC).isoformat()
         return skill
 
     # --- Skill Discovery ---
@@ -456,7 +454,7 @@ class SkillEngine:
         existing = skill.metadata.get("lessons_learned", [])
         combined = existing + [l for l in new_lessons if l not in existing]
         skill.metadata["lessons_learned"] = combined
-        skill.modified_at = datetime.now(timezone.utc).isoformat()
+        skill.modified_at = datetime.now(UTC).isoformat()
         if skill.status == SkillStatus.DRAFT:
             skill.status = SkillStatus.ACTIVE
 

@@ -1,14 +1,14 @@
 # Aion Hand - Verification Pipeline
 # Every output passes through multiple verification stages.
 
-import json
-import re
 import ast
 import asyncio
+import json
 import logging
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 
 from .mission import MissionAnalysis
 
@@ -294,7 +294,7 @@ class VerificationPipeline:
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         verification_results = []
-        for verifier, vresult in zip(applicable, results):
+        for verifier, vresult in zip(applicable, results, strict=True):
             if isinstance(vresult, Exception):
                 logger.warning(f"Verifier '{verifier.name}' raised: {vresult}")
                 verification_results.append(VerificationResult(passed=False, confidence=0.0, issues=[f"Verifier error: {str(vresult)}"], checked_by=verifier.name))

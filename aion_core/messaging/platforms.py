@@ -42,10 +42,10 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +88,7 @@ class _StoredMessage:
     session_id: str
     msg_type: str          # text, image, file, audio, video, sticker, embed, block, etc.
     content: str
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
     extra: Dict[str, Any] = field(default_factory=dict)
     message_id: str = ""
 
@@ -277,7 +277,7 @@ class PlatformAdapter(ABC):
             "session_id": session_id,
             "content": content,
             "platform": self.get_platform_name(),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         })
 
     async def receive(self):
@@ -286,7 +286,7 @@ class PlatformAdapter(ABC):
             try:
                 msg = await asyncio.wait_for(self._receive_queue.get(), timeout=1.0)
                 yield msg
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 continue
             except asyncio.CancelledError:
                 break
@@ -2133,7 +2133,7 @@ class PlatformRegistry:
         results: Dict[PlatformType, bool] = {}
         coros = {pt: adapter.connect() for pt, adapter in self._adapters.items()}
         outcomes = await asyncio.gather(*coros.values(), return_exceptions=True)
-        for pt, outcome in zip(coros.keys(), outcomes):
+        for pt, outcome in zip(coros.keys(), outcomes, strict=True):
             if isinstance(outcome, Exception):
                 logger.error("PlatformRegistry: failed to connect %s — %s", pt.value, outcome)
                 results[pt] = False

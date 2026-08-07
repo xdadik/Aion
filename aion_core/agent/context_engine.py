@@ -36,14 +36,12 @@ Typical usage::
 from __future__ import annotations
 
 import abc
-import json
 import logging
-import textwrap
 import time
-import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("aion_hand.agent.context_engine")
 
@@ -751,7 +749,7 @@ class ContextWindowManager:
         workspace_files: Optional[List[str]] = None,
         project_rules: Optional[Dict[str, str]] = None,
         max_context_tokens: int = 128_000,
-    ) -> "ContextWindowManager":
+    ) -> ContextWindowManager:
         """Factory that wires up a :class:`ThreeTierPromptBuilder` and
         pre-populates the system prompt."""
         builder = ThreeTierPromptBuilder()

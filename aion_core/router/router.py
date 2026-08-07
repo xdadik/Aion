@@ -232,7 +232,7 @@ class ModelRouter:
         model = self._select_model(tier, preferred_provider, task, context)
 
         # Rough cost estimate (assume ~200 tokens in, ~300 out per turn)
-        est_input = max(len((task + "\n" + (context or ""))) // 4, 200)
+        est_input = max(len(task + "\n" + (context or "")) // 4, 200)
         est_output = 300 * complexity.estimated_turns
         estimated_cost = (
             model.cost_per_1k_input * (est_input / 1000)
@@ -372,7 +372,7 @@ class ModelRouter:
                 return self._cheapest(provider_matches)
 
         # Context-length filter
-        est_tokens = len((task + "\n" + (context or ""))) // 4
+        est_tokens = len(task + "\n" + (context or "")) // 4
         fitting = [m for m in candidates if m.max_context >= est_tokens]
         if fitting:
             return self._cheapest(fitting)

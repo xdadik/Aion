@@ -38,7 +38,7 @@ except ImportError:
     SlackAdapter = None  # type: ignore[assignment,misc]
     TelegramAdapter = None  # type: ignore[assignment,misc]
 try:
-    from .platforms import PlatformType, PlatformRegistry, create_platform
+    from .platforms import PlatformRegistry, PlatformType, create_platform
 except ImportError:
     PlatformType = None  # type: ignore[assignment,misc]
     PlatformRegistry = None  # type: ignore[assignment,misc]

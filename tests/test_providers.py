@@ -1,7 +1,6 @@
 """Tests for aion_core.providers.factory — ProviderFactory and ChatMessage."""
 
 import unittest
-from unittest.mock import MagicMock, patch
 
 from aion_core.providers.factory import ChatMessage, ProviderFactory
 

@@ -137,7 +137,7 @@ class TestFileSafetyChecker(TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             fpath = os.path.join(tmpdir, "test_atomic.txt")
             self.checker.atomic_write(fpath, "hello world")
-            with open(fpath, "r") as f:
+            with open(fpath) as f:
                 self.assertEqual(f.read(), "hello world")
 
     @unittest.skipIf(True, "Module check")

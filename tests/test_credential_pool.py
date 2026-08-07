@@ -1,11 +1,21 @@
 """Tests for credential pool system."""
-import os, sys, tempfile, unittest, uuid
-from datetime import datetime, timedelta, timezone
+import os
+import sys
+import tempfile
+import unittest
+import uuid
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest import TestCase
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 try:
-    from aion_core.agent.credential_pool import CredentialPool, PooledCredential, RotationStrategy, CredentialSource
+    from aion_core.agent.credential_pool import (
+        CredentialPool,
+        CredentialSource,
+        PooledCredential,
+        RotationStrategy,
+    )
     HAS_MODULE = True
 except ImportError:
     HAS_MODULE = False
@@ -14,12 +24,12 @@ except ImportError:
 class TestCredentialPool(TestCase):
     def setUp(self):
         self.pool = CredentialPool()
-    
+
     def _make_cred(self, provider="openai", key="sk-test", expired=False):
         if expired:
-            expires = datetime.now(timezone.utc) - timedelta(hours=1)
+            expires = datetime.now(UTC) - timedelta(hours=1)
         else:
-            expires = datetime.now(timezone.utc) + timedelta(hours=1)
+            expires = datetime.now(UTC) + timedelta(hours=1)
         return PooledCredential(
             id=str(uuid.uuid4())[:8], provider=provider, api_key=key,
             source=CredentialSource.CUSTOM, expires_at=expires,

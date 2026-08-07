@@ -27,7 +27,6 @@ Usage::
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -239,7 +238,7 @@ class MCPBridge:
         # Attempt to construct a Tool object using the registry's Tool class
         try:
             # Try importing Tool from the tools registry
-            from aion_core.tools.registry import Tool, ToolParameter
+            from aion_core.tools.registry import Tool
 
             # Convert MCP input_schema to ToolParameter list
             params = self._schema_to_parameters(mcp_tool.input_schema)

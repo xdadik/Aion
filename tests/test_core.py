@@ -1,10 +1,8 @@
 """Tests for aion_core.agent.core — AgentConfig and AgentState."""
 
-import json
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 from aion_core.agent.core import AgentConfig, AgentState
 

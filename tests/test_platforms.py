@@ -1,10 +1,18 @@
 """Tests for platform messaging adapters."""
-import os, sys, asyncio, unittest
+import asyncio
+import sys
+import unittest
 from pathlib import Path
 from unittest import TestCase
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 try:
-    from aion_core.messaging.platforms import PlatformType, PlatformRegistry, create_platform, validate_platform_config
+    from aion_core.messaging.platforms import (
+        PlatformRegistry,
+        PlatformType,
+        create_platform,
+        validate_platform_config,
+    )
     HAS_MODULE = True
 except ImportError:
     HAS_MODULE = False

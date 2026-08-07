@@ -47,10 +47,11 @@ import hashlib
 import json
 import logging
 import time
-from collections import Counter, defaultdict, deque
-from dataclasses import dataclass, field
+from collections import Counter, deque
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("aion_hand.agent.tool_guardrails")
 
@@ -669,7 +670,7 @@ class ConcurrentToolExecutor:
                 result=result,
                 duration_seconds=duration,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             duration = time.monotonic() - start
             logger.warning(
                 "ConcurrentToolExecutor: %s timed out after %.1fs",

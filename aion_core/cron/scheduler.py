@@ -28,11 +28,11 @@ Examples:
 from __future__ import annotations
 
 import asyncio
-import calendar
+import contextlib
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -189,7 +189,7 @@ class ScheduledTask:
     last_run: Optional[datetime] = None
     next_run: Optional[datetime] = None
     run_count: int = 0
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     # Internal — parsed cron fields, populated on validation.
     _parsed: Optional[List[set[int]]] = field(default=None, repr=False, compare=False)
@@ -260,10 +260,8 @@ class CronScheduler:
         self._running = False
         if self._tick_task and not self._tick_task.done():
             self._tick_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._tick_task
-            except asyncio.CancelledError:
-                pass
         logger.info(
             "CronScheduler shut down (%d tasks unregistered)", len(self._tasks)
         )
@@ -283,7 +281,7 @@ class CronScheduler:
 
     async def _evaluate_tasks(self) -> None:
         """Check every enabled task and fire those whose ``next_run`` has arrived."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         for task in list(self._tasks.values()):
             if not task.enabled or task.next_run is None:
@@ -305,7 +303,7 @@ class CronScheduler:
 
     async def _execute_task(self, task: ScheduledTask) -> None:
         """Run a single task: delegate to the agent, then deliver results."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         task.last_run = now
         task.run_count += 1
 
@@ -418,7 +416,7 @@ class CronScheduler:
         task.enabled = True
 
         # Recompute next_run if it's in the past.
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if task.next_run is None or task.next_run <= now:
             assert task._parsed is not None
             task.next_run = next_occurrence(task._parsed, now)

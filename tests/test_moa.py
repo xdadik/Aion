@@ -1,5 +1,4 @@
 """Tests for Mixture-of-Agents (MoA) loop."""
-import os
 import sys
 import unittest
 from pathlib import Path
@@ -8,7 +7,7 @@ from unittest import TestCase
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 try:
-    from aion_core.agent.moa_loop import PIIFilter, MixtureOfAgents, MOAConfig
+    from aion_core.agent.moa_loop import MixtureOfAgents, MOAConfig, PIIFilter
     HAS_MODULE = True
 except ImportError:
     HAS_MODULE = False

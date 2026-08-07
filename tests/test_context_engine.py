@@ -1,10 +1,17 @@
 """Tests for context engine and three-tier prompts."""
-import os, sys, unittest
+import sys
+import unittest
 from pathlib import Path
 from unittest import TestCase
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 try:
-    from aion_core.agent.context_engine import PruningCompressor, ThreeTierPromptBuilder, ContextWindowManager, estimate_tokens_for_text
+    from aion_core.agent.context_engine import (
+        ContextWindowManager,
+        PruningCompressor,
+        ThreeTierPromptBuilder,
+        estimate_tokens_for_text,
+    )
     HAS_MODULE = True
 except ImportError:
     HAS_MODULE = False

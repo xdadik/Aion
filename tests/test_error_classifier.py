@@ -1,10 +1,20 @@
 """Tests for error classification system."""
-import os, sys, unittest
+import sys
+import unittest
 from pathlib import Path
 from unittest import TestCase
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 try:
-    from aion_core.agent.error_classifier import FailoverReason, classify_error, get_recovery_strategy, ErrorTracker, ErrorBudget, ErrorRecoveryStrategy, ClassifiedError
+    from aion_core.agent.error_classifier import (
+        ClassifiedError,
+        ErrorBudget,
+        ErrorRecoveryStrategy,
+        ErrorTracker,
+        FailoverReason,
+        classify_error,
+        get_recovery_strategy,
+    )
     HAS_MODULE = True
 except ImportError:
     HAS_MODULE = False

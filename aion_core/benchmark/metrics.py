@@ -3,8 +3,7 @@ from __future__ import annotations
 
 import json
 import logging
-import time
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -55,12 +54,12 @@ class MetricsTracker:
         return entry
 
     def get_trend(self, metric_name: str, days: int = 30) -> List[Dict[str, Any]]:
-        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        cutoff = datetime.now(UTC) - timedelta(days=days)
         trend = []
         for entry in self._history:
             try:
                 ts = datetime.fromisoformat(entry["timestamp"])
-                if ts.replace(tzinfo=timezone.utc) >= cutoff:
+                if ts.replace(tzinfo=UTC) >= cutoff:
                     trend.append({"timestamp": entry["timestamp"], "value": entry.get(metric_name, 0.0)})
             except (KeyError, ValueError):
                 continue

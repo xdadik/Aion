@@ -29,11 +29,13 @@ swap them for production implementations by subclassing ``PlatformAdapter``.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, AsyncIterator, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +59,7 @@ class Message:
     platform: str = ""
     user_id: str = ""
     content: str = ""
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
     reply_to: Optional[str] = None
 
 
@@ -170,10 +172,8 @@ class TelegramAdapter(PlatformAdapter):
         self._connected = False
         if self._poll_task and not self._poll_task.done():
             self._poll_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._poll_task
-            except asyncio.CancelledError:
-                pass
         logger.info("[%s] Disconnected", self.platform_name())
 
     async def send(self, user_id: str, content: str) -> bool:
@@ -196,7 +196,7 @@ class TelegramAdapter(PlatformAdapter):
             try:
                 msg = await asyncio.wait_for(self._receive_queue.get(), timeout=1.0)
                 yield msg
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 continue
             except asyncio.CancelledError:
                 break
@@ -294,10 +294,8 @@ class DiscordAdapter(PlatformAdapter):
         self._connected = False
         if self._ws_task and not self._ws_task.done():
             self._ws_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._ws_task
-            except asyncio.CancelledError:
-                pass
         logger.info(
             "[%s] Sent WS close, gateway disconnected", self.platform_name()
         )
@@ -322,7 +320,7 @@ class DiscordAdapter(PlatformAdapter):
             try:
                 msg = await asyncio.wait_for(self._receive_queue.get(), timeout=1.0)
                 yield msg
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 continue
             except asyncio.CancelledError:
                 break
@@ -418,10 +416,8 @@ class SlackAdapter(PlatformAdapter):
         self._connected = False
         if self._ws_task and not self._ws_task.done():
             self._ws_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._ws_task
-            except asyncio.CancelledError:
-                pass
         logger.info("[%s] Socket Mode disconnected", self.platform_name())
 
     async def send(self, user_id: str, content: str) -> bool:
@@ -443,7 +439,7 @@ class SlackAdapter(PlatformAdapter):
             try:
                 msg = await asyncio.wait_for(self._receive_queue.get(), timeout=1.0)
                 yield msg
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 continue
             except asyncio.CancelledError:
                 break
@@ -580,7 +576,7 @@ class MessagingGateway:
             *connect_coros.values(), return_exceptions=True
         )
 
-        for name, result in zip(connect_coros.keys(), results):
+        for name, result in zip(connect_coros.keys(), results, strict=True):
             if isinstance(result, Exception):
                 logger.error("[%s] Failed to connect: %s", name, result)
             else:
@@ -601,14 +597,12 @@ class MessagingGateway:
         self._running = False
 
         # Cancel dispatch loops first
-        for name, task in self._receive_tasks.items():
+        for _name, task in self._receive_tasks.items():
             if not task.done():
                 task.cancel()
-        for name, task in self._receive_tasks.items():
-            try:
+        for _name, task in self._receive_tasks.items():
+            with contextlib.suppress(asyncio.CancelledError):
                 await task
-            except asyncio.CancelledError:
-                pass
         self._receive_tasks.clear()
 
         # Disconnect adapters concurrently
@@ -662,7 +656,7 @@ class MessagingGateway:
         results = await asyncio.gather(*coros.values(), return_exceptions=True)
 
         outcome: Dict[str, bool] = {}
-        for name, result in zip(coros.keys(), results):
+        for name, result in zip(coros.keys(), results, strict=True):
             if isinstance(result, Exception):
                 logger.error("[%s] broadcast error: %s", name, result)
                 outcome[name] = False

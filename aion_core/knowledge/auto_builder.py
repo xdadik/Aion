@@ -6,12 +6,12 @@ memory operations.
 
 from __future__ import annotations
 
-import re
 import logging
-from collections import Counter, defaultdict
+import re
+from collections import defaultdict
 from typing import Any, Dict, List, Optional
 
-from .graph import ENTITY_TYPES, KnowledgeGraph
+from .graph import KnowledgeGraph
 
 logger = logging.getLogger(__name__)
 
@@ -119,7 +119,6 @@ class AutoKnowledgeBuilder:
             isinstance(result, dict) and result.get("error")
         )
 
-        # First check if the tool entity already exists
         existing = self._graph.find_entities(
             name_contains=str(tool_name), entity_type="tool", limit=1
         )
@@ -132,6 +131,7 @@ class AutoKnowledgeBuilder:
                 k: str(v)[:200] for k, v in params.items()
             }
             existing[0].properties["last_result"] = str(result)[:300]
+            existing[0].properties["success"] = success
             tool_ent = existing[0]
         else:
             tool_ent = self._graph.add_entity(
@@ -141,11 +141,12 @@ class AutoKnowledgeBuilder:
                     "last_params": {k: str(v)[:200] for k, v in params.items()},
                     "execution_count": 1,
                     "last_result": str(result)[:300],
+                    "success": success,
                 },
             )
 
         # Extract file-like entities from params
-        for key, value in params.items():
+        for _, value in params.items():
             val_str = str(value)
             if any(val_str.endswith(ext) for ext in (".py", ".js", ".ts", ".json", ".yaml", ".md", ".txt")):
                 file_ent = self._graph.add_entity(

@@ -444,18 +444,17 @@ class TopologyManager:
                 ]
                 mutations_applied.append("removed summarizer")
 
-        if "remove researcher" in lesson_lower:
-            if "researcher" in new_agents:
-                new_agents.remove("researcher")
-                new_connections = [
-                    c for c in new_connections
-                    if c.get("to") != "researcher" and c.get("from") != "researcher"
-                ]
-                # Reconnect around the removed agent
-                for i, conn in enumerate(new_connections):
-                    if conn.get("label") == "research":
-                        new_connections[i]["label"] = "direct"
-                mutations_applied.append("removed researcher")
+        if "remove researcher" in lesson_lower and "researcher" in new_agents:
+            new_agents.remove("researcher")
+            new_connections = [
+                c for c in new_connections
+                if c.get("to") != "researcher" and c.get("from") != "researcher"
+            ]
+            # Reconnect around the removed agent
+            for i, conn in enumerate(new_connections):
+                if conn.get("label") == "research":
+                    new_connections[i]["label"] = "direct"
+            mutations_applied.append("removed researcher")
 
         if "parallel" in lesson_lower:
             for conn in new_connections:

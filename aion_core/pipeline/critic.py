@@ -1,11 +1,11 @@
-# Aion Hand - Critic
+﻿# Aion Hand - Critic
 # Reviews and suggests improvements to execution results.
 
 import json
-import re
 import logging
+import re
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 
 from .verification import VerificationResult
 
@@ -31,7 +31,7 @@ class CritiqueResult:
 
 class Critic:
     """Reviews execution results using verification outputs and LLM analysis.
-    
+
     Analyzes verification results to identify quality issues,
     determines if repair is needed, and generates actionable suggestions.
     """
@@ -75,12 +75,12 @@ Return ONLY the JSON. No markdown, no explanation."""
         verifications: List[VerificationResult],
     ) -> CritiqueResult:
         """Critique an execution result based on verification outputs.
-        
+
         Args:
             task: The original task.
             result: The execution result to critique.
             verifications: List of verification results from the verification pipeline.
-            
+
         Returns:
             A CritiqueResult with quality score, issues, and improvement suggestions.
         """

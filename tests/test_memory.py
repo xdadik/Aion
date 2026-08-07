@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from aion_core.memory.manager import MemoryManager, MemoryLayer
+from aion_core.memory.manager import MemoryLayer, MemoryManager
 
 
 class TestMemoryManagerInit(unittest.IsolatedAsyncioTestCase):
@@ -45,7 +45,6 @@ class TestMemoryStoreAndSearch(unittest.IsolatedAsyncioTestCase):
                 self.assertIn(entry.id, found_ids)
             else:
                 # Verify the entry was stored by direct retrieval
-                from aion_core.memory.manager import MemoryEntry
                 all_entries = mm._storage.all_entries()
                 self.assertTrue(any(e.id == entry.id for e in all_entries))
 

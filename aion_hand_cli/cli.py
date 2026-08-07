@@ -11,19 +11,23 @@ Imports from aion_core with graceful fallback when modules are unavailable.
 
 import argparse
 import asyncio
+import contextlib
+import importlib
 import json
 import os
-import readline  # noqa: F401 - imported for history support
-import shlex
 import sys
 import textwrap
-import time
 import threading
+import time
 import uuid
 from datetime import datetime
 
-from . import __version__
+try:
+    import readline  # noqa: F401 - imported for history support
+except ImportError:
+    readline = None  # Windows: plain input() without history support
 
+from . import __version__
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  ANSI COLOR CODES
@@ -115,20 +119,20 @@ _HISTORY_FILE = os.path.expanduser("~/.aion_hand_history")
 
 def _load_history():
     """Load REPL command history from disk."""
+    if readline is None:
+        return
     if os.path.exists(_HISTORY_FILE):
-        try:
+        with contextlib.suppress(OSError):
             readline.read_history_file(_HISTORY_FILE)
-        except OSError:
-            pass
     readline.set_history_length(2000)
 
 
 def _save_history():
     """Persist REPL command history to disk."""
-    try:
+    if readline is None:
+        return
+    with contextlib.suppress(OSError):
         readline.write_history_file(_HISTORY_FILE)
-    except OSError:
-        pass
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -152,7 +156,7 @@ def _load_config() -> dict:
     _ensure_config_dir()
     if os.path.exists(_CONFIG_FILE):
         try:
-            with open(_CONFIG_FILE, "r", encoding="utf-8") as f:
+            with open(_CONFIG_FILE, encoding="utf-8") as f:
                 return json.load(f)
         except (OSError, json.JSONDecodeError):
             return {}
@@ -742,7 +746,7 @@ class AionHandCLI:
 
         # Step 1: Provider selection
         self._print_colored(f"  {Colors.BOLD}Step 1: LLM Provider{Colors.RESET}\n", Colors.CYAN)
-        self._print_colored(f"  Available providers: openai, anthropic, google, ollama\n", Colors.DIM)
+        self._print_colored("  Available providers: openai, anthropic, google, ollama\n", Colors.DIM)
         self._print_colored(f"  {Colors.WHITE}Enter provider name{Colors.RESET} [openai]: ", Colors.RESET)
         try:
             provider = input().strip() or "openai"
@@ -1116,7 +1120,7 @@ class AionHandCLI:
         servers = []
         if os.path.exists(_MCP_FILE):
             try:
-                with open(_MCP_FILE, "r", encoding="utf-8") as f:
+                with open(_MCP_FILE, encoding="utf-8") as f:
                     servers = json.load(f)
             except (OSError, json.JSONDecodeError):
                 pass
@@ -1160,7 +1164,7 @@ class AionHandCLI:
         servers = []
         if os.path.exists(_MCP_FILE):
             try:
-                with open(_MCP_FILE, "r", encoding="utf-8") as f:
+                with open(_MCP_FILE, encoding="utf-8") as f:
                     servers = json.load(f)
             except (OSError, json.JSONDecodeError):
                 servers = []
@@ -1191,7 +1195,7 @@ class AionHandCLI:
             return
 
         try:
-            with open(_MCP_FILE, "r", encoding="utf-8") as f:
+            with open(_MCP_FILE, encoding="utf-8") as f:
                 servers = json.load(f)
         except (OSError, json.JSONDecodeError):
             self._print_colored(f"  {Colors.RED}Error reading MCP config.{Colors.RESET}\n")
@@ -1462,7 +1466,7 @@ class AionHandCLI:
         except ImportError:
             # Fallback: search MEMORY.md
             if os.path.exists(_MEMORY_FILE):
-                with open(_MEMORY_FILE, "r", encoding="utf-8") as f:
+                with open(_MEMORY_FILE, encoding="utf-8") as f:
                     content = f.read()
                 q_lower = query.lower()
                 found = False
@@ -1494,9 +1498,9 @@ class AionHandCLI:
         except ImportError:
             if os.path.exists(_MEMORY_FILE):
                 stat = os.stat(_MEMORY_FILE)
-                with open(_MEMORY_FILE, "r", encoding="utf-8") as f:
+                with open(_MEMORY_FILE, encoding="utf-8") as f:
                     content = f.read()
-                lines = [l for l in content.splitlines() if l.strip()]
+                lines = [line for line in content.splitlines() if line.strip()]
                 self._print_colored(f"  {Colors.BRIGHT_WHITE}{'File':<20}{Colors.RESET} {_MEMORY_FILE}\n")
                 self._print_colored(f"  {Colors.BRIGHT_WHITE}{'Size':<20}{Colors.RESET} {stat.st_size:,} bytes\n")
                 self._print_colored(f"  {Colors.BRIGHT_WHITE}{'Lines':<20}{Colors.RESET} {len(lines)}\n")
@@ -1775,23 +1779,23 @@ class AionHandCLI:
                 checks.append((f"Sensitive file: {path}", "found", "warn"))
 
         # Check security module
-        try:
-            from aion_core.security.sandbox import Sandbox
-            checks.append(("Sandbox module", "available", "ok"))
-        except ImportError:
-            checks.append(("Sandbox module", "not available", "warn"))
+        checks.append(
+            ("Sandbox module",
+             "available" if importlib.util.find_spec("aion_core.security.sandbox") else "not available",
+             "ok" if importlib.util.find_spec("aion_core.security.sandbox") else "warn")
+        )
 
-        try:
-            from aion_core.security.redact import SecretRedactor
-            checks.append(("Secret redaction", "available", "ok"))
-        except ImportError:
-            checks.append(("Secret redaction", "not available", "warn"))
+        checks.append(
+            ("Secret redaction",
+             "available" if importlib.util.find_spec("aion_core.security.redact") else "not available",
+             "ok" if importlib.util.find_spec("aion_core.security.redact") else "warn")
+        )
 
-        try:
-            from aion_core.security.filesafety import FileSafetyChecker
-            checks.append(("File safety checker", "available", "ok"))
-        except ImportError:
-            checks.append(("File safety checker", "not available", "warn"))
+        checks.append(
+            ("File safety checker",
+             "available" if importlib.util.find_spec("aion_core.security.filesafety") else "not available",
+             "ok" if importlib.util.find_spec("aion_core.security.filesafety") else "warn")
+        )
 
         for name, value, status in checks:
             icon = f"{Colors.GREEN}✔{Colors.RESET}" if status == "ok" else f"{Colors.YELLOW}⚠{Colors.RESET}"
@@ -1823,7 +1827,7 @@ class AionHandCLI:
         try:
             from aion_core.security.redact import SecretRedactor
             redactor = SecretRedactor()
-            with open(filepath, "r", encoding="utf-8") as f:
+            with open(filepath, encoding="utf-8") as f:
                 content = f.read()
             findings = redactor.scan(content)
 
@@ -1849,7 +1853,7 @@ class AionHandCLI:
                 (r'-----BEGIN (?:RSA |EC |DSA )?PRIVATE KEY-----', "Private Key"),
                 (r'eyJ[A-Za-z0-9_-]{20,}\.eyJ[A-Za-z0-9_-]{20,}', "JWT Token"),
             ]
-            with open(filepath, "r", encoding="utf-8") as f:
+            with open(filepath, encoding="utf-8") as f:
                 lines = f.readlines()
 
             found = False
@@ -1949,7 +1953,7 @@ class AionHandCLI:
         self._print_colored(f"\n  Total: {count} tools")
         if toolset_filter:
             self._print_colored(f" (toolset: {toolset_filter})")
-        self._print_colored(f"\n\n")
+        self._print_colored("\n\n")
 
     async def _tools_search(self, query: str):
         """Search tools by name or description."""
@@ -2152,11 +2156,12 @@ class AionHandCLI:
                 except EOFError:
                     break
                 except KeyboardInterrupt:
-                    self._print_colored(f"\n  Use /quit to exit.\n", Colors.YELLOW)
+                    self._print_colored("\n  Use /quit to exit.\n", Colors.YELLOW)
                     message_lines = []
                     continue
 
-                readline.add_history(line)
+                if readline is not None:
+                    readline.add_history(line)
 
                 # Slash commands (only on first input line)
                 if line.strip().startswith("/") and not message_lines:
@@ -2556,7 +2561,7 @@ def _load_cron_jobs() -> list:
     _ensure_config_dir()
     if os.path.exists(_CRON_FILE):
         try:
-            with open(_CRON_FILE, "r", encoding="utf-8") as f:
+            with open(_CRON_FILE, encoding="utf-8") as f:
                 return json.load(f)
         except (OSError, json.JSONDecodeError):
             return []

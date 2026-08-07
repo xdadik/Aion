@@ -1,13 +1,22 @@
 """Aion Hand Benchmark Runner"""
 from __future__ import annotations
-import json, logging, time, uuid
+
+import json
+import logging
+import time
+import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional
 
 from aion_core.benchmark.evaluator import BenchmarkEvaluator, TaskResult
-from aion_core.benchmark.tasks import (BenchmarkTask, BENCHMARK_TASKS, Category, Difficulty)
+from aion_core.benchmark.tasks import (
+    BENCHMARK_TASKS,
+    BenchmarkTask,
+    Category,
+    Difficulty,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +117,7 @@ class BenchmarkRunner:
         if not results:
             return BenchmarkReport(
                 run_id=str(uuid.uuid4())[:8],
-                timestamp=datetime.now(timezone.utc).isoformat(),
+                timestamp=datetime.now(UTC).isoformat(),
                 agent_version=self.agent_version,
                 total_tasks=0, passed=0, failed=0,
                 overall_score=0.0, avg_tokens=0.0, avg_time=0.0,
@@ -134,7 +143,7 @@ class BenchmarkRunner:
         diff_avg = {k: sum(v) / len(v) for k, v in difficulty_scores.items()}
         return BenchmarkReport(
             run_id=str(uuid.uuid4())[:8],
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             agent_version=self.agent_version,
             total_tasks=total, passed=passed, failed=failed,
             overall_score=overall_score, avg_tokens=avg_tokens, avg_time=avg_time,
@@ -164,7 +173,7 @@ class BenchmarkRunner:
         if not baseline_file.exists():
             logger.warning("Baseline file not found: %s", baseline_path)
             return {"error": f"Baseline not found: {baseline_path}"}
-        with open(baseline_file, "r") as f:
+        with open(baseline_file) as f:
             baseline = json.load(f)
         comparison: Dict[str, Any] = {
             "baseline_run_id": baseline.get("run_id", "unknown"),
@@ -192,9 +201,7 @@ class BenchmarkRunner:
 
     async def _execute_agent(self, task: BenchmarkTask, metadata: Dict[str, Any]) -> str:
         prompt = task.task_prompt
-        start_time = time.monotonic()
         raw = await self.agent.run(prompt, max_turns=task.max_turns, max_tokens=task.max_tokens, timeout=task.timeout)
-        elapsed = time.monotonic() - start_time
         if isinstance(raw, dict):
             output = str(raw.get("output", raw.get("text", "")))
             metadata["tools_used"] = raw.get("tools_used", raw.get("tool_calls", []))

@@ -24,21 +24,19 @@ import asyncio
 import json
 import logging
 import time
-import uuid
 from collections import Counter, deque
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import (
     Any,
-    AsyncIterator,
-    Callable,
     Dict,
     List,
     Optional,
     Set,
 )
 
-from aion_core.agent.core import AgentConfig, AgentState
+from aion_core.agent.core import AgentConfig
 
 logger = logging.getLogger("aion_hand.agent.loop")
 
@@ -88,7 +86,7 @@ class TokenUsage:
     completion_tokens: int = 0
     total_tokens: int = 0
 
-    def accumulate(self, other: "TokenUsage") -> None:
+    def accumulate(self, other: TokenUsage) -> None:
         """Add another usage record into this accumulator."""
         self.prompt_tokens += other.prompt_tokens
         self.completion_tokens += other.completion_tokens
@@ -877,6 +875,7 @@ class AgentLoop:
         compressed = False
         collected_content = ""
         max_turns = self._config.max_turns
+        stream_failed = False
 
         user_msg = ConversationMessage(role="user", content=user_message)
         user_msg.token_count = self._compressor.estimate_tokens(user_message)
@@ -887,6 +886,7 @@ class AgentLoop:
                 turn += 1
 
                 if self._interrupt_event.is_set():
+                    stream_failed = True
                     yield {"type": "token", "content": "\n\n[Interrupted]"}
                     break
 
@@ -943,6 +943,7 @@ class AgentLoop:
 
                 except Exception as exc:
                     logger.error(f"Streaming provider call failed: {exc}")
+                    stream_failed = True
                     yield {"type": "token", "content": f"\nError: {exc}"}
                     break
 
@@ -986,8 +987,10 @@ class AgentLoop:
                     }
 
         except asyncio.CancelledError:
+            stream_failed = True
             yield {"type": "token", "content": "\n\n[Cancelled]"}
         except Exception as exc:
+            stream_failed = True
             logger.error(f"Streaming loop error: {exc}", exc_info=True)
             yield {"type": "token", "content": f"\nError: {exc}"}
 
@@ -995,7 +998,7 @@ class AgentLoop:
         self._sessions[session_id] = history
 
         # Record streaming run outcome to feedback loop
-        stream_success = True  # No exception means at least partial success
+        stream_success = collected_content and not stream_failed
         self._feedback.record(
             task=user_message,
             tools_used=sorted(tools_used),

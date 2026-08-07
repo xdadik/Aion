@@ -1,11 +1,11 @@
-# Aion Hand - Mission Analyzer
+﻿# Aion Hand - Mission Analyzer
 # First stage of the execution pipeline: deep task analysis before any planning.
 
 import json
 import logging
 import re
-from dataclasses import dataclass, field, asdict
-from typing import List, Dict, Any, Optional
+from dataclasses import asdict, dataclass, field
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("aion_hand.pipeline")
 
@@ -34,7 +34,7 @@ class MissionAnalysis:
 
 class MissionAnalyzer:
     """Deeply analyzes a user task before any planning occurs.
-    
+
     Uses the LLM to extract intent, goals, constraints, risks, and
     estimate resource requirements. This analysis informs the planner
     so it can create an optimal execution graph.
@@ -71,11 +71,11 @@ Return ONLY the JSON. No markdown, no explanation."""
 
     async def analyze(self, task: str, context: Optional[Dict] = None) -> MissionAnalysis:
         """Perform deep mission analysis using the LLM.
-        
+
         Args:
             task: The user's task/request string.
             context: Optional additional context (previous conversation, user preferences, etc.)
-            
+
         Returns:
             A fully populated MissionAnalysis with intent, goals, constraints, risks,
             complexity estimates, and required capabilities.
@@ -90,9 +90,7 @@ Return ONLY the JSON. No markdown, no explanation."""
             for key, value in context.items():
                 if isinstance(value, (str, int, float, bool)):
                     context_parts.append(f"  {key}: {value}")
-                elif isinstance(value, list) and len(value) < 20:
-                    context_parts.append(f"  {key}: {json.dumps(value)}")
-                elif isinstance(value, dict) and len(value) < 20:
+                elif isinstance(value, list) and len(value) < 20 or isinstance(value, dict) and len(value) < 20:
                     context_parts.append(f"  {key}: {json.dumps(value)}")
                 else:
                     context_parts.append(f"  {key}: [{type(value).__name__}, len={len(value) if hasattr(value, '__len__') else '?'}]")
@@ -134,7 +132,7 @@ Return ONLY the JSON. No markdown, no explanation."""
         self, raw_content: str, task: str, context_str: str
     ) -> MissionAnalysis:
         """Parse the LLM's JSON response into a MissionAnalysis.
-        
+
         Falls back to heuristic analysis if parsing fails.
         """
         # Try to extract JSON from the response (it may be wrapped in markdown)

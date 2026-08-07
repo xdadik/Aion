@@ -1,16 +1,15 @@
-# Aion Hand - Runtime Learning
+﻿# Aion Hand - Runtime Learning
 # Feedback loop that records execution outcomes, extracts lessons,
 # derives rules from failures, and applies them to future tasks.
 
+import hashlib
 import json
+import logging
 import os
 import re
-import hashlib
-import logging
-import time
-from dataclasses import dataclass, field, asdict
-from typing import List, Dict, Any, Optional, Set
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
+from typing import Any, Dict, List, Optional, Set
 
 logger = logging.getLogger("aion_hand.pipeline")
 
@@ -50,7 +49,7 @@ class TaskLesson:
 
 class RuntimeLearning:
     """Records outcomes, extracts lessons and rules, and applies them to future tasks.
-    
+
     Persists lessons to a JSON file for cross-session learning.
     Uses keyword-based similarity to retrieve relevant past lessons
     for any new task, enabling continuous improvement.
@@ -88,7 +87,7 @@ class RuntimeLearning:
             return
 
         try:
-            with open(self._storage_path, "r") as f:
+            with open(self._storage_path) as f:
                 data = json.load(f)
 
             lessons_data = data.get("lessons", [])
@@ -119,7 +118,7 @@ class RuntimeLearning:
         confidence: float,
     ) -> TaskLesson:
         """Record a complete execution outcome and extract lessons.
-        
+
         Args:
             task: The original task string.
             plan: The ExecutionPlan that was used.
@@ -127,7 +126,7 @@ class RuntimeLearning:
             verifications: List of VerificationResult.
             critique: CritiqueResult.
             confidence: Final confidence score.
-            
+
         Returns:
             The TaskLesson that was recorded.
         """
@@ -232,15 +231,15 @@ class RuntimeLearning:
 
     def get_relevant_lessons(self, task: str, max_lessons: int = 5) -> List[TaskLesson]:
         """Retrieve past lessons relevant to a new task.
-        
+
         Uses keyword overlap to find similar past tasks and returns
         the most relevant lessons, prioritizing failed tasks (more
         informative than successes).
-        
+
         Args:
             task: The new task string.
             max_lessons: Maximum number of lessons to return.
-            
+
         Returns:
             List of relevant TaskLesson objects, ordered by relevance.
         """
@@ -293,11 +292,11 @@ class RuntimeLearning:
 
     def get_applicable_rules(self, task: str, max_rules: int = 10) -> List[Dict[str, Any]]:
         """Get rules that apply to a given task.
-        
+
         Args:
             task: The new task string.
             max_rules: Maximum rules to return.
-            
+
         Returns:
             List of rule dictionaries with 'rule' and 'confidence_boost' keys.
         """
@@ -457,7 +456,7 @@ class RuntimeLearning:
 
     def _rule_confidence_boost(self, critique: Any, confidence: float) -> float:
         """Calculate how much confidence boost a rule should provide.
-        
+
         Rules from low-confidence executions are more informative.
         """
         score = getattr(critique, 'score', 0.5) if critique else 0.5

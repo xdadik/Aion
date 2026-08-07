@@ -1,9 +1,9 @@
 """Tests for aion_core.cron.scheduler — CronScheduler and parsing."""
 
 import unittest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
-from aion_core.cron.scheduler import parse_cron_expression, CronScheduler
+from aion_core.cron.scheduler import CronScheduler, parse_cron_expression
 
 
 class TestCronParsing(unittest.TestCase):

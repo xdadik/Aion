@@ -1,10 +1,17 @@
 """Tests for background review system."""
-import os, sys, asyncio, unittest
+import asyncio
+import sys
+import unittest
 from pathlib import Path
 from unittest import TestCase
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 try:
-    from aion_core.agent.background_review import BackgroundReviewer, ReviewTask, ReviewResult, ReviewType
+    from aion_core.agent.background_review import (
+        BackgroundReviewer,
+        ReviewTask,
+        ReviewType,
+    )
     HAS_MODULE = True
 except ImportError:
     HAS_MODULE = False

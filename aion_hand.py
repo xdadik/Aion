@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Quick start script for Aion Hand."""
-import sys
 import asyncio
+
 from aion_core.agent.core import AionHand
+
 
 async def main():
     agent = AionHand()

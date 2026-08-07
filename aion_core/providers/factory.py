@@ -22,11 +22,10 @@ import logging
 import time
 import uuid
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 from typing import (
     Any,
-    AsyncIterator,
-    Callable,
     Dict,
     List,
     Optional,
@@ -34,7 +33,6 @@ from typing import (
     Type,
     Union,
 )
-from urllib.parse import urljoin
 
 logger = logging.getLogger(__name__)
 
@@ -285,8 +283,8 @@ async def _http_post_json(
     Uses the 'aiohttp' library if available, otherwise falls back to
     asyncio + urllib.request. Returns the parsed JSON response.
     """
-    import urllib.request
     import urllib.error
+    import urllib.request
 
     body = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
@@ -330,8 +328,8 @@ async def _http_post_stream(
 
     Returns an async iterator of parsed JSON delta objects.
     """
-    import urllib.request
     import urllib.error
+    import urllib.request
 
     body = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(

@@ -1,5 +1,4 @@
 """Tests for subagent lifecycle management."""
-import os
 import sys
 import unittest
 from pathlib import Path
@@ -9,8 +8,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 try:
     from aion_core.agent.subagent_lifecycle import (
-        SubagentLifecycle, SubagentLaunchRequest, SubagentState,
-        SubagentHandle, DelegationContext,
+        DelegationContext,
+        SubagentLaunchRequest,
+        SubagentLifecycle,
+        SubagentState,
     )
     HAS_MODULE = True
 except ImportError:

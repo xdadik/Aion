@@ -28,12 +28,11 @@ import enum
 import fnmatch
 import os
 import platform
-import re
 import stat
 import tempfile
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Dict, FrozenSet, Iterable, List, Optional, Set, Tuple, Union
+from collections.abc import Iterable
+from dataclasses import dataclass
+from typing import Dict, FrozenSet, List, Optional, Set, Tuple, Union
 
 # ---------------------------------------------------------------------------
 # Platform helpers
@@ -481,7 +480,7 @@ class FileSafetyChecker:
 
         # 6. Windows system paths
         if _IS_WINDOWS and operation == "write":
-            win_root = os.path.realpath(os.environ.get("SystemRoot", r"C:\Windows"))
+            win_root = os.path.realpath(os.environ.get("SYSTEMROOT", r"C:\Windows"))
             if resolved.lower().startswith(win_root.lower()):
                 return FileSafetyResult(
                     allowed=False,

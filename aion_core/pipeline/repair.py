@@ -1,16 +1,16 @@
-# Aion Hand - Repair Engine
+﻿# Aion Hand - Repair Engine
 # Fixes identified issues in execution results using targeted strategies and LLM assistance.
 
 import json
-import re
 import logging
+import re
 import time
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 
+from .critic import CritiqueResult
 from .mission import MissionAnalysis
 from .verification import VerificationResult
-from .critic import CritiqueResult
 
 logger = logging.getLogger("aion_hand.pipeline")
 
@@ -48,7 +48,7 @@ class RepairResult:
 
 class RepairEngine:
     """Repairs execution results based on critique and verification feedback.
-    
+
     Uses targeted repair strategies for specific failure modes, then falls
     back to LLM-based repair for complex issues. Supports multiple repair
     attempts with escalating strategies.

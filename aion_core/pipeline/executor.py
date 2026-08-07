@@ -1,13 +1,14 @@
-# Aion Hand - Parallel Executor
+﻿# Aion Hand - Parallel Executor
 # Executes execution plans (DAGs) with parallel workers, dependency resolution,
 # timeouts, retries, and comprehensive result tracking.
 
 import asyncio
-import time
+import contextlib
 import logging
+import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 from .planner import ExecutionPlan, PlanNode
 
@@ -50,7 +51,7 @@ class ExecutionResult:
 
 class ParallelExecutor:
     """Executes an ExecutionPlan with parallel workers.
-    
+
     Performs topological sort, resolves dependencies, runs independent
     nodes concurrently using a semaphore-bounded worker pool, and handles
     timeouts and retries with full result tracking.
@@ -74,10 +75,10 @@ class ParallelExecutor:
 
     async def execute(self, plan: ExecutionPlan) -> Dict[str, ExecutionResult]:
         """Execute an entire execution plan.
-        
+
         Args:
             plan: The execution plan (DAG of nodes) to execute.
-            
+
         Returns:
             Dictionary mapping node IDs to their ExecutionResult.
         """
@@ -105,7 +106,7 @@ class ParallelExecutor:
         except asyncio.CancelledError:
             logger.warning("Plan execution cancelled")
             self._cancelled = True
-            for nid, result in self._results.items():
+            for _nid, result in self._results.items():
                 if result.status == "pending":
                     result.status = "cancelled"
 
@@ -207,10 +208,8 @@ class ParallelExecutor:
 
         if in_flight:
             for nid in list(in_flight):
-                try:
+                with contextlib.suppress(TimeoutError):
                     await asyncio.wait_for(completion_events[nid].wait(), timeout=5.0)
-                except asyncio.TimeoutError:
-                    pass
                 in_flight.discard(nid)
                 completed.add(nid)
 
@@ -279,7 +278,7 @@ class ParallelExecutor:
                 result = await self._execute_verify_node(node, context)
             else:
                 result = ExecutionResult(node_id=node.id, status="failed", error=f"Unknown node type: {node.node_type}")
-        except asyncio.TimeoutError:
+        except TimeoutError:
             elapsed = time.monotonic() - start_time
             result = ExecutionResult(node_id=node.id, status="timeout", error=f"Node timed out after {node.timeout}s", elapsed=elapsed)
             logger.warning(f"Node '{node.name}' timed out after {node.timeout}s")

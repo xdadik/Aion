@@ -23,20 +23,20 @@ Quick start:
 
 from .agent_factory import (
     AgentProfile,
+    AgentRole,
     DynamicAgent,
     DynamicAgentFactory,
-    AgentRole,
 )
-from .topology import (
-    AgentTopology,
-    TopologyManager,
+from .manager import (
+    DynamicManager,
 )
 from .orchestrator import (
     DynamicOrchestrationPlan,
     DynamicOrchestrator,
 )
-from .manager import (
-    DynamicManager,
+from .topology import (
+    AgentTopology,
+    TopologyManager,
 )
 
 __all__ = [

@@ -28,10 +28,10 @@ Usage::
     km.save()
 """
 
-from .graph import Entity, Relation, KnowledgeGraph
 from .auto_builder import AutoKnowledgeBuilder
-from .reasoner import GraphReasoner
+from .graph import Entity, KnowledgeGraph, Relation
 from .manager import KnowledgeManager
+from .reasoner import GraphReasoner
 
 __all__ = [
     "KnowledgeManager",

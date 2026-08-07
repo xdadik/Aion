@@ -18,15 +18,15 @@ Wire protocol reference: https://spec.modelcontextprotocol.io/
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import os
-import sys
 import time
-import urllib.request
 import urllib.error
+import urllib.request
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("aion_hand.mcp.client")
 
@@ -242,10 +242,8 @@ class _StdioConnection:
         params = msg.get("params", {})
         logger.debug("Server notification: %s params=%s", method, params)
         for handler in self._notification_handlers:
-            try:
+            with contextlib.suppress(Exception):
                 handler(msg)
-            except Exception:
-                pass
 
     def on_notification(self, handler) -> None:
         """Register a callback for server notifications."""
@@ -284,11 +282,11 @@ class _StdioConnection:
                     err.get("data"),
                 )
             return response.get("result", {})
-        except asyncio.TimeoutError:
+        except TimeoutError:
             self._pending.pop(rid, None)
             raise TimeoutError(
                 f"MCP request '{method}' timed out after {timeout}s"
-            )
+            ) from None
 
     async def send_notification(
         self, method: str, params: Optional[Dict] = None
@@ -306,10 +304,8 @@ class _StdioConnection:
         self._closed = True
         if self._reader_task:
             self._reader_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._reader_task
-            except asyncio.CancelledError:
-                pass
         if self.process:
             try:
                 if self.process.stdin:
@@ -317,7 +313,7 @@ class _StdioConnection:
                     await self.process.stdin.wait_closed()
                 self.process.terminate()
                 await asyncio.wait_for(self.process.wait(), timeout=5)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning("Stdio process did not terminate, killing")
                 self.process.kill()
                 await self.process.wait()
@@ -414,10 +410,10 @@ class _SSEConnection:
                 loop.run_in_executor(None, _do_connect),
                 timeout=SSE_CONNECT_TIMEOUT,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             raise TimeoutError(
                 f"SSE connection to {self.url} timed out after {SSE_CONNECT_TIMEOUT}s"
-            )
+            ) from None
 
         if not self._endpoint_url:
             raise ConnectionError(
@@ -464,8 +460,6 @@ class _SSEConnection:
                 response_data = resp.read().decode("utf-8")
                 content_type = resp.headers.get("Content-Type", "")
 
-                resp_headers = dict(resp.headers)
-
                 # The response might be SSE or direct JSON
                 if "text/event-stream" in content_type:
                     # Parse SSE response
@@ -498,10 +492,10 @@ class _SSEConnection:
                     loop.run_in_executor(None, _do_post),
                     timeout=timeout,
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 raise TimeoutError(
                     f"SSE request '{method}' timed out after {timeout}s"
-                )
+                ) from None
 
         # Extract session ID from response headers if available
         # (We'd need to thread this through from the blocking function)
@@ -1190,7 +1184,7 @@ class MCPClient:
     async def refresh_all_tools(self) -> Dict[str, int]:
         """Refresh tool lists from all connected servers."""
         counts: Dict[str, int] = {}
-        for name, conn in list(self._connections.items()):
+        for name, _conn in list(self._connections.items()):
             server = self._servers.get(name)
             if server and server.status == "connected":
                 try:

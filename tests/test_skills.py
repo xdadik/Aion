@@ -1,6 +1,8 @@
 """Tests for aion_core.skills.engine - Skill serialisation."""
 import unittest
+
 from aion_core.skills.engine import Skill, SkillStatus
+
 
 class TestSkillMarkdown(unittest.TestCase):
     def test_roundtrip(self):

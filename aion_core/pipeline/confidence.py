@@ -1,27 +1,27 @@
-# Aion Hand - Confidence Estimator
+﻿# Aion Hand - Confidence Estimator
 # Combines verification pass rates, critique scores, and execution signals
 # into a single confidence score for the pipeline result.
 
 import logging
 import re
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 
-from .verification import VerificationResult
 from .critic import CritiqueResult
 from .executor import ExecutionResult
+from .verification import VerificationResult
 
 logger = logging.getLogger("aion_hand.pipeline")
 
 
 class ConfidenceEstimator:
     """Estimates overall confidence in a pipeline execution result.
-    
+
     Combines multiple signals into a single 0.0-1.0 confidence score:
     - Verification pass rate and average verifier confidence
     - Critique quality score
     - Execution success rate across plan nodes
     - Result length and quality heuristics
-    
+
     The weighting adjusts based on which signals are available.
     A result with no verification data but a successful execution
     gets a moderate default confidence rather than failing.
@@ -47,13 +47,13 @@ class ConfidenceEstimator:
         execution_results: Optional[Dict[str, ExecutionResult]] = None,
     ) -> float:
         """Estimate overall confidence in the result.
-        
+
         Args:
             result: The final output from execution/repair.
             verifications: List of verification results.
             critique: Critique result with quality score.
             execution_results: Optional dict of per-node execution results.
-            
+
         Returns:
             Confidence float between 0.0 and 1.0.
         """
@@ -88,7 +88,7 @@ class ConfidenceEstimator:
             return 0.5
 
         confidence = 0.0
-        for signal_name, (signal_score, signal_weight) in scores.items():
+        for _signal_name, (signal_score, signal_weight) in scores.items():
             normalized_weight = signal_weight / total_weight
             confidence += signal_score * normalized_weight
 
@@ -181,9 +181,7 @@ class ConfidenceEstimator:
             score -= 0.3
         elif word_count < 10:
             score -= 0.1
-        elif word_count > 20:
-            score += 0.1
-        elif word_count > 100:
+        elif word_count > 20 or word_count > 100:
             score += 0.1
 
         # Error indicators

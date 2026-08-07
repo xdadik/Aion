@@ -37,19 +37,16 @@ Quick start::
     # All MCP tools are now available as native tools!
 """
 
+from aion_core.mcp.bridge import MCPBridge
 from aion_core.mcp.client import (
     MCPClient,
-    MCPTool,
-    MCPServer,
     MCPError,
-    _StdioConnection,
-    _SSEConnection,
+    MCPServer,
+    MCPTool,
 )
-from aion_core.mcp.bridge import MCPBridge
 from aion_core.mcp.config import (
-    MCPServerConfig,
     MCPConfig,
-    _get_default_servers,
+    MCPServerConfig,
 )
 from aion_core.mcp.registry import MCPToolRegistry
 

@@ -14,7 +14,7 @@ import random
 import threading
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -84,8 +84,8 @@ class PooledCredential:
             else:
                 expiry = datetime.fromisoformat(self.expires_at)
             if expiry.tzinfo is None:
-                expiry = expiry.replace(tzinfo=timezone.utc)
-            return datetime.now(timezone.utc) >= expiry
+                expiry = expiry.replace(tzinfo=UTC)
+            return datetime.now(UTC) >= expiry
         except (ValueError, TypeError):
             return False
 
@@ -97,9 +97,7 @@ class PooledCredential:
         if self.is_expired():
             return False
         ts = now if now is not None else time.time()
-        if ts < self._rate_limited_until:
-            return False
-        return True
+        return not ts < self._rate_limited_until
 
     def to_dict(self) -> Dict[str, Any]:
         """Serializable dictionary (excludes private fields)."""
@@ -223,7 +221,7 @@ class CredentialPool:
         path = Path(path)
         if not path.exists():
             raise FileNotFoundError(f"Credential file not found: {path}")
-        with open(path, "r", encoding="utf-8") as fh:
+        with open(path, encoding="utf-8") as fh:
             raw = json.load(fh)
         if not isinstance(raw, list):
             raise ValueError("Credential file must contain a JSON array")

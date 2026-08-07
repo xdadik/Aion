@@ -21,21 +21,21 @@ Usage:
     print(await runner.generate_report_markdown(report))
 """
 
-from aion_core.benchmark.tasks import (
-    BenchmarkTask,
-    BENCHMARK_TASKS,
-    get_tasks_by_category,
-    get_tasks_by_difficulty,
-)
 from aion_core.benchmark.evaluator import (
-    TaskResult,
     BenchmarkEvaluator,
+    TaskResult,
 )
+from aion_core.benchmark.metrics import MetricsTracker
 from aion_core.benchmark.runner import (
     BenchmarkReport,
     BenchmarkRunner,
 )
-from aion_core.benchmark.metrics import MetricsTracker
+from aion_core.benchmark.tasks import (
+    BENCHMARK_TASKS,
+    BenchmarkTask,
+    get_tasks_by_category,
+    get_tasks_by_difficulty,
+)
 
 __all__ = [
     # Task definitions

@@ -1,22 +1,20 @@
 """Tests for the Orchestration Engine: subagent spawning, workflow creation, workflow execution."""
 
 import asyncio
+import contextlib
 import tempfile
 import unittest
 from pathlib import Path
-from typing import Any, Dict, List, Optional
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from aion_core.agent.core import AionHand, AgentConfig, AgentState
+from aion_core.agent.core import AgentConfig, AionHand
 from aion_core.orchestration.engine import (
+    NodeStatus,
+    NodeType,
     OrchestrationEngine,
-    SubAgent,
     SubAgentResult,
     Workflow,
     WorkflowNode,
-    NodeStatus,
-    NodeType,
-    SubAgentStatus,
     WorkflowStatus,
 )
 
@@ -310,10 +308,8 @@ class TestOrchestrationEngine(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Max sub-agents", str(ctx.exception))
 
         blocker.cancel()
-        try:
+        with contextlib.suppress(asyncio.CancelledError, Exception):
             await blocker
-        except (asyncio.CancelledError, Exception):
-            pass
         await engine.shutdown()
 
     async def test_cancel_subagent(self):
@@ -331,10 +327,8 @@ class TestOrchestrationEngine(unittest.IsolatedAsyncioTestCase):
         active = engine.list_active_subagents()
         if active:
             engine.cancel_subagent(active[0]["id"])
-        try:
+        with contextlib.suppress(asyncio.CancelledError, Exception):
             await task
-        except (asyncio.CancelledError, Exception):
-            pass
         await engine.shutdown()
 
     async def test_create_and_register_workflow(self):

@@ -1,5 +1,4 @@
 """Tests for tool guardrails and concurrent execution."""
-import os
 import sys
 import unittest
 from pathlib import Path
@@ -9,7 +8,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 try:
     from aion_core.agent.tool_guardrails import (
-        ToolGuardrails, ConcurrentToolExecutor, ToolGuardrailDecision,
+        ConcurrentToolExecutor,
+        ToolGuardrailDecision,
+        ToolGuardrails,
     )
     HAS_MODULE = True
 except ImportError:

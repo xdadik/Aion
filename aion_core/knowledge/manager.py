@@ -8,10 +8,10 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
-from .graph import KnowledgeGraph
 from .auto_builder import AutoKnowledgeBuilder
+from .graph import KnowledgeGraph
 from .reasoner import GraphReasoner
 
 logger = logging.getLogger(__name__)

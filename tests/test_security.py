@@ -1,7 +1,6 @@
 """Tests for aion_core.security.sandbox — CommandValidator and SecurityManager."""
 
 import unittest
-from types import SimpleNamespace
 
 from aion_core.security.sandbox import CommandValidator, SecurityManager
 

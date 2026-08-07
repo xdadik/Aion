@@ -7,36 +7,32 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 # Ensure project root is importable
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from aion_core.config.manager import (
     AionConfig,
-    ModelConfig,
-    SecurityConfig,
-    MemoryConfig,
-    PipelineConfig,
-    GatewayConfig,
     CronConfig,
+    GatewayConfig,
     MCPConfig,
-    env_str,
-    env_int,
-    env_float,
-    env_bool,
-    get_aion_home,
-    normalize_proxy_env_vars,
-    validate_config,
+    MemoryConfig,
+    ModelConfig,
+    PipelineConfig,
+    SecurityConfig,
     config_diff,
-    merge_configs,
+    env_bool,
+    env_float,
+    env_int,
+    env_str,
+    get_aion_home,
     load_config,
-    save_config,
-    create_default_config,
+    merge_configs,
+    normalize_proxy_env_vars,
     parse_cli_overrides,
-    KNOWN_PROVIDERS,
+    save_config,
+    validate_config,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helper: isolated env-var patching
@@ -344,6 +340,7 @@ class TestMergeConfigs(unittest.TestCase):
         overlay.log_level = "DEBUG"
         merged = merge_configs(base, overlay)
         self.assertEqual(base.log_level, "INFO")  # base unchanged
+        self.assertEqual(merged.log_level, "DEBUG")
 
     def test_merge_with_complex_overlay(self):
         base = AionConfig()
@@ -439,6 +436,7 @@ class TestSaveConfig(unittest.TestCase):
         try:
             os.unlink(tmppath)  # remove so save creates it fresh
             result = save_config(cfg, config_file=tmppath)
+            self.assertEqual(result, Path(tmppath).resolve())
             self.assertTrue(Path(tmppath).exists())
             with open(tmppath) as f:
                 data = json.load(f)
