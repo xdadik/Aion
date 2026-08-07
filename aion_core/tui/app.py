@@ -509,22 +509,32 @@ class AionTUI:
         try:
             from aion_core.benchmark.runner import BenchmarkRunner
             runner = BenchmarkRunner(agent=self.agent)
-            results = await runner.run_all() if hasattr(runner, "run_all") else []
+            # run_full_benchmark is the canonical name; fall back to run_all if patched
+            if hasattr(runner, "run_full_benchmark"):
+                report = await runner.run_full_benchmark()
+            elif hasattr(runner, "run_all"):
+                report = await runner.run_all()
+            else:
+                self._print_error("BenchmarkRunner has no run method")
+                return
+            # report is a BenchmarkReport, not a list
+            results = getattr(report, "task_results", []) or []
             if not _RICH:
+                print(f"Score: {getattr(report, 'overall_score', 0):.2f}  Passed: {getattr(report, 'passed', 0)}/{getattr(report, 'total_tasks', 0)}")
                 for r in results:
                     print(f"  {r}")
                 return
-            tbl = Table(title="Benchmark Results", border_style="aion.border", header_style="aion.brand")
+            tbl = Table(title=f"Benchmark Report (score: {getattr(report, 'overall_score', 0):.2f})", border_style="aion.border", header_style="aion.brand")
             tbl.add_column("Task", style="aion.tag")
             tbl.add_column("Score", style="aion.number", justify="right")
             tbl.add_column("Time (s)", style="white", justify="right")
             tbl.add_column("Tokens", style="aion.meta", justify="right")
             for r in results:
                 tbl.add_row(
-                    getattr(r, "task_name", "?"),
-                    f"{getattr(r, 'score', 0):.2f}",
-                    f"{getattr(r, 'elapsed', 0):.2f}",
-                    str(getattr(r, "tokens", 0)),
+                    str(r.get("task_name", r.get("task_id", "?"))),
+                    f"{r.get('score', 0):.2f}",
+                    f"{r.get('time_elapsed', 0):.2f}",
+                    str(r.get("tokens_used", 0)),
                 )
             self.console.print(tbl)
         except Exception as exc:  # noqa: BLE001
