@@ -26,7 +26,7 @@ dependencies = []
 
 [project.optional-dependencies]
 all = [
-    "aion-hand[web,messaging]",
+    "aiohttp>=3.9",
     "rich>=13.0",
 ]
 dev = [

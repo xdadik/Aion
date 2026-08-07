@@ -1,21 +1,7 @@
-"""Aion Hand Provider Factory System.
+"""Aion Hand provider abstraction and production routing.
 
-Provides provider-agnostic LLM access through a unified interface.
-Supports OpenAI, Anthropic, Google, OpenRouter, Ollama, and custom
-OpenAI-compatible endpoints.
-
-Quick start::
-
-    from aion_core.providers import ProviderFactory, ChatMessage
-
-    provider = ProviderFactory.create(
-        provider_name="openai",
-        config={"api_key": "sk-..."},
-    )
-    response = await provider.chat([
-        ChatMessage(role="user", content="Hello!"),
-    ])
-    print(response.content)
+Supports OpenAI, Anthropic, Google/Gemini, OpenRouter, Ollama, and custom
+OpenAI-compatible endpoints, plus bounded multi-provider failover.
 """
 
 from aion_core.providers.factory import (
@@ -31,21 +17,21 @@ from aion_core.providers.factory import (
     ProviderResponse,
     UsageInfo,
 )
+from aion_core.providers.router import ProviderRoute, ProviderRouter, RouteResult
 
 __all__ = [
-    # Data models
     "ChatMessage",
     "UsageInfo",
     "ProviderResponse",
-    # Abstract base
     "BaseProvider",
-    # Concrete providers
     "OpenAIProvider",
     "AnthropicProvider",
     "GoogleProvider",
     "OpenRouterProvider",
     "OllamaProvider",
     "CustomProvider",
-    # Factory
     "ProviderFactory",
+    "ProviderRoute",
+    "ProviderRouter",
+    "RouteResult",
 ]
