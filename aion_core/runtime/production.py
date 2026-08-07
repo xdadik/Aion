@@ -90,19 +90,27 @@ async def provider_health_check(provider: BaseProvider) -> RuntimeStatus:
     try:
         models = await provider.list_models()
         model = provider.default_model
-        healthy = bool(model in models or models or provider.PROVIDER_NAME == "ollama")
+        healthy = bool(
+            model in models or models or provider.PROVIDER_NAME == "ollama"
+        )
+        configured = bool(getattr(provider, "api_key", None)) or (
+            provider.PROVIDER_NAME == "ollama"
+        )
         return RuntimeStatus(
             provider=provider.PROVIDER_NAME,
             model=model,
-            configured=bool(getattr(provider, "api_key", None)) or provider.PROVIDER_NAME == "ollama",
+            configured=configured,
             healthy=healthy,
             error=None if healthy else "Provider returned no usable models",
         )
     except Exception as exc:
+        configured = bool(getattr(provider, "api_key", None)) or (
+            provider.PROVIDER_NAME == "ollama"
+        )
         return RuntimeStatus(
             provider=provider.PROVIDER_NAME,
             model=provider.default_model,
-            configured=bool(getattr(provider, "api_key", None)) or provider.PROVIDER_NAME == "ollama",
+            configured=configured,
             healthy=False,
             error=f"{type(exc).__name__}: {exc}",
         )
