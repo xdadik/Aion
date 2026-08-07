@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0e1a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="brandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00E5FF"/>
+      <stop offset="100%" stop-color="#A78BFA"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="256" height="256" rx="48" fill="url(#bgGrad)"/>
+
+  <!-- Hexagon frame -->
+  <polygon
+    points="128,32 208,76 208,180 128,224 48,180 48,76"
+    fill="none"
+    stroke="url(#brandGrad)"
+    stroke-width="3"
+    opacity="0.3"
+  />
+
+  <!-- Inner hexagon (hand/cup shape) -->
+  <polygon
+    points="128,64 184,92 184,164 128,192 72,164 72,92"
+    fill="none"
+    stroke="url(#brandGrad)"
+    stroke-width="4"
+    filter="url(#glow)"
+  />
+
+  <!-- Center dot (the "agent") -->
+  <circle cx="128" cy="128" r="16" fill="url(#brandGrad)" filter="url(#glow)"/>
+
+  <!-- Connection lines -->
+  <line x1="128" y1="128" x2="128" y2="64" stroke="url(#brandGrad)" stroke-width="2" opacity="0.6"/>
+  <line x1="128" y1="128" x2="184" y2="92" stroke="url(#brandGrad)" stroke-width="2" opacity="0.6"/>
+  <line x1="128" y1="128" x2="184" y2="164" stroke="url(#brandGrad)" stroke-width="2" opacity="0.6"/>
+  <line x1="128" y1="128" x2="128" y2="192" stroke="url(#brandGrad)" stroke-width="2" opacity="0.6"/>
+  <line x1="128" y1="128" x2="72" y2="164" stroke="url(#brandGrad)" stroke-width="2" opacity="0.6"/>
+  <line x1="128" y1="128" x2="72" y2="92" stroke="url(#brandGrad)" stroke-width="2" opacity="0.6"/>
+
+  <!-- Small nodes at hexagon vertices -->
+  <circle cx="128" cy="64" r="5" fill="#00E5FF"/>
+  <circle cx="184" cy="92" r="5" fill="#00E5FF"/>
+  <circle cx="184" cy="164" r="5" fill="#A78BFA"/>
+  <circle cx="128" cy="192" r="5" fill="#A78BFA"/>
+  <circle cx="72" cy="164" r="5" fill="#00E5FF"/>
+  <circle cx="72" cy="92" r="5" fill="#00E5FF"/>
+</svg>

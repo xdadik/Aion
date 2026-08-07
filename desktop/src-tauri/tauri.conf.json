@@ -1,0 +1,84 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Aion Hand",
+  "version": "0.4.0",
+  "identifier": "com.aionhand.desktop",
+  "build": {
+    "beforeDevCommand": "cd ../aion_web && npm run dev",
+    "devUrl": "http://localhost:3000",
+    "beforeBuildCommand": "cd ../aion_web && npm run build",
+    "frontendDist": "../aion_web/out"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Aion Hand",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 900,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": true,
+        "transparent": false,
+        "alwaysOnTop": false,
+        "center": true,
+        "theme": "Dark"
+      }
+    ],
+    "security": {
+      "csp": null,
+      "devCsp": null
+    },
+    "trayIcon": {
+      "id": "main",
+      "iconPath": "icons/icon.png",
+      "tooltip": "Aion Hand — autonomous AI agent",
+      "menuOnLeftClick": false
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": [],
+    "externalBin": [],
+    "copyright": "© 2026 Aion Hand Contributors",
+    "category": "DeveloperTool",
+    "shortDescription": "Self-improving autonomous AI agent framework",
+    "longDescription": "Aion Hand is the open-source self-improving autonomous AI agent framework that combines the best of OpenClaw, Hermes, NullClaw, CrewAI, AutoGPT, and LangGraph.",
+    "macOS": {
+      "frameworks": [],
+      "minimumSystemVersion": "10.15",
+      "exceptionDomain": "",
+      "signingIdentity": null,
+      "entitlements": null
+    },
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "installMode": "perMachine",
+        "languages": ["English"]
+      },
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      }
+    },
+    "linux": {
+      "deb": {
+        "depends": []
+      },
+      "appimage": {
+        "bundleMediaFramework": false
+      }
+    },
+    "createUpdaterArtifacts": false
+  },
+  "plugins": {}
+}

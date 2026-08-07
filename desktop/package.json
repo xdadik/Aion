@@ -1,0 +1,17 @@
+{
+  "$schema": "https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/schema.json",
+  "package": {
+    "name": "aion-hand",
+    "version": "0.4.0",
+    "description": "Aion Hand — the self-improving autonomous AI agent framework. Native desktop app.",
+    "authors": ["Aion Hand Contributors"],
+    "license": "MIT",
+    "repository": "https://github.com/xdadik/Aion"
+  },
+  "tauri": {
+    "beforeDevCommand": "cd ../aion_web && npm run dev",
+    "devUrl": "http://localhost:3000",
+    "beforeBuildCommand": "cd ../aion_web && npm run build",
+    "frontendDist": "../aion_web/out"
+  }
+}
