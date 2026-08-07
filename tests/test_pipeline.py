@@ -7,7 +7,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 # Ensure project root is importable
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -123,7 +123,7 @@ class TestCritic(unittest.TestCase):
         verif = VerificationResult(passed=True, confidence=0.9, issues=[], checked_by="test")
 
         import asyncio
-        result = asyncio.get_event_loop().run_until_complete(
+        result = asyncio.run(
             critic.critique("Write code", "def hello(): pass", [verif])
         )
         self.assertIsInstance(result, CritiqueResult)
@@ -495,7 +495,7 @@ class TestMissionAnalyzer(unittest.TestCase):
         analyzer = MissionAnalyzer(agent=mock_agent)
 
         import asyncio
-        result = asyncio.get_event_loop().run_until_complete(
+        result = asyncio.run(
             analyzer.analyze("Build a REST API")
         )
         self.assertIsInstance(result, MissionAnalysis)

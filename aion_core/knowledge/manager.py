@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 from .auto_builder import AutoKnowledgeBuilder
 from .graph import KnowledgeGraph

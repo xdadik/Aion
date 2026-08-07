@@ -32,8 +32,9 @@ import asyncio
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, AsyncIterator, Dict, List, Optional
+from datetime import datetime, UTC
+from typing import Any
+from collections.abc import AsyncIterator
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +58,7 @@ class Message:
     platform: str = ""
     user_id: str = ""
     content: str = ""
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
     reply_to: str | None = None
 
 
@@ -196,7 +197,7 @@ class TelegramAdapter(PlatformAdapter):
             try:
                 msg = await asyncio.wait_for(self._receive_queue.get(), timeout=1.0)
                 yield msg
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 continue
             except asyncio.CancelledError:
                 break
@@ -322,7 +323,7 @@ class DiscordAdapter(PlatformAdapter):
             try:
                 msg = await asyncio.wait_for(self._receive_queue.get(), timeout=1.0)
                 yield msg
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 continue
             except asyncio.CancelledError:
                 break
@@ -443,7 +444,7 @@ class SlackAdapter(PlatformAdapter):
             try:
                 msg = await asyncio.wait_for(self._receive_queue.get(), timeout=1.0)
                 yield msg
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 continue
             except asyncio.CancelledError:
                 break

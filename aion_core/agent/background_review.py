@@ -16,7 +16,8 @@ import uuid
 from collections import Counter
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Coroutine, Dict, List, Optional
+from typing import Any
+from collections.abc import Callable, Coroutine
 
 logger = logging.getLogger(__name__)
 
@@ -164,7 +165,7 @@ class BackgroundReviewer:
                 _, _, task = await asyncio.wait_for(
                     self._queue.get(), timeout=1.0
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 continue
             except asyncio.CancelledError:
                 break

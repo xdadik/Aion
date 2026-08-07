@@ -38,12 +38,11 @@ import copy
 import json
 import logging
 import os
-import shutil
 import sys
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -267,7 +266,7 @@ class ModelConfig:
         return d
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ModelConfig":
+    def from_dict(cls, data: dict[str, Any]) -> ModelConfig:
         return cls(
             name=data.get("name", cls().name),
             provider=data.get("provider", cls().provider),
@@ -319,7 +318,7 @@ class SecurityConfig:
         return d
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "SecurityConfig":
+    def from_dict(cls, data: dict[str, Any]) -> SecurityConfig:
         return cls(
             enabled=bool(data.get("enabled", cls().enabled)),
             sandbox_enabled=bool(data.get("sandbox_enabled", cls().sandbox_enabled)),
@@ -372,7 +371,7 @@ class MemoryConfig:
         return d
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "MemoryConfig":
+    def from_dict(cls, data: dict[str, Any]) -> MemoryConfig:
         return cls(
             enabled=bool(data.get("enabled", cls().enabled)),
             working_max=int(data.get("working_max", cls().working_max)),
@@ -422,7 +421,7 @@ class PipelineConfig:
         return d
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "PipelineConfig":
+    def from_dict(cls, data: dict[str, Any]) -> PipelineConfig:
         return cls(
             enabled=bool(data.get("enabled", cls().enabled)),
             max_iterations=int(data.get("max_iterations", cls().max_iterations)),
@@ -473,7 +472,7 @@ class GatewayConfig:
         return d
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "GatewayConfig":
+    def from_dict(cls, data: dict[str, Any]) -> GatewayConfig:
         return cls(
             enabled=bool(data.get("enabled", cls().enabled)),
             platforms=data.get("platforms", cls().platforms),
@@ -516,7 +515,7 @@ class CronConfig:
         return d
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "CronConfig":
+    def from_dict(cls, data: dict[str, Any]) -> CronConfig:
         return cls(
             enabled=bool(data.get("enabled", cls().enabled)),
             tick_interval=int(data.get("tick_interval", cls().tick_interval)),
@@ -556,7 +555,7 @@ class MCPConfig:
         return d
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "MCPConfig":
+    def from_dict(cls, data: dict[str, Any]) -> MCPConfig:
         return cls(
             enabled=bool(data.get("enabled", cls().enabled)),
             servers=data.get("servers", cls().servers),
@@ -656,7 +655,7 @@ class AionConfig:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "AionConfig":
+    def from_dict(cls, data: dict[str, Any]) -> AionConfig:
         """Deserialize from a plain dict (e.g. loaded JSON)."""
         home = data.get("home_dir", "")
         return cls(

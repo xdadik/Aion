@@ -46,10 +46,13 @@ web = [
 ]
 tui = [
     "rich>=13.0",
+    "prompt_toolkit>=3.0",
+    "pyyaml>=6.0",
 ]
 
 [project.scripts]
 aion-hand = "aion_hand_cli.cli:main"
+aion-tui = "aion_core.tui:_cli_main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["aion_core", "aion_hand_cli"]

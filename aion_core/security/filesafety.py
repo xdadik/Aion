@@ -32,7 +32,6 @@ import stat
 import tempfile
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Dict, FrozenSet, List, Optional, Set, Tuple, Union
 
 # ---------------------------------------------------------------------------
 # Platform helpers

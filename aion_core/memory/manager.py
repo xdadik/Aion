@@ -15,19 +15,18 @@ Layers:
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
-import os
 import re
 import sqlite3
 import time
 import uuid
 from dataclasses import dataclass, field, asdict
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, UTC
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any
+from collections.abc import Sequence
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +116,7 @@ class MemoryEntry:
         return d
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "MemoryEntry":
+    def from_dict(cls, data: dict[str, Any]) -> MemoryEntry:
         data = dict(data)  # shallow copy
         data["layer"] = MemoryLayer(data["layer"])
         return cls(**data)
@@ -145,7 +144,7 @@ class UserProfile:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "UserProfile":
+    def from_dict(cls, data: dict[str, Any]) -> UserProfile:
         return cls(**data)
 
 
@@ -161,7 +160,7 @@ class NudgeState:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "NudgeState":
+    def from_dict(cls, data: dict[str, Any]) -> NudgeState:
         return cls(**data)
 
 
@@ -207,7 +206,7 @@ def _make_id() -> str:
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _parse_iso(s: str) -> datetime:
@@ -215,7 +214,7 @@ def _parse_iso(s: str) -> datetime:
     try:
         return datetime.fromisoformat(s)
     except (ValueError, TypeError):
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
 
 
 def _tokenize_text(text: str) -> list[str]:
@@ -905,7 +904,7 @@ class MemoryManager:
             if entry is None:
                 continue
             # Re-rank using blended importance score
-            age_hours = (datetime.now(timezone.utc) - _parse_iso(entry.created_at)).total_seconds() / 3600
+            age_hours = (datetime.now(UTC) - _parse_iso(entry.created_at)).total_seconds() / 3600
             blended = _compute_importance_score(entry, age_hours)
             final_score = 0.6 * score + 0.4 * blended
             results.append(
@@ -1037,7 +1036,7 @@ class MemoryManager:
         session = self._storage.entries_by_layer(MemoryLayer.SESSION)
         old_sessions = [
             e for e in session
-            if (datetime.now(timezone.utc) - _parse_iso(e.updated_at)).total_seconds() > 3600
+            if (datetime.now(UTC) - _parse_iso(e.updated_at)).total_seconds() > 3600
         ]
         if old_sessions:
             actions.append({
@@ -1190,7 +1189,7 @@ class MemoryManager:
         """
         self._ensure_initialized()
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         cutoff = now - timedelta(days=max_age_days)
         removed = 0
 
@@ -1323,7 +1322,7 @@ class MemoryManager:
             return
 
         # Sort by blended importance (ascending) — evict the worst
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         scored: list[tuple[float, MemoryEntry]] = []
         for entry in entries:
             age_hours = (now - _parse_iso(entry.created_at)).total_seconds() / 3600

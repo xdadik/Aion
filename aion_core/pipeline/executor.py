@@ -8,7 +8,7 @@ import logging
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 from .planner import ExecutionPlan, PlanNode
 

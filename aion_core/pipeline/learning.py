@@ -8,8 +8,8 @@ import logging
 import os
 import re
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
-from typing import Any, Dict, List, Optional, Set
+from datetime import UTC, datetime
+from typing import Any
 
 logger = logging.getLogger("aion_hand.pipeline")
 
@@ -194,7 +194,7 @@ class RuntimeLearning:
             learned_rules=rules,
             was_repaired=was_repaired,
             repair_successful=repair_successful,
-            timestamp=datetime.utcnow().isoformat() + "Z",
+            timestamp=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         )
 
         self._lessons.append(lesson)
@@ -277,7 +277,10 @@ class RuntimeLearning:
             if lesson.timestamp:
                 try:
                     lesson_time = datetime.fromisoformat(lesson.timestamp.replace("Z", "+00:00"))
-                    age_hours = (datetime.utcnow() - lesson_time.replace(tzinfo=None)).total_seconds() / 3600
+                    now = datetime.now(UTC)
+                    if lesson_time.tzinfo is None:
+                        now = now.replace(tzinfo=None)
+                    age_hours = (now - lesson_time).total_seconds() / 3600
                     recency = 1.0 / (1.0 + age_hours / 168)  # Half-life ~ 1 week
                 except (ValueError, OSError):
                     pass
@@ -511,7 +514,7 @@ class RuntimeLearning:
             data = {
                 "lessons": [l.to_dict() for l in self._lessons],
                 "rules": self._rules,
-                "saved_at": datetime.utcnow().isoformat() + "Z",
+                "saved_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
                 "total_lessons": len(self._lessons),
                 "total_rules": len(self._rules),
             }
