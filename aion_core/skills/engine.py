@@ -164,21 +164,60 @@ class Skill:
     def from_markdown(cls, md_text: str) -> Skill:
         """Parse a SKILL.md formatted string into a Skill object.
 
-        Parses:
-            # Name
-            Description text
-            ## Sections...
+        Supports two formats:
+          1. YAML frontmatter (Hermes / OpenClaw style):
+                ---
+                name: my-skill
+                description: What it does
+                tags: [a, b]
+                ---
+                # Body content with sections
+
+          2. Plain markdown (legacy Aion style):
+                # Name
+                Description text
+                ## Sections...
         """
-        lines = md_text.strip().split("\n")
-        name = "unnamed"
-        description = ""
+        # First, check for YAML frontmatter
+        front_matter: dict[str, Any] = {}
+        body_text = md_text
+        # Allow leading whitespace / HTML comments / blank lines before the frontmatter
+        frontmatter_match = re.match(
+            r"^(?:\s|<!--.*?-->)*---\s*\n(.*?)\n---\s*\n?(.*)$",
+            md_text,
+            re.DOTALL,
+        )
+        if frontmatter_match:
+            front_raw = frontmatter_match.group(1)
+            body_text = frontmatter_match.group(2)
+            # Parse simple YAML key: value pairs (and inline lists)
+            try:
+                import yaml  # type: ignore[import-not-found]
+                front_matter = yaml.safe_load(front_raw) or {}
+            except ImportError:
+                # Crude fallback
+                for line in front_raw.splitlines():
+                    if ":" not in line:
+                        continue
+                    k, _, v = line.partition(":")
+                    k, v = k.strip(), v.strip()
+                    if v.startswith("[") and v.endswith("]"):
+                        front_matter[k] = [x.strip().strip("'\"") for x in v[1:-1].split(",") if x.strip()]
+                    else:
+                        front_matter[k] = v.strip("'\"")
+
+        lines = body_text.strip().split("\n") if body_text else []
+        name = front_matter.get("name") or "unnamed"
+        description = str(front_matter.get("description", ""))
         sections: dict[str, list[str]] = {}
         current_section = "_header"
         sections[current_section] = []
 
         for line in lines:
             if line.startswith("# ") and not line.startswith("## "):
-                name = line[2:].strip()
+                # If name not set from frontmatter, use the H1
+                if not front_matter.get("name"):
+                    name = line[2:].strip()
                 current_section = "_header"
                 sections[current_section] = []
             elif line.startswith("## "):
@@ -187,13 +226,15 @@ class Skill:
             else:
                 sections.setdefault(current_section, []).append(line)
 
-        header_lines = sections.get("_header", [])
-        desc_lines = []
-        for hl in header_lines:
-            hl = hl.strip()
-            if hl and not hl.startswith("**") and not hl.startswith("---"):
-                desc_lines.append(hl)
-        description = " ".join(desc_lines)
+        # If description not set from frontmatter, derive from header lines
+        if not description:
+            header_lines = sections.get("_header", [])
+            desc_lines = []
+            for hl in header_lines:
+                hl = hl.strip()
+                if hl and not hl.startswith("**") and not hl.startswith("---"):
+                    desc_lines.append(hl)
+            description = " ".join(desc_lines)
 
         metadata: dict[str, Any] = {}
         lessons = sections.get("lessons_learned", [])
@@ -210,14 +251,22 @@ class Skill:
             metadata["instructions"] = "\n".join(instructions).strip()
 
         details = sections.get("details", [])
-        content = "\n".join(details).strip()
+        content = "\n".join(details).strip() if details else body_text.strip()
 
-        tags_match = re.search(r"\*\*Tags:\*\*\s*(.+?)(?:\n|$)", md_text)
-        tags = []
-        if tags_match:
-            tags_str = tags_match.group(1).strip()
-            if tags_str.lower() != "none":
-                tags = [t.strip() for t in tags_str.split(",")]
+        # Tags: prefer frontmatter, fall back to inline "**Tags:**" line
+        tags: list[str] = []
+        if front_matter.get("tags"):
+            tags_raw = front_matter["tags"]
+            if isinstance(tags_raw, list):
+                tags = [str(t) for t in tags_raw]
+            else:
+                tags = [t.strip() for t in str(tags_raw).split(",")]
+        else:
+            tags_match = re.search(r"\*\*Tags:\*\*\s*(.+?)(?:\n|$)", md_text)
+            if tags_match:
+                tags_str = tags_match.group(1).strip()
+                if tags_str.lower() != "none":
+                    tags = [t.strip() for t in tags_str.split(",")]
 
         return cls(
             name=name,

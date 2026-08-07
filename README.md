@@ -208,21 +208,41 @@ Every row is a feature you can verify in this repo today.
 | **Pluggable architecture (tools/skills/providers/verifiers)** | ✅ | ✅ | ✅ |
 | **Built-in benchmark harness** | ✅ | ❌ | ❌ |
 | **Cross-platform CI (Py 3.11/3.12/3.13, ubuntu/macos/win)** | ✅ | ✅ | ✅ |
+| **Voice (TTS + STT) module** | ✅ | ✅ | ❌ |
+| **Browser automation (Playwright + stdlib fallback)** | ✅ | ✅ | ❌ |
+| **Backup / restore system (tar.gz + manifest)** | ✅ | ❌ | ❌ |
+| **Skill marketplace (HTTP/git/local install)** | ✅ | partial (agentskills.io) | ❌ |
+| **Computer use (screen/mouse/keyboard)** | ✅ | partial | ❌ |
+| **Plugin system (drop-in Python files)** | ✅ | ❌ | ❌ |
+| **Background memory consolidation (real async task)** | ✅ | partial | partial |
+| **Aion as MCP server (not just client)** | ✅ | ❌ | ❌ |
+| **Architecture Decision Records (docs/adr/)** | ✅ | ❌ | ❌ |
 
 ### Where Aion pulls ahead
 
 1. **Pipeline + Critic + 5 verifiers** — Hermes and OpenClaw don't have a structured critic/repair loop; Aion scores every result and auto-repairs low-scoring outputs.
-2. **20+ messaging adapters** — Aion ships adapters for Telegram, Discord, Slack, WhatsApp, Signal, Teams, WeChat, QQ, Feishu, WeixinWork, Yuanbao, Matrix, IRC, Mattermost, Line, GoogleChat, DingTalk, Email, Ntfy, Webhook.
-3. **Knowledge graph + entity/relation reasoner** — structured world knowledge neither Hermes nor OpenClaw has.
-4. **Model router with cost/latency optimiser** — auto-pick the cheapest model that meets a quality bar.
-5. **Zero hard dependencies** — the core runs on the Python stdlib; rich/yaml/aiohttp are all optional.
-6. **Benchmark harness** — actually measure Aion vs. baselines on a fixed task suite.
+2. **70+ skills out of the box** — ported from Hermes's MIT-licensed skill collection + 11 Aion-original starter skills.
+3. **21 SOUL.md personas** — OpenClaw's signature feature; Aion ships with 21 (default, researcher, coder, assistant, analyst, writer, tutor, devops, pm, sales, chef, finance, fitness, travel, doctor, lawyer, therapist, gaming, sre, architect, philosopher).
+4. **Aion as MCP server** — other agents (Hermes, OpenClaw, Claude Desktop) can call Aion's 25+ tools. Aion is the only framework that's both an MCP client AND server.
+5. **Voice module** — TTS + STT with multi-backend (pyttsx3, say, espeak, Whisper) and graceful fallback. Hermes has voice; OpenClaw doesn't.
+6. **Browser automation** — Playwright + stdlib fallback. Hermes has browser; OpenClaw doesn't.
+7. **Backup/restore system** — full agent state backup to tar.gz with manifest. Neither Hermes nor OpenClaw has this.
+8. **Skill marketplace** — install skills from HTTP URLs, git repos, or local directories. Aion's marketplace client is more flexible than Hermes's agentskills.io-only approach.
+9. **Computer use** — screen/mouse/keyboard with multi-backend. Hermes has computer-use; OpenClaw doesn't.
+10. **Plugin system** — drop Python files into `~/.aion-hand/plugins/` to add tools, skills, personas, providers, cron tasks at runtime. Neither Hermes nor OpenClaw has this.
+11. **Background memory consolidation** — real async task that promotes durable facts, extracts user attributes, updates MEMORY.md/USER.md, triggers skill auto-creation every 5 minutes.
+12. **20+ messaging adapters** — Telegram, Discord, Slack, WhatsApp, Signal, Teams, WeChat, QQ, Feishu, WeixinWork, Yuanbao, Matrix, IRC, Mattermost, Line, GoogleChat, DingTalk, Email, Ntfy, Webhook.
+13. **Knowledge graph + entity/relation reasoner** — structured world knowledge neither Hermes nor OpenClaw has.
+14. **Model router with cost/latency optimiser** — auto-pick the cheapest model that meets a quality bar.
+15. **Zero hard dependencies** — the core runs on the Python stdlib; rich/yaml/aiohttp are all optional.
+16. **Built-in benchmark harness** — actually measure Aion vs. baselines on a fixed task suite.
+17. **Architecture Decision Records (ADRs)** — `docs/adr/` documents every major design decision with tradeoffs and alternatives considered.
 
 ### Where Aion can still improve (honest gaps)
 
-- **Skill ecosystem size** — Hermes ships 200+ community skills; Aion ships 11 starter skills. We're growing this.
 - **Native desktop app** — Hermes has a native macOS/Windows/Linux app; Aion is terminal + web only for now.
-- **Conversation-style learning from raw text** — Hermes learns skills during use; Aion's loop runs post-pipeline. We're closing this gap.
+- **Skill ecosystem depth** — Hermes has 200+ community-published skills with deep domain expertise (ComfyUI workflows, MLOps integrations). Aion's 70 skills are well-curated but smaller.
+- **OpenClaw-RL training** — OpenClaw has a reinforcement-learning training loop; Aion doesn't.
 
 ---
 
