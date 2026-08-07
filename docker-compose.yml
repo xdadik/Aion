@@ -1,0 +1,46 @@
+# Aion Hand — docker-compose
+# Usage:
+#   docker-compose up            # start everything
+#   docker-compose up aion       # just the agent
+#   docker-compose up web        # just the web UI
+
+services:
+  aion:
+    build: .
+    container_name: aion-hand
+    ports:
+      - "8000:8000"   # Aion HTTP API + health
+    volumes:
+      - aion-data:/root/.aion-hand
+      - ./skills:/app/skills:ro            # mount skill library
+      - ./aion_core/persona/templates:/app/aion_core/persona/templates:ro
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - AION_HAND_DEFAULT_PROVIDER=${AION_HAND_DEFAULT_PROVIDER:-openai}
+      - AION_HAND_DEFAULT_MODEL=${AION_HAND_DEFAULT_MODEL:-gpt-4o}
+      - AION_HAND_LOG_LEVEL=${AION_HAND_LOG_LEVEL:-INFO}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  web:
+    build: .
+    container_name: aion-web
+    command: sh -c "cd /app/aion_web && npm start"
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      aion:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  aion-data:
+    driver: local
