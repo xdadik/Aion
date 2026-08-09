@@ -44,6 +44,7 @@ logger = logging.getLogger("aion_hand.agent.loop")
 
 class LoopState(Enum):
     """Internal state of a single agent loop execution."""
+
     IDLE = "idle"
     BUILDING_CONTEXT = "building_context"
     CALLING_LLM = "calling_llm"
@@ -59,6 +60,7 @@ class LoopState(Enum):
 @dataclass
 class ToolCallRequest:
     """Represents a single tool call requested by the LLM."""
+
     id: str
     name: str
     arguments: dict[str, Any]
@@ -67,6 +69,7 @@ class ToolCallRequest:
 @dataclass
 class ToolCallResult:
     """Represents the result of executing a tool call."""
+
     tool_call_id: str
     tool_name: str
     success: bool
@@ -78,6 +81,7 @@ class ToolCallResult:
 @dataclass
 class TokenUsage:
     """Tracks token consumption across turns."""
+
     prompt_tokens: int = 0
     completion_tokens: int = 0
     total_tokens: int = 0
@@ -99,6 +103,7 @@ class TokenUsage:
 @dataclass
 class ConversationMessage:
     """A single message in the conversation history."""
+
     role: str  # "system", "user", "assistant", "tool"
     content: str
     tool_call_id: str | None = None
@@ -132,6 +137,7 @@ class ConversationMessage:
 @dataclass
 class LoopResult:
     """The final result of an agent loop execution."""
+
     content: str
     tools_used: list[str] = field(default_factory=list)
     tokens: dict[str, int] = field(default_factory=dict)
@@ -192,7 +198,9 @@ class ContextCompressor:
         """Check whether the message list exceeds the context budget."""
         if len(messages) < min_messages:
             return False
-        return self._total_tokens(messages) > (self.context_window - self.reserve_tokens)
+        return self._total_tokens(messages) > (
+            self.context_window - self.reserve_tokens
+        )
 
     def compress(
         self,
@@ -221,7 +229,9 @@ class ContextCompressor:
 
         # Split into old and recent
         old_messages = messages[:-keep_recent] if len(messages) > keep_recent else []
-        recent_messages = messages[-keep_recent:] if len(messages) > keep_recent else messages
+        recent_messages = (
+            messages[-keep_recent:] if len(messages) > keep_recent else messages
+        )
 
         if not old_messages:
             return messages, False
@@ -243,10 +253,8 @@ class ContextCompressor:
                     summary_parts.append(f"[Assistant]: {msg.content[:200]}")
             elif msg.role == "tool":
                 # Truncate tool results heavily
-                result_str = str(msg.result if hasattr(msg, 'result') else msg.content)
-                summary_parts.append(
-                    f"[Tool result - {msg.name}]: {result_str[:100]}"
-                )
+                result_str = str(msg.result if hasattr(msg, "result") else msg.content)
+                summary_parts.append(f"[Tool result - {msg.name}]: {result_str[:100]}")
 
         summary_text = (
             "[Previous conversation summary - compressed for context efficiency]\n"
@@ -277,6 +285,7 @@ class ContextCompressor:
 @dataclass
 class ExecutionRecord:
     """A single execution result stored for feedback learning."""
+
     task: str
     tools_used: list[str] = field(default_factory=list)
     tokens: int = 0
@@ -687,8 +696,12 @@ class AgentLoop:
 
                 # ---- Build context (with compression if needed) ----
                 self._state = LoopState.BUILDING_CONTEXT
-                system_msg = ConversationMessage(role="system", content=effective_system_context)
-                system_msg.token_count = self._compressor.estimate_tokens(system_context)
+                system_msg = ConversationMessage(
+                    role="system", content=effective_system_context
+                )
+                system_msg.token_count = self._compressor.estimate_tokens(
+                    system_context
+                )
 
                 # Compress history if approaching context window
                 working_history, did_compress = self._compressor.compress(
@@ -750,9 +763,11 @@ class AgentLoop:
                     tools_used.add(tr.tool_name)
 
                     # Build tool result message
-                    result_content = json.dumps(tr.result) if tr.success else json.dumps({
-                        "error": tr.error or "Unknown tool error"
-                    })
+                    result_content = (
+                        json.dumps(tr.result)
+                        if tr.success
+                        else json.dumps({"error": tr.error or "Unknown tool error"})
+                    )
 
                     tool_msg = ConversationMessage(
                         role="tool",
@@ -760,7 +775,9 @@ class AgentLoop:
                         tool_call_id=tr.tool_call_id,
                         name=tr.tool_name,
                     )
-                    tool_msg.token_count = self._compressor.estimate_tokens(result_content)
+                    tool_msg.token_count = self._compressor.estimate_tokens(
+                        result_content
+                    )
                     history.append(tool_msg)
 
                     logger.debug(
@@ -774,7 +791,9 @@ class AgentLoop:
             else:
                 # Exhausted max turns
                 self._state = LoopState.MAX_TURNS_REACHED
-                logger.warning(f"Max turns ({max_turns}) reached without final response")
+                logger.warning(
+                    f"Max turns ({max_turns}) reached without final response"
+                )
                 final_content = (
                     final_content
                     or "I was unable to complete the task within the maximum number of turns. "
@@ -951,7 +970,9 @@ class AgentLoop:
                     content=response_content,
                     tool_calls=response_tool_calls if response_tool_calls else None,
                 )
-                assistant_msg.token_count = self._compressor.estimate_tokens(response_content)
+                assistant_msg.token_count = self._compressor.estimate_tokens(
+                    response_content
+                )
                 history.append(assistant_msg)
 
                 if not response_tool_calls:
@@ -961,9 +982,11 @@ class AgentLoop:
                 tool_results = await self._process_tool_calls(response_tool_calls)
                 for tr in tool_results:
                     tools_used.add(tr.tool_name)
-                    result_content = json.dumps(tr.result) if tr.success else json.dumps({
-                        "error": tr.error or "Unknown tool error"
-                    })
+                    result_content = (
+                        json.dumps(tr.result)
+                        if tr.success
+                        else json.dumps({"error": tr.error or "Unknown tool error"})
+                    )
 
                     tool_msg = ConversationMessage(
                         role="tool",
@@ -971,7 +994,9 @@ class AgentLoop:
                         tool_call_id=tr.tool_call_id,
                         name=tr.tool_name,
                     )
-                    tool_msg.token_count = self._compressor.estimate_tokens(result_content)
+                    tool_msg.token_count = self._compressor.estimate_tokens(
+                        result_content
+                    )
                     history.append(tool_msg)
 
                     yield {
@@ -1047,7 +1072,9 @@ class AgentLoop:
                 fn = tc.get("function", {})
                 args_str = fn.get("arguments", "{}")
                 try:
-                    args = json.loads(args_str) if isinstance(args_str, str) else args_str
+                    args = (
+                        json.loads(args_str) if isinstance(args_str, str) else args_str
+                    )
                 except json.JSONDecodeError:
                     logger.warning(f"Failed to parse tool arguments: {args_str}")
                     args = {}
@@ -1166,9 +1193,7 @@ class AgentLoop:
         results: list[ToolCallResult] = []
 
         # Execute tool calls concurrently (Hermes-inspired parallel execution)
-        tasks = [
-            self._execute_single_tool(tc) for tc in tool_calls
-        ]
+        tasks = [self._execute_single_tool(tc) for tc in tool_calls]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Convert exceptions to error results
@@ -1276,9 +1301,7 @@ class AgentLoop:
     # Session management
     # ------------------------------------------------------------------
 
-    def get_session_history(
-        self, session_id: str
-    ) -> list[ConversationMessage]:
+    def get_session_history(self, session_id: str) -> list[ConversationMessage]:
         """Retrieve the conversation history for a session.
 
         Args:
@@ -1331,9 +1354,7 @@ class AgentLoop:
         )
         return compressed
 
-    def set_stream_callback(
-        self, callback: Callable[[str], Any] | None
-    ) -> None:
+    def set_stream_callback(self, callback: Callable[[str], Any] | None) -> None:
         """Set a callback invoked for each streaming token.
 
         Args:

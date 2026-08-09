@@ -1,4 +1,5 @@
 """Tests for background review system."""
+
 import asyncio
 import sys
 import unittest
@@ -12,9 +13,11 @@ try:
         ReviewTask,
         ReviewType,
     )
+
     HAS_MODULE = True
 except ImportError:
     HAS_MODULE = False
+
 
 @unittest.skipUnless(HAS_MODULE, "background_review not available")
 class TestBackgroundReviewer(TestCase):
@@ -33,7 +36,7 @@ class TestBackgroundReviewer(TestCase):
         except (TypeError, AttributeError):
             # Some implementations may not be async
             result = self.reviewer.submit_review(task)
-            if hasattr(result, '__await__'):
+            if hasattr(result, "__await__"):
                 result = asyncio.run(result)
 
     def test_get_stats(self):
@@ -42,7 +45,7 @@ class TestBackgroundReviewer(TestCase):
 
     def test_shutdown(self):
         res = self.reviewer.shutdown()
-        if hasattr(res, '__await__'):
+        if hasattr(res, "__await__"):
             asyncio.run(res)
 
 

@@ -1,4 +1,5 @@
 """Aion Hand Benchmark Runner"""
+
 from __future__ import annotations
 
 import json
@@ -24,6 +25,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class BenchmarkReport:
     """Aggregated report for a benchmark run."""
+
     run_id: str
     timestamp: str
     agent_version: str
@@ -49,15 +51,24 @@ class BenchmarkReport:
             "overall_score": round(self.overall_score, 4),
             "avg_tokens": round(self.avg_tokens, 1),
             "avg_time": round(self.avg_time, 3),
-            "category_scores": {k: round(v, 4) for k, v in self.category_scores.items()},
-            "difficulty_scores": {k: round(v, 4) for k, v in self.difficulty_scores.items()},
+            "category_scores": {
+                k: round(v, 4) for k, v in self.category_scores.items()
+            },
+            "difficulty_scores": {
+                k: round(v, 4) for k, v in self.difficulty_scores.items()
+            },
             "task_results": self.task_results,
             "comparison": self.comparison,
         }
 
 
 class BenchmarkRunner:
-    def __init__(self, agent: Any, output_dir: str = "./benchmark_results", agent_version: str = "unknown") -> None:
+    def __init__(
+        self,
+        agent: Any,
+        output_dir: str = "./benchmark_results",
+        agent_version: str = "unknown",
+    ) -> None:
         self.agent = agent
         self.output_dir = Path(output_dir)
         self.agent_version = agent_version
@@ -78,14 +89,26 @@ class BenchmarkRunner:
         if categories:
             cat_set = {c.lower() for c in categories}
             tasks = [
-                t for t in tasks
-                if (t.category.value if isinstance(t.category, Category) else str(t.category)).lower() in cat_set
+                t
+                for t in tasks
+                if (
+                    t.category.value
+                    if isinstance(t.category, Category)
+                    else str(t.category)
+                ).lower()
+                in cat_set
             ]
         if difficulties:
             diff_set = {d.lower() for d in difficulties}
             tasks = [
-                t for t in tasks
-                if (t.difficulty.value if isinstance(t.difficulty, Difficulty) else str(t.difficulty)).lower() in diff_set
+                t
+                for t in tasks
+                if (
+                    t.difficulty.value
+                    if isinstance(t.difficulty, Difficulty)
+                    else str(t.difficulty)
+                ).lower()
+                in diff_set
             ]
         return tasks
 
@@ -109,18 +132,29 @@ class BenchmarkRunner:
                 result = await self.run_task(task)
             except Exception as exc:
                 logger.error("Unhandled error on task %s: %s", task.id, exc)
-                result = TaskResult(task_id=task.id, task_name=task.name, success=False, errors=[str(exc)])
+                result = TaskResult(
+                    task_id=task.id,
+                    task_name=task.name,
+                    success=False,
+                    errors=[str(exc)],
+                )
             results.append(result)
         return self._compile_report(results, tasks)
 
-    def _compile_report(self, results: list[TaskResult], tasks: list[BenchmarkTask]) -> BenchmarkReport:
+    def _compile_report(
+        self, results: list[TaskResult], tasks: list[BenchmarkTask]
+    ) -> BenchmarkReport:
         if not results:
             return BenchmarkReport(
                 run_id=str(uuid.uuid4())[:8],
                 timestamp=datetime.now(UTC).isoformat(),
                 agent_version=self.agent_version,
-                total_tasks=0, passed=0, failed=0,
-                overall_score=0.0, avg_tokens=0.0, avg_time=0.0,
+                total_tasks=0,
+                passed=0,
+                failed=0,
+                overall_score=0.0,
+                avg_tokens=0.0,
+                avg_time=0.0,
             )
         total = len(results)
         passed = sum(1 for r in results if r.success)
@@ -135,8 +169,16 @@ class BenchmarkRunner:
             t = task_map.get(r.task_id)
             if t is None:
                 continue
-            cat = t.category.value if isinstance(t.category, Category) else str(t.category)
-            diff = t.difficulty.value if isinstance(t.difficulty, Difficulty) else str(t.difficulty)
+            cat = (
+                t.category.value
+                if isinstance(t.category, Category)
+                else str(t.category)
+            )
+            diff = (
+                t.difficulty.value
+                if isinstance(t.difficulty, Difficulty)
+                else str(t.difficulty)
+            )
             category_scores.setdefault(cat, []).append(r.score)
             difficulty_scores.setdefault(diff, []).append(r.score)
         cat_avg = {k: sum(v) / len(v) for k, v in category_scores.items()}
@@ -145,16 +187,26 @@ class BenchmarkRunner:
             run_id=str(uuid.uuid4())[:8],
             timestamp=datetime.now(UTC).isoformat(),
             agent_version=self.agent_version,
-            total_tasks=total, passed=passed, failed=failed,
-            overall_score=overall_score, avg_tokens=avg_tokens, avg_time=avg_time,
-            category_scores=cat_avg, difficulty_scores=diff_avg,
+            total_tasks=total,
+            passed=passed,
+            failed=failed,
+            overall_score=overall_score,
+            avg_tokens=avg_tokens,
+            avg_time=avg_time,
+            category_scores=cat_avg,
+            difficulty_scores=diff_avg,
             task_results=[r.to_dict() for r in results],
         )
 
     async def run_task(self, task: BenchmarkTask) -> TaskResult:
         logger.info("Running task %s: %s", task.id, task.name)
         start_time = time.monotonic()
-        metadata: dict[str, Any] = {"tools_used": [], "turns_used": 0, "tokens_used": 0, "errors": []}
+        metadata: dict[str, Any] = {
+            "tools_used": [],
+            "turns_used": 0,
+            "tokens_used": 0,
+            "errors": [],
+        }
         agent_output = ""
         try:
             agent_output = await self._execute_agent(task, metadata)
@@ -165,10 +217,14 @@ class BenchmarkRunner:
         metadata["time_elapsed"] = elapsed
         result = self.evaluator.evaluate(task, agent_output or "", metadata)
         result.time_elapsed = elapsed
-        logger.info("Task %s complete: score=%.2f, time=%.2fs", task.id, result.score, elapsed)
+        logger.info(
+            "Task %s complete: score=%.2f, time=%.2fs", task.id, result.score, elapsed
+        )
         return result
 
-    def compare_with_baseline(self, current: BenchmarkReport, baseline_path: str) -> dict[str, Any]:
+    def compare_with_baseline(
+        self, current: BenchmarkReport, baseline_path: str
+    ) -> dict[str, Any]:
         baseline_file = Path(baseline_path)
         if not baseline_file.exists():
             logger.warning("Baseline file not found: %s", baseline_path)
@@ -178,7 +234,9 @@ class BenchmarkRunner:
         comparison: dict[str, Any] = {
             "baseline_run_id": baseline.get("run_id", "unknown"),
             "current_run_id": current.run_id,
-            "overall_delta": round(current.overall_score - baseline.get("overall_score", 0), 4),
+            "overall_delta": round(
+                current.overall_score - baseline.get("overall_score", 0), 4
+            ),
             "category_deltas": {},
             "difficulty_deltas": {},
             "verdict": "",
@@ -199,9 +257,16 @@ class BenchmarkRunner:
         current.comparison = comparison
         return comparison
 
-    async def _execute_agent(self, task: BenchmarkTask, metadata: dict[str, Any]) -> str:
+    async def _execute_agent(
+        self, task: BenchmarkTask, metadata: dict[str, Any]
+    ) -> str:
         prompt = task.task_prompt
-        raw = await self.agent.run(prompt, max_turns=task.max_turns, max_tokens=task.max_tokens, timeout=task.timeout)
+        raw = await self.agent.run(
+            prompt,
+            max_turns=task.max_turns,
+            max_tokens=task.max_tokens,
+            timeout=task.timeout,
+        )
         if isinstance(raw, dict):
             output = str(raw.get("output", raw.get("text", "")))
             metadata["tools_used"] = raw.get("tools_used", raw.get("tool_calls", []))

@@ -46,6 +46,7 @@ logger = logging.getLogger("aion_hand.api")
 
 try:
     from aiohttp import web
+
     _AIOHTTP_AVAILABLE = True
 except ImportError:
     _AIOHTTP_AVAILABLE = False
@@ -56,9 +57,11 @@ except ImportError:
 # API server
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class APIConfig:
     """HTTP API server configuration."""
+
     host: str = "0.0.0.0"
     port: int = 8000
     cors_origins: list[str] | None = None  # None = allow all
@@ -87,7 +90,10 @@ class APIServer:
 
     def _build_app(self) -> Any:
         """Build the aiohttp app with all routes registered."""
-        app = web.Application(client_max_size=self.config.max_request_size, middlewares=[self._cors_middleware])
+        app = web.Application(
+            client_max_size=self.config.max_request_size,
+            middlewares=[self._cors_middleware],
+        )
 
         # Health
         app.router.add_get("/health/live", self._health_live)
@@ -139,8 +145,12 @@ class APIServer:
         origin = request.headers.get("Origin", "")
         if self.config.cors_origins is None or origin in self.config.cors_origins:
             response.headers["Access-Control-Allow-Origin"] = origin or "*"
-            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-            response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+            response.headers["Access-Control-Allow-Methods"] = (
+                "GET, POST, PUT, DELETE, OPTIONS"
+            )
+            response.headers["Access-Control-Allow-Headers"] = (
+                "Content-Type, Authorization"
+            )
         return response
 
     # ------------------------------------------------------------------
@@ -149,26 +159,31 @@ class APIServer:
 
     async def _health_live(self, _request: Any) -> Any:
         from aion_core.health import get_health_registry, register_default_checks
+
         register_default_checks(self.agent)
         report = await get_health_registry().run_liveness()
         return web.json_response(report.body, status=report.http_status)
 
     async def _health_ready(self, _request: Any) -> Any:
         from aion_core.health import get_health_registry, register_default_checks
+
         register_default_checks(self.agent)
         report = await get_health_registry().run_readiness()
         return web.json_response(report.body, status=report.http_status)
 
     async def _health_full(self, _request: Any) -> Any:
         from aion_core.health import get_health_registry, register_default_checks
+
         register_default_checks(self.agent)
         health = get_health_registry()
         live = await health.run_liveness()
         ready = await health.run_readiness()
-        return web.json_response({
-            "liveness": live.body,
-            "readiness": ready.body,
-        })
+        return web.json_response(
+            {
+                "liveness": live.body,
+                "readiness": ready.body,
+            }
+        )
 
     # ------------------------------------------------------------------
     #  Persona endpoints
@@ -177,13 +192,16 @@ class APIServer:
     async def _list_personas(self, _request: Any) -> Any:
         try:
             from aion_core.persona import PersonaManager
+
             mgr = PersonaManager()
             names = mgr.list_personas()
-            return web.json_response({
-                "personas": names,
-                "active": mgr.get_active_name(),
-                "total": len(names),
-            })
+            return web.json_response(
+                {
+                    "personas": names,
+                    "active": mgr.get_active_name(),
+                    "total": len(names),
+                }
+            )
         except Exception as exc:  # noqa: BLE001
             return web.json_response({"error": str(exc)}, status=500)
 
@@ -194,10 +212,13 @@ class APIServer:
             if not name:
                 return web.json_response({"error": "Missing 'name'"}, status=400)
             from aion_core.persona import PersonaManager
+
             mgr = PersonaManager()
             ok = mgr.apply_to_agent(self.agent, name)
             if not ok:
-                return web.json_response({"error": f"Persona '{name}' not found"}, status=404)
+                return web.json_response(
+                    {"error": f"Persona '{name}' not found"}, status=404
+                )
             return web.json_response({"applied": name})
         except Exception as exc:  # noqa: BLE001
             return web.json_response({"error": str(exc)}, status=500)
@@ -207,61 +228,94 @@ class APIServer:
     # ------------------------------------------------------------------
 
     async def _list_skills(self, _request: Any) -> Any:
-        se = getattr(self.agent, "skill_engine", None) or getattr(self.agent, "_skills", None)
+        se = getattr(self.agent, "skill_engine", None) or getattr(
+            self.agent, "_skills", None
+        )
         if se is None:
             return web.json_response({"skills": [], "total": 0})
         try:
             skills = se.list_skills() if hasattr(se, "list_skills") else []
-            return web.json_response({
-                "skills": [s.to_dict() if hasattr(s, "to_dict") else vars(s) for s in skills],
-                "total": len(skills),
-            })
+            return web.json_response(
+                {
+                    "skills": [
+                        s.to_dict() if hasattr(s, "to_dict") else vars(s)
+                        for s in skills
+                    ],
+                    "total": len(skills),
+                }
+            )
         except Exception as exc:  # noqa: BLE001
             return web.json_response({"error": str(exc)}, status=500)
 
     async def _list_tools(self, _request: Any) -> Any:
-        tr = getattr(self.agent, "tool_registry", None) or getattr(self.agent, "_tools", None)
+        tr = getattr(self.agent, "tool_registry", None) or getattr(
+            self.agent, "_tools", None
+        )
         if tr is None:
             return web.json_response({"tools": [], "total": 0})
         try:
-            tools = tr.list_tools() if hasattr(tr, "list_tools") else []
-            return web.json_response({
-                "tools": [
-                    {
-                        "name": getattr(t, "name", str(t)),
-                        "description": getattr(t, "description", ""),
-                        "toolset": getattr(t, "toolset", ""),
-                        "requires_approval": getattr(t, "requires_approval", False),
-                    }
-                    for t in tools
-                ],
-                "total": len(tools),
-            })
+            # list_tools() returns list[str]; get full Tool objects via get_tool()
+            tool_names = tr.list_tools() if hasattr(tr, "list_tools") else []
+            tools_info: list[dict[str, Any]] = []
+            for name in tool_names:
+                tool = tr.get_tool(name) if hasattr(tr, "get_tool") else None
+                if tool is not None:
+                    tools_info.append(
+                        {
+                            "name": getattr(tool, "name", name),
+                            "description": getattr(tool, "description", ""),
+                            "toolset": getattr(tool, "toolset", ""),
+                            "requires_approval": getattr(
+                                tool, "requires_approval", False
+                            ),
+                            "dangerous": getattr(tool, "dangerous", False),
+                        }
+                    )
+                else:
+                    tools_info.append({"name": str(name), "description": ""})
+            # Also include toolset summary
+            toolsets = tr.list_toolsets() if hasattr(tr, "list_toolsets") else {}
+            return web.json_response(
+                {
+                    "tools": tools_info,
+                    "total": len(tools_info),
+                    "toolsets": toolsets,
+                }
+            )
         except Exception as exc:  # noqa: BLE001
             return web.json_response({"error": str(exc)}, status=500)
 
     async def _list_memory(self, _request: Any) -> Any:
-        mm = getattr(self.agent, "memory_manager", None) or getattr(self.agent, "_memory", None)
+        mm = getattr(self.agent, "memory_manager", None) or getattr(
+            self.agent, "_memory", None
+        )
         if mm is None:
             return web.json_response({"memories": [], "total": 0})
         try:
             # Try common methods
             entries: list[Any] = []
-            for method in ("recent_memories", "all_memories", "get_recent", "list_memories"):
+            for method in (
+                "recent_memories",
+                "all_memories",
+                "get_recent",
+                "list_memories",
+            ):
                 fn = getattr(mm, method, None)
                 if callable(fn):
                     entries = fn(20) if method != "get_recent" else fn(20)
                     break
-            return web.json_response({
-                "memories": [
-                    {
-                        "layer": getattr(e, "layer", "?"),
-                        "content": getattr(e, "content", str(e))[:500],
-                    }
-                    for e in entries
-                ],
-                "total": len(entries),
-            })
+            return web.json_response(
+                {
+                    "memories": [
+                        {
+                            "layer": getattr(e, "layer", "?"),
+                            "content": getattr(e, "content", str(e))[:500],
+                        }
+                        for e in entries
+                    ],
+                    "total": len(entries),
+                }
+            )
         except Exception as exc:  # noqa: BLE001
             return web.json_response({"error": str(exc)}, status=500)
 
@@ -294,7 +348,9 @@ class APIServer:
             return web.json_response(result)
         except Exception as exc:  # noqa: BLE001
             logger.exception("Chat error")
-            return web.json_response({"error": str(exc), "content": f"Error: {exc}"}, status=500)
+            return web.json_response(
+                {"error": str(exc), "content": f"Error: {exc}"}, status=500
+            )
 
     async def _chat_stream(self, request: Any) -> Any:
         """Server-Sent Events streaming chat response."""
@@ -320,11 +376,18 @@ class APIServer:
             # Call the agent (non-streaming for now — wrap in single chunk)
             try:
                 result = await self.agent.chat(message)
-                content = result.get("content", "") if isinstance(result, dict) else str(result)
+                content = (
+                    result.get("content", "")
+                    if isinstance(result, dict)
+                    else str(result)
+                )
                 # Stream content word-by-word for the streaming effect
                 words = content.split()
                 for i, word in enumerate(words):
-                    chunk = {"type": "token", "text": word + (" " if i < len(words) - 1 else "")}
+                    chunk = {
+                        "type": "token",
+                        "text": word + (" " if i < len(words) - 1 else ""),
+                    }
                     await response.write(f"data: {json.dumps(chunk)}\n\n".encode())
                     await asyncio.sleep(0.02)  # small delay for visible streaming
                 # Send metadata
@@ -336,12 +399,14 @@ class APIServer:
                     }
                     await response.write(f"data: {json.dumps(meta)}\n\n".encode())
                 else:
-                    await response.write(f"data: {json.dumps({'type': 'done'})}\n\n".encode())
+                    await response.write(
+                        f"data: {json.dumps({'type': 'done'})}\n\n".encode()
+                    )
             except Exception as exc:  # noqa: BLE001
                 err = {"type": "error", "error": str(exc)}
                 await response.write(f"data: {json.dumps(err)}\n\n".encode())
 
-            await response.write(b"data: {\"type\": \"close\"}\n\n")
+            await response.write(b'data: {"type": "close"}\n\n')
             return response
         except Exception as exc:  # noqa: BLE001
             logger.exception("Stream chat error")
@@ -352,12 +417,15 @@ class APIServer:
     # ------------------------------------------------------------------
 
     async def _get_metrics(self, _request: Any) -> Any:
-        from aion_core.telemetry import get_metrics, get_tracer, get_event_log
-        return web.json_response({
-            "metrics": get_metrics().to_dict(),
-            "traces_count": len(get_tracer().spans),
-            "events_count": len(get_event_log().events),
-        })
+        from aion_core.telemetry import get_event_log, get_metrics, get_tracer
+
+        return web.json_response(
+            {
+                "metrics": get_metrics().to_dict(),
+                "traces_count": len(get_tracer().spans),
+                "events_count": len(get_event_log().events),
+            }
+        )
 
     async def _create_backup(self, request: Any) -> Any:
         try:
@@ -367,9 +435,12 @@ class APIServer:
             except Exception:  # noqa: BLE001
                 pass
             from aion_core.backup import BackupManager
+
             bm = BackupManager()
             archive = await bm.backup(label=body.get("label"))
-            return web.json_response({"backup": str(archive), "size_bytes": archive.stat().st_size})
+            return web.json_response(
+                {"backup": str(archive), "size_bytes": archive.stat().st_size}
+            )
         except Exception as exc:  # noqa: BLE001
             return web.json_response({"error": str(exc)}, status=500)
 
@@ -381,6 +452,7 @@ class APIServer:
             if not path:
                 return web.json_response({"error": "Missing 'path'"}, status=400)
             from aion_core.backup import BackupManager
+
             bm = BackupManager()
             result = await bm.restore(path, overwrite=overwrite)
             return web.json_response(result)
@@ -398,7 +470,11 @@ class APIServer:
         await self._runner.setup()
         self._site = web.TCPSite(self._runner, self.config.host, self.config.port)
         await self._site.start()
-        logger.info("[api] HTTP API server listening on %s:%d", self.config.host, self.config.port)
+        logger.info(
+            "[api] HTTP API server listening on %s:%d",
+            self.config.host,
+            self.config.port,
+        )
         # Run forever
         try:
             while True:
@@ -415,11 +491,16 @@ class APIServer:
 #  CLI entry point
 # ---------------------------------------------------------------------------
 
+
 async def _main() -> None:
     """`python -m aion_core.api.server --port 8000` entry point."""
     parser = argparse.ArgumentParser(description="Aion Hand HTTP API server")
-    parser.add_argument("--host", default="0.0.0.0", help="Bind host (default: 0.0.0.0)")
-    parser.add_argument("--port", type=int, default=8000, help="Bind port (default: 8000)")
+    parser.add_argument(
+        "--host", default="0.0.0.0", help="Bind host (default: 0.0.0.0)"
+    )
+    parser.add_argument(
+        "--port", type=int, default=8000, help="Bind port (default: 8000)"
+    )
     parser.add_argument("--log-level", default="INFO", help="Log level (default: INFO)")
     args = parser.parse_args()
 
@@ -430,10 +511,13 @@ async def _main() -> None:
 
     # Lazy-import to avoid circular dependency
     from aion_core.agent.core import AionHand
+
     agent = AionHand()
     await agent.start()
     try:
-        server = APIServer(agent=agent, config=APIConfig(host=args.host, port=args.port))
+        server = APIServer(
+            agent=agent, config=APIConfig(host=args.host, port=args.port)
+        )
         await server.serve()
     finally:
         await agent.shutdown()

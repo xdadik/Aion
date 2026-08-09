@@ -165,6 +165,7 @@ class TestPersonaManager:
 # Helper to avoid importing unittest.mock at top-level clutter
 def MagicMock_with_set_system_prompt():
     from unittest.mock import MagicMock
+
     m = MagicMock()
     m.set_system_prompt = MagicMock()
     m.config = MagicMock()

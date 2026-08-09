@@ -59,10 +59,23 @@ class TestCommands:
     def test_all_commands_have_descriptions(self):
         for cmd, desc in COMMANDS.items():
             assert cmd.startswith("/"), f"{cmd} should start with /"
-            assert isinstance(desc, str) and len(desc) > 0, f"{cmd} has empty description"
+            assert (
+                isinstance(desc, str) and len(desc) > 0
+            ), f"{cmd} has empty description"
 
     def test_core_commands_present(self):
-        expected = ["/help", "/quit", "/reset", "/memory", "/skills", "/tools", "/config", "/state", "/save", "/clear"]
+        expected = [
+            "/help",
+            "/quit",
+            "/reset",
+            "/memory",
+            "/skills",
+            "/tools",
+            "/config",
+            "/state",
+            "/save",
+            "/clear",
+        ]
         for c in expected:
             assert c in COMMANDS, f"Missing command: {c}"
 
@@ -116,11 +129,13 @@ class TestAionTUIChatTurn:
     @pytest.mark.asyncio
     async def test_chat_turn_appends_user_and_agent_items(self):
         agent = MagicMock()
-        agent.chat = AsyncMock(return_value={
-            "content": "Hello back!",
-            "tools_used": [],
-            "metadata": {"total_tokens": 42},
-        })
+        agent.chat = AsyncMock(
+            return_value={
+                "content": "Hello back!",
+                "tools_used": [],
+                "metadata": {"total_tokens": 42},
+            }
+        )
         tui = AionTUI(agent)
         await tui._chat_turn("hi")
         assert len(tui.history) == 2
@@ -134,11 +149,13 @@ class TestAionTUIChatTurn:
     @pytest.mark.asyncio
     async def test_chat_turn_records_tool_calls(self):
         agent = MagicMock()
-        agent.chat = AsyncMock(return_value={
-            "content": "Done",
-            "tools_used": [{"name": "web_search", "arguments": {"query": "test"}}],
-            "metadata": {},
-        })
+        agent.chat = AsyncMock(
+            return_value={
+                "content": "Done",
+                "tools_used": [{"name": "web_search", "arguments": {"query": "test"}}],
+                "metadata": {},
+            }
+        )
         tui = AionTUI(agent)
         await tui._chat_turn("search for test")
         # user + tool + agent = 3 items

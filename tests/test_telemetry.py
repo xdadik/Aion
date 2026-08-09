@@ -222,6 +222,7 @@ class TestExportAll:
         result = export_all(out)
         assert result.is_file()
         import json
+
         data = json.loads(out.read_text())
         assert "metrics" in data
         assert "traces" in data

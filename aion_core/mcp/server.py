@@ -37,15 +37,17 @@ logger = logging.getLogger("aion_hand.mcp.server")
 # JSON-RPC 2.0 types
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class JSONRPCRequest:
     """A parsed JSON-RPC 2.0 request."""
+
     id: int | str | None
     method: str
     params: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "JSONRPCRequest":
+    def from_dict(cls, data: dict[str, Any]) -> JSONRPCRequest:
         return cls(
             id=data.get("id"),
             method=str(data.get("method", "")),
@@ -56,6 +58,7 @@ class JSONRPCRequest:
 @dataclass
 class JSONRPCResponse:
     """A JSON-RPC 2.0 response."""
+
     id: int | str | None
     result: Any = None
     error: dict[str, Any] | None = None
@@ -73,6 +76,7 @@ class JSONRPCResponse:
 # MCP Server
 # ---------------------------------------------------------------------------
 
+
 class MCPServer:
     """Aion's MCP server. Exposes a ToolRegistry to MCP clients over stdio.
 
@@ -84,7 +88,7 @@ class MCPServer:
     PROTOCOL_VERSION = "2024-11-05"
     SERVER_INFO = {
         "name": "aion-hand-mcp",
-        "version": "0.1.0",
+        "version": "0.4.0",
     }
     CAPABILITIES = {
         "tools": {"listChanged": False},
@@ -101,6 +105,7 @@ class MCPServer:
             return self._tool_registry
         try:
             from aion_core.tools.registry import ToolRegistry
+
             self._tool_registry = ToolRegistry()
             return self._tool_registry
         except Exception as exc:  # noqa: BLE001
@@ -188,7 +193,11 @@ class MCPServer:
             elif hasattr(result, "result"):
                 text = str(result.result)
             elif isinstance(result, dict):
-                text = result.get("output") or result.get("result") or json.dumps(result, default=str)
+                text = (
+                    result.get("output")
+                    or result.get("result")
+                    or json.dumps(result, default=str)
+                )
             else:
                 text = str(result)
             return JSONRPCResponse(
@@ -198,7 +207,10 @@ class MCPServer:
         except Exception as exc:  # noqa: BLE001
             return JSONRPCResponse(
                 id=request.id,
-                result={"content": [{"type": "text", "text": f"Error: {exc}"}], "isError": True},
+                result={
+                    "content": [{"type": "text", "text": f"Error: {exc}"}],
+                    "isError": True,
+                },
             )
 
     # ------------------------------------------------------------------
@@ -276,9 +288,12 @@ class MCPServer:
 #  CLI entry point
 # ---------------------------------------------------------------------------
 
+
 async def _main() -> None:
     """`python -m aion_core.mcp.server` entry point."""
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s"
+    )
     server = MCPServer()
     await server.run_stdio()
 

@@ -26,14 +26,13 @@ Usage:
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import threading
 import time
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -44,9 +43,11 @@ logger = logging.getLogger("aion_hand.telemetry")
 # Counter / Gauge / Histogram
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class Counter:
     """A monotonically increasing counter."""
+
     name: str
     value: float = 0.0
     tags: tuple[tuple[str, str], ...] = field(default_factory=tuple)
@@ -57,12 +58,18 @@ class Counter:
         self.value += amount
 
     def to_dict(self) -> dict[str, Any]:
-        return {"type": "counter", "name": self.name, "value": self.value, "tags": dict(self.tags)}
+        return {
+            "type": "counter",
+            "name": self.name,
+            "value": self.value,
+            "tags": dict(self.tags),
+        }
 
 
 @dataclass
 class Gauge:
     """A gauge that can go up or down."""
+
     name: str
     value: float = 0.0
     tags: tuple[tuple[str, str], ...] = field(default_factory=tuple)
@@ -77,16 +84,34 @@ class Gauge:
         self.value -= amount
 
     def to_dict(self) -> dict[str, Any]:
-        return {"type": "gauge", "name": self.name, "value": self.value, "tags": dict(self.tags)}
+        return {
+            "type": "gauge",
+            "name": self.name,
+            "value": self.value,
+            "tags": dict(self.tags),
+        }
 
 
 @dataclass
 class Histogram:
     """A histogram — observes values and tracks count + sum + buckets."""
+
     name: str
     count: int = 0
     sum: float = 0.0
-    buckets: tuple[float, ...] = (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0)
+    buckets: tuple[float, ...] = (
+        0.005,
+        0.01,
+        0.025,
+        0.05,
+        0.1,
+        0.25,
+        0.5,
+        1.0,
+        2.5,
+        5.0,
+        10.0,
+    )
     bucket_counts: list[int] = field(default_factory=list)
     tags: tuple[tuple[str, str], ...] = field(default_factory=tuple)
 
@@ -121,9 +146,11 @@ class Histogram:
 # Trace span
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class TraceSpan:
     """A single trace span."""
+
     span_id: str
     trace_id: str
     parent_span_id: str | None
@@ -143,11 +170,13 @@ class TraceSpan:
         self.tags[key] = value
 
     def add_event(self, name: str, **attrs: Any) -> None:
-        self.events.append({
-            "name": name,
-            "timestamp": datetime.now(UTC).isoformat(),
-            "attributes": attrs,
-        })
+        self.events.append(
+            {
+                "name": name,
+                "timestamp": datetime.now(UTC).isoformat(),
+                "attributes": attrs,
+            }
+        )
 
     def end(self) -> None:
         if self.end_time is None:
@@ -170,6 +199,7 @@ class TraceSpan:
 # ---------------------------------------------------------------------------
 # Tracer
 # ---------------------------------------------------------------------------
+
 
 class Tracer:
     """Distributed tracing — start_span returns a context-managed span."""
@@ -214,6 +244,7 @@ class Tracer:
 # Metrics registry
 # ---------------------------------------------------------------------------
 
+
 class MetricsRegistry:
     """Registry of counters, gauges, and histograms."""
 
@@ -224,7 +255,9 @@ class MetricsRegistry:
         self._lock = threading.Lock()
 
     @staticmethod
-    def _key(name: str, tags: dict[str, str] | None) -> tuple[str, tuple[tuple[str, str], ...]]:
+    def _key(
+        name: str, tags: dict[str, str] | None
+    ) -> tuple[str, tuple[tuple[str, str], ...]]:
         return (name, tuple(sorted((tags or {}).items())))
 
     def counter(self, name: str, tags: dict[str, str] | None = None) -> Counter:
@@ -249,13 +282,19 @@ class MetricsRegistry:
             return self._histograms[k]
 
     # Convenience methods
-    def increment(self, name: str, amount: float = 1.0, tags: dict[str, str] | None = None) -> None:
+    def increment(
+        self, name: str, amount: float = 1.0, tags: dict[str, str] | None = None
+    ) -> None:
         self.counter(name, tags).inc(amount)
 
-    def observe(self, name: str, value: float, tags: dict[str, str] | None = None) -> None:
+    def observe(
+        self, name: str, value: float, tags: dict[str, str] | None = None
+    ) -> None:
         self.histogram(name, tags).observe(value)
 
-    def set_gauge(self, name: str, value: float, tags: dict[str, str] | None = None) -> None:
+    def set_gauge(
+        self, name: str, value: float, tags: dict[str, str] | None = None
+    ) -> None:
         self.gauge(name, tags).set(value)
 
     def to_dict(self) -> dict[str, Any]:
@@ -275,6 +314,7 @@ class MetricsRegistry:
 # ---------------------------------------------------------------------------
 # Event log
 # ---------------------------------------------------------------------------
+
 
 class EventLog:
     """Append-only structured event log (JSON lines)."""
@@ -343,6 +383,7 @@ def get_event_log() -> EventLog:
 # ---------------------------------------------------------------------------
 # Exporter
 # ---------------------------------------------------------------------------
+
 
 def export_all(output_path: Path | str) -> Path:
     """Export all telemetry (metrics + traces + events) to a JSON file.

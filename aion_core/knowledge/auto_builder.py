@@ -21,7 +21,7 @@ class AutoKnowledgeBuilder:
 
     # Patterns used for naive entity extraction from free text
     _QUOTED_RE = re.compile(r'"([^"]+)"|\'([^\']+)\'')
-    _WORD_RE = re.compile(r'\b([A-Za-z][A-Za-z0-9_.\-/]{2,})\b')
+    _WORD_RE = re.compile(r"\b([A-Za-z][A-Za-z0-9_.\-/]{2,})\b")
 
     # Keywords that suggest entity types
     _TYPE_HINTS: dict[str, str] = {
@@ -81,7 +81,7 @@ class AutoKnowledgeBuilder:
 
         # Link entities mentioned in the same turn
         for i, e1 in enumerate(entity_nodes):
-            for e2 in entity_nodes[i + 1:]:
+            for e2 in entity_nodes[i + 1 :]:
                 self._graph.add_relation(
                     source_id=e1.id,
                     target_id=e2.id,
@@ -148,7 +148,10 @@ class AutoKnowledgeBuilder:
         # Extract file-like entities from params
         for _, value in params.items():
             val_str = str(value)
-            if any(val_str.endswith(ext) for ext in (".py", ".js", ".ts", ".json", ".yaml", ".md", ".txt")):
+            if any(
+                val_str.endswith(ext)
+                for ext in (".py", ".js", ".ts", ".json", ".yaml", ".md", ".txt")
+            ):
                 file_ent = self._graph.add_entity(
                     name=val_str.split("/")[-1],
                     entity_type="file",
@@ -227,11 +230,13 @@ class AutoKnowledgeBuilder:
         props = skill_ent.properties
         total = props.get("total_uses", 0) + 1
         successes = props.get("successes", 0) + (1 if success else 0)
-        props.update({
-            "total_uses": total,
-            "successes": successes,
-            "success_rate": round(successes / total, 3) if total else 0,
-        })
+        props.update(
+            {
+                "total_uses": total,
+                "successes": successes,
+                "success_rate": round(successes / total, 3) if total else 0,
+            }
+        )
 
     # ------------------------------------------------------------------
     # Memory
@@ -292,23 +297,31 @@ class AutoKnowledgeBuilder:
             fixes = self._graph.get_relations(
                 entity_id=err.id, relation_type="fixed_by"
             )
-            tasks = self._graph.get_relations(
-                entity_id=err.id, relation_type="caused"
-            )
+            tasks = self._graph.get_relations(entity_id=err.id, relation_type="caused")
             caused_by = self._graph.get_relations(
                 entity_id=err.id, relation_type="related_to", direction="out"
             )
-            failure_patterns.append({
-                "error": err.name,
-                "has_fix": bool(fixes),
-                "affected_tasks": [self._graph.get_entity(t.target_id).name if self._graph.get_entity(t.target_id) else "unknown" for t in tasks],
-                "related_entities": len(caused_by),
-            })
+            failure_patterns.append(
+                {
+                    "error": err.name,
+                    "has_fix": bool(fixes),
+                    "affected_tasks": [
+                        (
+                            self._graph.get_entity(t.target_id).name
+                            if self._graph.get_entity(t.target_id)
+                            else "unknown"
+                        )
+                        for t in tasks
+                    ],
+                    "related_entities": len(caused_by),
+                }
+            )
         patterns["failure_patterns"] = failure_patterns[:10]
 
         # --- Successful strategies ---
         successful_tasks = [
-            e for e in self._graph.find_entities(entity_type="task")
+            e
+            for e in self._graph.find_entities(entity_type="task")
             if e.properties.get("success") is True
         ]
         strategies: list[dict[str, Any]] = []
@@ -322,10 +335,12 @@ class AutoKnowledgeBuilder:
                 if tool_ent:
                     tool_names.append(tool_ent.name)
             if tool_names:
-                strategies.append({
-                    "task": task.name,
-                    "tools_used": tool_names,
-                })
+                strategies.append(
+                    {
+                        "task": task.name,
+                        "tools_used": tool_names,
+                    }
+                )
         patterns["successful_strategies"] = strategies[:10]
 
         # --- Skill performance ranking ---
@@ -334,11 +349,13 @@ class AutoKnowledgeBuilder:
         for sk in skill_nodes:
             props = sk.properties
             if "total_uses" in props:
-                skill_ranking.append({
-                    "skill": sk.name,
-                    "uses": props["total_uses"],
-                    "success_rate": props.get("success_rate", 0),
-                })
+                skill_ranking.append(
+                    {
+                        "skill": sk.name,
+                        "uses": props["total_uses"],
+                        "success_rate": props.get("success_rate", 0),
+                    }
+                )
         skill_ranking.sort(key=lambda x: x["success_rate"], reverse=True)
         patterns["skill_ranking"] = skill_ranking[:10]
 
@@ -378,9 +395,23 @@ class AutoKnowledgeBuilder:
     @staticmethod
     def _looks_like_file(name: str) -> bool:
         file_extensions = (
-            ".py", ".js", ".ts", ".json", ".yaml", ".yml", ".toml",
-            ".md", ".txt", ".csv", ".html", ".css", ".sh", ".cfg",
-            ".ini", ".xml", ".sql",
+            ".py",
+            ".js",
+            ".ts",
+            ".json",
+            ".yaml",
+            ".yml",
+            ".toml",
+            ".md",
+            ".txt",
+            ".csv",
+            ".html",
+            ".css",
+            ".sh",
+            ".cfg",
+            ".ini",
+            ".xml",
+            ".sql",
         )
         return any(name.endswith(ext) for ext in file_extensions)
 
@@ -390,9 +421,28 @@ class AutoKnowledgeBuilder:
         if not name:
             return False
         # Common tool/action verbs
-        tool_prefixes = ("read", "write", "search", "fetch", "execute", "run",
-                         "build", "create", "delete", "update", "list", "get",
-                         "set", "find", "parse", "format", "compile", "deploy")
+        tool_prefixes = (
+            "read",
+            "write",
+            "search",
+            "fetch",
+            "execute",
+            "run",
+            "build",
+            "create",
+            "delete",
+            "update",
+            "list",
+            "get",
+            "set",
+            "find",
+            "parse",
+            "format",
+            "compile",
+            "deploy",
+        )
         lower = name.lower().replace("-", "_")
-        return any(lower.startswith(prefix + "_") or lower == prefix
-                   for prefix in tool_prefixes)
+        return any(
+            lower.startswith(prefix + "_") or lower == prefix
+            for prefix in tool_prefixes
+        )

@@ -11,11 +11,11 @@
 # ==============================================================================
 set -euo pipefail
 
-AION_HAND_VERSION="0.3.0"
+AION_HAND_VERSION="0.4.0"
 INSTALL_DIR="${HOME}/.aion-hand"
 BIN_DIR="${INSTALL_DIR}/bin"
 VENV_DIR="${INSTALL_DIR}/venv"
-REPO_URL="https://github.com/your-org/aion-hand"
+REPO_URL="https://github.com/xdadik/Aion"
 BRANCH="main"
 
 # ── Colors ──────────────────────────────────────────────────────────

@@ -96,7 +96,9 @@ class ContextEngine(abc.ABC):
         """Return *True* if ``messages`` exceed ``max_tokens``."""
 
     @abc.abstractmethod
-    def compress(self, messages: list[dict[str, Any]], target_tokens: int) -> list[dict[str, Any]]:
+    def compress(
+        self, messages: list[dict[str, Any]], target_tokens: int
+    ) -> list[dict[str, Any]]:
         """Return a compressed copy of *messages* that fits within
         approximately ``target_tokens``."""
 
@@ -205,7 +207,9 @@ class SummaryCompressor(ContextEngine):
     # Compression
     # ---------------------------------------------------------------
 
-    def compress(self, messages: list[dict[str, Any]], target_tokens: int) -> list[dict[str, Any]]:
+    def compress(
+        self, messages: list[dict[str, Any]], target_tokens: int
+    ) -> list[dict[str, Any]]:
         """Replace the middle portion of *messages* with a summary message.
 
         The head (first ``protect_head`` messages) and tail (last
@@ -286,9 +290,7 @@ class SummaryCompressor(ContextEngine):
             f"{conversation_text}"
         )
 
-    def _truncation_fallback(
-        self, middle: list[dict[str, Any]], budget: int
-    ) -> str:
+    def _truncation_fallback(self, middle: list[dict[str, Any]], budget: int) -> str:
         """When no LLM is available, concatenate abbreviated messages."""
         max_chars = budget * CHARS_PER_TOKEN
         parts: list[str] = []
@@ -442,6 +444,7 @@ class PromptTier(Enum):
     * **VOLATILE** – memory snapshot, current timestamp; may change every
       turn.
     """
+
     STABLE = "stable"
     CONTEXT = "context"
     VOLATILE = "volatile"
@@ -583,6 +586,7 @@ class ThreeTierPromptBuilder:
 class _MessageRecord:
     """Internal wrapper that preserves metadata alongside the API-facing
     message dict."""
+
     message: dict[str, Any]
     created_at: float = field(default_factory=time.time)
     token_estimate: int = 0
@@ -678,7 +682,9 @@ class ContextWindowManager:
             return False
 
         conversation = [r.message for r in self._messages]
-        compressed = self._compressor.compress(conversation, target_tokens - self._system_prompt_tokens)
+        compressed = self._compressor.compress(
+            conversation, target_tokens - self._system_prompt_tokens
+        )
 
         # Rebuild internal list.
         self._messages.clear()
@@ -727,9 +733,11 @@ class ContextWindowManager:
             "conversation_tokens": msg_tokens,
             "total_tokens": total,
             "max_context_tokens": self.max_context_tokens,
-            "utilisation": round(total / self.max_context_tokens, 4)
-            if self.max_context_tokens
-            else 0.0,
+            "utilisation": (
+                round(total / self.max_context_tokens, 4)
+                if self.max_context_tokens
+                else 0.0
+            ),
             "message_count": len(self._messages),
             "compression_threshold": self.compression_threshold,
             "total_compressions": self._total_compressions,

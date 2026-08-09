@@ -53,18 +53,16 @@ class PIIFilter:
     )
 
     # SSN: xxx-xx-xxxx with no all-zero groups
-    _SSN_RE = re.compile(
-        r"\b(?!000|666|9\d{2})\d{3}-(?!00)\d{2}-(?!0000)\d{4}\b"
-    )
+    _SSN_RE = re.compile(r"\b(?!000|666|9\d{2})\d{3}-(?!00)\d{2}-(?!0000)\d{4}\b")
 
     # Credit cards: 13-19 digits, Luhn-compatible prefix patterns
     _CC_RE = re.compile(
         r"\b("
-        r"4\d{12}(?:\d{3})?"          # Visa
-        r"|5[1-5]\d{14}"                # MasterCard
-        r"|3(?:0[0-5]|[68]\d)\d{11}"    # Amex / Diners Club
-        r"|6(?:011|5\d{2})\d{12}"        # Discover
-        r"|35(?:2[89]|[3-8]\d)\d{12}"   # JCB
+        r"4\d{12}(?:\d{3})?"  # Visa
+        r"|5[1-5]\d{14}"  # MasterCard
+        r"|3(?:0[0-5]|[68]\d)\d{11}"  # Amex / Diners Club
+        r"|6(?:011|5\d{2})\d{12}"  # Discover
+        r"|35(?:2[89]|[3-8]\d)\d{12}"  # JCB
         r")\b"
     )
 
@@ -97,9 +95,7 @@ class PIIFilter:
             (self._CC_RE, self._replacements["credit_card"]),
         ]
         if include_ipv4:
-            self._patterns.append(
-                (self._IPV4_RE, self._replacements["ipv4"])
-            )
+            self._patterns.append((self._IPV4_RE, self._replacements["ipv4"]))
 
     def scrub(self, text: str) -> str:
         """Return *text* with all detected PII replaced."""
@@ -232,9 +228,7 @@ class MixtureOfAgents:
                 self._stats["total_pii_detections"] += len(detections)
                 prompt = cfg.pii_filter.scrub(prompt)
                 pii_scrubbed = True
-                logger.info(
-                    "Scrubbed %d PII item(s) from prompt", len(detections)
-                )
+                logger.info("Scrubbed %d PII item(s) from prompt", len(detections))
 
         # Step 2 – run advisors in parallel
         advisor_responses = await self._run_advisors(
@@ -289,9 +283,7 @@ class MixtureOfAgents:
                 self._stats["total_advisor_calls"] += 1
                 return name, result
             except Exception as exc:
-                self._stats["errors"].append(
-                    {"advisor": name, "error": str(exc)}
-                )
+                self._stats["errors"].append({"advisor": name, "error": str(exc)})
                 logger.error("Advisor %s failed: %s", name, exc)
                 return name, f"[ERROR: advisor {name} failed – {exc}]"
 
@@ -331,9 +323,7 @@ class MixtureOfAgents:
             self._stats["total_aggregator_calls"] += 1
             return result
         except Exception as exc:
-            self._stats["errors"].append(
-                {"aggregator": aggregator, "error": str(exc)}
-            )
+            self._stats["errors"].append({"aggregator": aggregator, "error": str(exc)})
             logger.error("Aggregator failed: %s", exc)
             # Fallback: concatenate advisor responses
             return "\n\n".join(
@@ -349,8 +339,10 @@ class MixtureOfAgents:
         final: str,
     ) -> dict[str, int]:
         """Rough token estimate (~4 chars per token)."""
+
         def _est(text: str) -> int:
             return max(1, len(text) // 4)
+
         return {
             "prompt": _est(prompt),
             "advisor_total": sum(_est(v) for v in advisor_responses.values()),

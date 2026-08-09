@@ -34,14 +34,12 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import math
 import random
-import time
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 logger = logging.getLogger("aion_hand.rl")
 
@@ -50,13 +48,15 @@ logger = logging.getLogger("aion_hand.rl")
 # Data structures
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class Trajectory:
     """A single (state, action, reward) trajectory step."""
+
     id: str = field(default_factory=lambda: uuid.uuid4().hex[:16])
-    state: str = ""                              # user message / context
-    action: str = ""                             # agent response
-    reward: float = 0.0                          # scalar reward [−1, +1]
+    state: str = ""  # user message / context
+    action: str = ""  # agent response
+    reward: float = 0.0  # scalar reward [−1, +1]
     metadata: dict[str, Any] = field(default_factory=dict)
     timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     # Internal: log-probability of the action under the current policy
@@ -83,11 +83,12 @@ class Trajectory:
 @dataclass
 class RLConfig:
     """RL training configuration."""
+
     # Reward weights (must sum to ~1.0)
-    weight_explicit_feedback: float = 0.4    # user thumbs up/down
-    weight_implicit_feedback: float = 0.2    # retry rate, follow-up questions
-    weight_quality: float = 0.25              # tool use, accuracy
-    weight_safety: float = 0.15               # no PII, no harmful content
+    weight_explicit_feedback: float = 0.4  # user thumbs up/down
+    weight_implicit_feedback: float = 0.2  # retry rate, follow-up questions
+    weight_quality: float = 0.25  # tool use, accuracy
+    weight_safety: float = 0.15  # no PII, no harmful content
     # Discount factor for future rewards
     gamma: float = 0.99
     # PPO clipping parameter
@@ -115,6 +116,7 @@ class RLConfig:
 # ---------------------------------------------------------------------------
 # Reward model
 # ---------------------------------------------------------------------------
+
 
 class RewardModel:
     """Combines multiple reward signals into a scalar reward.
@@ -161,13 +163,17 @@ class RewardModel:
         if metadata.get("follow_up_question"):
             implicit_signals.append(-0.2)  # user asked again → unclear
         if metadata.get("user_continued_topic"):
-            implicit_signals.append(0.3)   # user kept talking about same → engaging
+            implicit_signals.append(0.3)  # user kept talking about same → engaging
         if metadata.get("user_thanked"):
             implicit_signals.append(0.5)
         if metadata.get("session_length"):
             # Longer sessions → more engaging
             implicit_signals.append(min(0.3, metadata["session_length"] / 100))
-        implicit = sum(implicit_signals) / max(1, len(implicit_signals)) if implicit_signals else 0.0
+        implicit = (
+            sum(implicit_signals) / max(1, len(implicit_signals))
+            if implicit_signals
+            else 0.0
+        )
 
         # 3. Quality signals
         quality_signals: list[float] = []
@@ -188,7 +194,11 @@ class RewardModel:
         # Code blocks / structured output
         if "```" in action:
             quality_signals.append(0.1)
-        quality = sum(quality_signals) / max(1, len(quality_signals)) if quality_signals else 0.0
+        quality = (
+            sum(quality_signals) / max(1, len(quality_signals))
+            if quality_signals
+            else 0.0
+        )
 
         # 4. Safety signals
         safety_signals: list[float] = []
@@ -198,14 +208,16 @@ class RewardModel:
             safety_signals.append(-1.0)
         if metadata.get("refused_unsafe"):
             safety_signals.append(0.3)
-        safety = sum(safety_signals) / max(1, len(safety_signals)) if safety_signals else 0.3  # default: safe
+        safety = (
+            sum(safety_signals) / max(1, len(safety_signals)) if safety_signals else 0.3
+        )  # default: safe
 
         # Weighted combination
         reward = (
-            self.config.weight_explicit_feedback * explicit +
-            self.config.weight_implicit_feedback * implicit +
-            self.config.weight_quality * quality +
-            self.config.weight_safety * safety
+            self.config.weight_explicit_feedback * explicit
+            + self.config.weight_implicit_feedback * implicit
+            + self.config.weight_quality * quality
+            + self.config.weight_safety * safety
         )
 
         # Clamp to [-1, +1]
@@ -226,12 +238,16 @@ class RewardModel:
             implicit_signals.append(-0.5)
         if metadata.get("user_thanked"):
             implicit_signals.append(0.5)
-        implicit = sum(implicit_signals) / max(1, len(implicit_signals)) if implicit_signals else 0.0
+        implicit = (
+            sum(implicit_signals) / max(1, len(implicit_signals))
+            if implicit_signals
+            else 0.0
+        )
         return {
             "explicit": explicit,
             "implicit": implicit,
             "quality": 0.1,  # placeholder
-            "safety": 0.3,   # placeholder
+            "safety": 0.3,  # placeholder
             "total": self.compute_reward(state, action, **kwargs),
         }
 
@@ -239,6 +255,7 @@ class RewardModel:
 # ---------------------------------------------------------------------------
 # Replay buffer
 # ---------------------------------------------------------------------------
+
 
 class ReplayBuffer:
     """Circular buffer storing trajectories for off-policy training."""
@@ -303,6 +320,7 @@ class ReplayBuffer:
 # Trajectory collector
 # ---------------------------------------------------------------------------
 
+
 class TrajectoryCollector:
     """Gathers trajectories from agent interactions.
 
@@ -322,7 +340,9 @@ class TrajectoryCollector:
         self.config = config or RLConfig()
         self.reward_model = reward_model or RewardModel(self.config)
         # IMPORTANT: use `is None` check, not truthiness — an empty ReplayBuffer is falsy
-        self.buffer = buffer if buffer is not None else ReplayBuffer(self.config.buffer_capacity)
+        self.buffer = (
+            buffer if buffer is not None else ReplayBuffer(self.config.buffer_capacity)
+        )
 
     async def collect_from_chat(
         self,
@@ -379,7 +399,9 @@ class TrajectoryCollector:
                 )
                 t.reward = new_reward
                 t.metadata["explicit_feedback"] = feedback
-                logger.info(f"Updated trajectory {trajectory_id} with feedback={feedback}, new reward={new_reward:.3f}")
+                logger.info(
+                    f"Updated trajectory {trajectory_id} with feedback={feedback}, new reward={new_reward:.3f}"
+                )
                 return True
         return False
 
@@ -387,6 +409,7 @@ class TrajectoryCollector:
 # ---------------------------------------------------------------------------
 # Policy optimizer (PPO-style)
 # ---------------------------------------------------------------------------
+
 
 class PolicyOptimizer:
     """PPO-style policy optimizer.
@@ -411,7 +434,9 @@ class PolicyOptimizer:
     ) -> None:
         self.config = config or RLConfig()
         # IMPORTANT: use `is None` check, not truthiness — an empty ReplayBuffer is falsy
-        self.buffer = buffer if buffer is not None else ReplayBuffer(self.config.buffer_capacity)
+        self.buffer = (
+            buffer if buffer is not None else ReplayBuffer(self.config.buffer_capacity)
+        )
         self._step = 0
 
     def compute_advantages(self) -> None:
@@ -426,10 +451,16 @@ class PolicyOptimizer:
         last_gae = 0.0
         for i in reversed(range(n)):
             next_value = trajectories[i + 1].returns if i + 1 < n else 0.0
-            delta = trajectories[i].reward + self.config.gamma * next_value - trajectories[i].returns
+            delta = (
+                trajectories[i].reward
+                + self.config.gamma * next_value
+                - trajectories[i].returns
+            )
             last_gae = delta + self.config.gamma * self.config.gae_lambda * last_gae
             trajectories[i].advantage = last_gae
-            trajectories[i].returns = trajectories[i].reward + self.config.gamma * next_value
+            trajectories[i].returns = (
+                trajectories[i].reward + self.config.gamma * next_value
+            )
 
     def train_step(self) -> dict[str, float]:
         """Run one PPO-style training step.
@@ -488,11 +519,15 @@ class PolicyOptimizer:
         pos_path = self.config.storage_path / "positive_examples.md"
         with pos_path.open("w", encoding="utf-8") as f:
             f.write("# Positive Examples — High-Reward Responses\n\n")
-            f.write("These responses received high rewards. Use them as a model for future responses.\n\n")
+            f.write(
+                "These responses received high rewards. Use them as a model for future responses.\n\n"
+            )
             for t in positive:
                 if t.advantage > 0:
                     f.write(f"## User said:\n{t.state[:500]}\n\n")
-                    f.write(f"## You responded (reward={t.reward:.2f}, advantage={t.advantage:.2f}):\n{t.action[:1000]}\n\n---\n\n")
+                    f.write(
+                        f"## You responded (reward={t.reward:.2f}, advantage={t.advantage:.2f}):\n{t.action[:1000]}\n\n---\n\n"
+                    )
 
         # Write negative examples
         neg_path = self.config.storage_path / "negative_examples.md"
@@ -502,7 +537,9 @@ class PolicyOptimizer:
             for t in negative:
                 if t.advantage < 0:
                     f.write(f"## User said:\n{t.state[:500]}\n\n")
-                    f.write(f"## You responded (reward={t.reward:.2f}, advantage={t.advantage:.2f}):\n{t.action[:1000]}\n\n---\n\n")
+                    f.write(
+                        f"## You responded (reward={t.reward:.2f}, advantage={t.advantage:.2f}):\n{t.action[:1000]}\n\n---\n\n"
+                    )
 
     @property
     def step(self) -> int:
@@ -513,6 +550,7 @@ class PolicyOptimizer:
 # Feedback store
 # ---------------------------------------------------------------------------
 
+
 class FeedbackStore:
     """Persistent storage for user feedback.
 
@@ -521,7 +559,11 @@ class FeedbackStore:
     """
 
     def __init__(self, storage_path: Path | str | None = None) -> None:
-        self.path = Path(storage_path) if storage_path else Path.home() / ".aion-hand" / "rl" / "feedback.jsonl"
+        self.path = (
+            Path(storage_path)
+            if storage_path
+            else Path.home() / ".aion-hand" / "rl" / "feedback.jsonl"
+        )
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
     def record(self, trajectory_id: str, feedback: float, user_id: str = "") -> None:
@@ -564,6 +606,7 @@ class FeedbackStore:
 # ---------------------------------------------------------------------------
 # RL Trainer (orchestrator)
 # ---------------------------------------------------------------------------
+
 
 class RLTrainer:
     """Orchestrates the full RL training loop.
@@ -676,17 +719,19 @@ class RLTrainer:
         data = json.loads(path.read_text(encoding="utf-8"))
         self.buffer.clear()
         for t_data in data.get("trajectories", []):
-            self.buffer.add(Trajectory(
-                id=t_data["id"],
-                state=t_data["state"],
-                action=t_data["action"],
-                reward=t_data["reward"],
-                metadata=t_data.get("metadata", {}),
-                timestamp=t_data["timestamp"],
-                log_prob=t_data.get("log_prob", 0.0),
-                advantage=t_data.get("advantage", 0.0),
-                returns=t_data.get("returns", 0.0),
-            ))
+            self.buffer.add(
+                Trajectory(
+                    id=t_data["id"],
+                    state=t_data["state"],
+                    action=t_data["action"],
+                    reward=t_data["reward"],
+                    metadata=t_data.get("metadata", {}),
+                    timestamp=t_data["timestamp"],
+                    log_prob=t_data.get("log_prob", 0.0),
+                    advantage=t_data.get("advantage", 0.0),
+                    returns=t_data.get("returns", 0.0),
+                )
+            )
         self.optimizer._step = data.get("optimizer_step", 0)
         self._training_history = data.get("training_history", [])
         logger.info(f"Loaded {len(self.buffer)} trajectories from {path}")

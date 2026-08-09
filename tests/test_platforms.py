@@ -1,4 +1,5 @@
 """Tests for platform messaging adapters."""
+
 import asyncio
 import sys
 import unittest
@@ -13,9 +14,11 @@ try:
         create_platform,
         validate_platform_config,
     )
+
     HAS_MODULE = True
 except ImportError:
     HAS_MODULE = False
+
 
 @unittest.skipUnless(HAS_MODULE, "platforms not available")
 class TestPlatformAdapters(TestCase):
@@ -24,16 +27,30 @@ class TestPlatformAdapters(TestCase):
 
     def test_platform_type_values(self):
         names = [p.name for p in PlatformType]
-        for expected in ["TELEGRAM", "DISCORD", "SLACK", "WHATSAPP", "SIGNAL", "TEAMS", "EMAIL", "WEBHOOK"]:
+        for expected in [
+            "TELEGRAM",
+            "DISCORD",
+            "SLACK",
+            "WHATSAPP",
+            "SIGNAL",
+            "TEAMS",
+            "EMAIL",
+            "WEBHOOK",
+        ]:
             self.assertIn(expected, names)
 
     def test_create_telegram(self):
-        adapter = create_platform(PlatformType.TELEGRAM, {"token": "123456:ABC-test-token-for-testing"})
+        adapter = create_platform(
+            PlatformType.TELEGRAM, {"token": "123456:ABC-test-token-for-testing"}
+        )
         self.assertIsNotNone(adapter)
         self.assertEqual(adapter.get_platform_type(), PlatformType.TELEGRAM)
 
     def test_telegram_connect_send(self):
-        adapter = create_platform(PlatformType.TELEGRAM, {"token": "123456:ABC-test-token-for-testing", "chat_id": "456"})
+        adapter = create_platform(
+            PlatformType.TELEGRAM,
+            {"token": "123456:ABC-test-token-for-testing", "chat_id": "456"},
+        )
         asyncio.run(adapter.connect())
         self.assertTrue(adapter.is_connected())
         asyncio.run(adapter.send_text("session-1", "Hello!"))
@@ -51,6 +68,7 @@ class TestPlatformAdapters(TestCase):
     def test_validate_config_missing(self):
         errors = validate_platform_config(PlatformType.TELEGRAM, {})
         self.assertTrue(len(errors) > 0)
+
 
 if __name__ == "__main__":
     unittest.main()

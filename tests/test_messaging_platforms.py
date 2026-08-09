@@ -74,7 +74,9 @@ class TestCreatePlatform:
         assert isinstance(adapter, PlatformAdapter)
 
     def test_create_slack_with_token(self):
-        adapter = create_platform(PlatformType.SLACK, {"token": "fake-bot-token", "channel": "general"})
+        adapter = create_platform(
+            PlatformType.SLACK, {"token": "fake-bot-token", "channel": "general"}
+        )
         assert adapter is not None
         assert isinstance(adapter, PlatformAdapter)
 

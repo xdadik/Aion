@@ -26,7 +26,7 @@ Usage:
     agent.start()
 """
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 __author__ = "Aion Hand Contributors"
 __license__ = "MIT"
 

@@ -11,6 +11,7 @@ from typing import Any
 try:
     from rich.console import Console
     from rich.theme import Theme
+
     _RICH_AVAILABLE = True
 except ImportError:  # pragma: no cover - rich is in our requirements
     _RICH_AVAILABLE = False
@@ -21,27 +22,27 @@ except ImportError:  # pragma: no cover - rich is in our requirements
 # Palette — "midnight aurora": deep blue base with cyan/magenta accents.
 AION_THEME_DICT: dict[str, str] = {
     # Brand
-    "aion.brand":      "bold #00E5FF",
-    "aion.brand_dim":  "#0891B2",
+    "aion.brand": "bold #00E5FF",
+    "aion.brand_dim": "#0891B2",
     # Roles
-    "aion.user":       "bold #FBBF24",
-    "aion.agent":      "bold #00E5FF",
-    "aion.system":     "dim #94A3B8",
-    "aion.tool":       "bold #F472B6",
-    "aion.error":      "bold #EF4444",
-    "aion.success":    "bold #10B981",
-    "aion.warning":    "bold #F59E0B",
+    "aion.user": "bold #FBBF24",
+    "aion.agent": "bold #00E5FF",
+    "aion.system": "dim #94A3B8",
+    "aion.tool": "bold #F472B6",
+    "aion.error": "bold #EF4444",
+    "aion.success": "bold #10B981",
+    "aion.warning": "bold #F59E0B",
     # UI chrome
-    "aion.panel":      "#1E293B",
-    "aion.border":     "#0891B2",
-    "aion.muted":      "dim #64748B",
-    "aion.tag":        "bold #A78BFA",
-    "aion.meta":       "dim italic #94A3B8",
+    "aion.panel": "#1E293B",
+    "aion.border": "#0891B2",
+    "aion.muted": "dim #64748B",
+    "aion.tag": "bold #A78BFA",
+    "aion.meta": "dim italic #94A3B8",
     # Syntax-ish
-    "aion.code":       "#F1F5F9 on #0F172A",
-    "aion.keyword":    "bold #C084FC",
-    "aion.string":     "#86EFAC",
-    "aion.number":     "#FCD34D",
+    "aion.code": "#F1F5F9 on #0F172A",
+    "aion.keyword": "bold #C084FC",
+    "aion.string": "#86EFAC",
+    "aion.number": "#FCD34D",
 }
 
 
@@ -77,11 +78,17 @@ def get_console() -> Any:
 
             def status(self, _msg: str, **_kw: Any) -> Any:
                 class _NullCM:
-                    def __enter__(self) -> None: pass
-                    def __exit__(self, *_: Any) -> None: pass
+                    def __enter__(self) -> None:
+                        pass
+
+                    def __exit__(self, *_: Any) -> None:
+                        pass
+
                 return _NullCM()
 
-            def rule(self, *_a: Any, **_kw: Any) -> None: pass
+            def rule(self, *_a: Any, **_kw: Any) -> None:
+                pass
+
         _console = _Stub()
 
     return _console

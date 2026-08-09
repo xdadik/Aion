@@ -42,7 +42,13 @@ class TestStdlibParsing:
         </body></html>
         """
         # Use the internal parsers directly
-        from aion_core.browser import _TextExtractor, _LinkExtractor, _TitleExtractor, _MetaExtractor
+        from aion_core.browser import (
+            _TextExtractor,
+            _LinkExtractor,
+            _TitleExtractor,
+            _MetaExtractor,
+        )
+
         te = _TextExtractor()
         te.feed(html)
         text = te.get_text()

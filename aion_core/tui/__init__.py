@@ -26,6 +26,7 @@ from .theme import AION_THEME, get_console
 def _cli_main() -> None:
     """Console-script entry point: `aion-tui`."""
     import asyncio
+
     from aion_core.agent.core import AionHand
 
     async def _run() -> None:

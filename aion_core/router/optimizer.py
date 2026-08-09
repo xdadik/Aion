@@ -4,6 +4,7 @@ The :class:`CostOptimizer` works alongside :class:`ModelRouter` to record
 actual token usage, enforce spending limits, and surface opportunities to
 cut costs.  State can be persisted to / loaded from a JSON file.
 """
+
 from __future__ import annotations
 
 import json
@@ -11,7 +12,7 @@ import logging
 import os
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from .router import ModelProfile, ModelRouter
@@ -22,6 +23,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class UsageRecord:
     """Single usage entry."""
+
     model: str
     provider: str
     tier: str
@@ -70,10 +72,9 @@ class CostOptimizer:
     ) -> float:
         """Record actual usage and return the computed cost (USD)."""
         profile = self._find_profile(model)
-        cost = (
-            profile.cost_per_1k_input * (tokens_input / 1000)
-            + profile.cost_per_1k_output * (tokens_output / 1000)
-        )
+        cost = profile.cost_per_1k_input * (
+            tokens_input / 1000
+        ) + profile.cost_per_1k_output * (tokens_output / 1000)
         record = UsageRecord(
             model=model,
             provider=profile.provider,
@@ -86,7 +87,10 @@ class CostOptimizer:
         self._total_spent += cost
         logger.debug(
             "Tracked %s: %d in / %d out → $%.4f",
-            model, tokens_input, tokens_output, cost,
+            model,
+            tokens_input,
+            tokens_output,
+            cost,
         )
         self._auto_persist()
         return cost
@@ -140,7 +144,12 @@ class CostOptimizer:
 
             # By tier
             if r.tier not in by_tier:
-                by_tier[r.tier] = {"calls": 0, "tokens_input": 0, "tokens_output": 0, "cost": 0.0}
+                by_tier[r.tier] = {
+                    "calls": 0,
+                    "tokens_input": 0,
+                    "tokens_output": 0,
+                    "cost": 0.0,
+                }
             bt = by_tier[r.tier]
             bt["calls"] += 1
             bt["tokens_input"] += r.tokens_input
@@ -173,10 +182,12 @@ class CostOptimizer:
         tips: list[dict[str, str]] = []
 
         if not self._records:
-            tips.append({
-                "type": "info",
-                "message": "No usage data yet. Suggestions will appear after routing some requests.",
-            })
+            tips.append(
+                {
+                    "type": "info",
+                    "message": "No usage data yet. Suggestions will appear after routing some requests.",
+                }
+            )
             return tips
 
         report = self.get_usage_report()
@@ -189,61 +200,74 @@ class CostOptimizer:
         premium_calls = premium.get("calls", 0)
         total_cost = report["total_cost"]
         if total_cost > 0 and premium_cost / total_cost > 0.6:
-            tips.append({
-                "type": "high_cost",
-                "message": (
-                    f"{premium_calls} premium-tier calls account for "
-                    f"{premium_cost / total_cost * 100:.0f}% of spend. "
-                    f"Review whether some tasks could use standard or budget models."
-                ),
-            })
+            tips.append(
+                {
+                    "type": "high_cost",
+                    "message": (
+                        f"{premium_calls} premium-tier calls account for "
+                        f"{premium_cost / total_cost * 100:.0f}% of spend. "
+                        f"Review whether some tasks could use standard or budget models."
+                    ),
+                }
+            )
 
         # 2. Single-model lock-in
         if len(by_model) == 1 and report["total_calls"] > 10:
             name = next(iter(by_model))
-            tips.append({
-                "type": "diversification",
-                "message": (
-                    f"All {report['total_calls']} calls use {name}. "
-                    f"Diversifying providers can improve resilience and potentially reduce cost."
-                ),
-            })
+            tips.append(
+                {
+                    "type": "diversification",
+                    "message": (
+                        f"All {report['total_calls']} calls use {name}. "
+                        f"Diversifying providers can improve resilience and potentially reduce cost."
+                    ),
+                }
+            )
 
         # 3. High output-token usage (prompt caching opportunity)
         total_in = report["total_tokens_input"]
         total_out = report["total_tokens_output"]
         if total_in > 0 and total_out / total_in > 5:
-            tips.append({
-                "type": "caching",
-                "message": (
-                    f"Output tokens are {total_out / total_in:.1f}× input tokens. "
-                    f"Consider enabling prompt caching for repeated system prompts."
-                ),
-            })
+            tips.append(
+                {
+                    "type": "caching",
+                    "message": (
+                        f"Output tokens are {total_out / total_in:.1f}× input tokens. "
+                        f"Consider enabling prompt caching for repeated system prompts."
+                    ),
+                }
+            )
 
         # 4. Budget warning
-        if self._budget_limit and self.get_remaining_budget() < self._budget_limit * 0.1:
-            tips.append({
-                "type": "budget_warning",
-                "message": (
-                    f"Only ${self.get_remaining_budget():.2f} remaining of "
-                    f"${self._budget_limit:.2f} budget. Consider increasing the limit "
-                    f"or routing more tasks to budget-tier models."
-                ),
-            })
+        if (
+            self._budget_limit
+            and self.get_remaining_budget() < self._budget_limit * 0.1
+        ):
+            tips.append(
+                {
+                    "type": "budget_warning",
+                    "message": (
+                        f"Only ${self.get_remaining_budget():.2f} remaining of "
+                        f"${self._budget_limit:.2f} budget. Consider increasing the limit "
+                        f"or routing more tasks to budget-tier models."
+                    ),
+                }
+            )
 
         # 5. Low-hanging fruit — tasks going to standard that could be budget
         stats = self._router.get_routing_stats()
         if stats["total_routed"] > 0:
             std_pct = stats["percentages"].get("standard", 0)
             if std_pct > 50:
-                tips.append({
-                    "type": "downgrade_opportunity",
-                    "message": (
-                        f"{std_pct}% of requests route to standard tier. "
-                        f"Some may be simple enough for budget models — review complexity thresholds."
-                    ),
-                })
+                tips.append(
+                    {
+                        "type": "downgrade_opportunity",
+                        "message": (
+                            f"{std_pct}% of requests route to standard tier. "
+                            f"Some may be simple enough for budget models — review complexity thresholds."
+                        ),
+                    }
+                )
 
         return tips
 
@@ -316,9 +340,7 @@ class CostOptimizer:
                 data = json.load(fh)
             self._budget_limit = data.get("budget_limit", self._budget_limit)
             self._total_spent = data.get("total_spent", 0.0)
-            self._records = [
-                UsageRecord(**r) for r in data.get("records", [])
-            ]
+            self._records = [UsageRecord(**r) for r in data.get("records", [])]
             logger.info("Loaded %d usage records from %s", len(self._records), path)
         except (json.JSONDecodeError, KeyError, TypeError) as exc:
             logger.error("Failed to load optimizer state from %s: %s", path, exc)

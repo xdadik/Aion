@@ -194,8 +194,13 @@ class TopologyManager:
             {
                 "name": "Full Pipeline",
                 "agents": [
-                    "planner", "researcher", "coder", "critic",
-                    "repairer", "verifier", "summarizer",
+                    "planner",
+                    "researcher",
+                    "coder",
+                    "critic",
+                    "repairer",
+                    "verifier",
+                    "summarizer",
                 ],
                 "connections": [
                     {"from": "planner", "to": "researcher", "label": "plan"},
@@ -263,14 +268,16 @@ class TopologyManager:
         topo.avg_tokens = (topo.avg_tokens * (n - 1) + tokens) / n
         topo.avg_time = (topo.avg_time * (n - 1) + time) / n
 
-        self._execution_log.append({
-            "topology_id": topology_id,
-            "topology_name": topo.name,
-            "task_type": task_type,
-            "success": success,
-            "tokens": tokens,
-            "time": time,
-        })
+        self._execution_log.append(
+            {
+                "topology_id": topology_id,
+                "topology_name": topo.name,
+                "task_type": task_type,
+                "success": success,
+                "tokens": tokens,
+                "time": time,
+            }
+        )
 
         logger.info(
             f"Recorded execution: topo={topo.name}, success={success}, "
@@ -406,40 +413,47 @@ class TopologyManager:
             if "verifier" not in new_agents:
                 new_agents.append("verifier")
                 if new_agents:
-                    new_connections.append({
-                        "from": new_agents[-2],
-                        "to": "verifier",
-                        "label": "output",
-                    })
+                    new_connections.append(
+                        {
+                            "from": new_agents[-2],
+                            "to": "verifier",
+                            "label": "output",
+                        }
+                    )
                 mutations_applied.append("added verifier")
 
         if "add critic" in lesson_lower or "needs review" in lesson_lower:
             if "critic" not in new_agents:
                 new_agents.append("critic")
                 if len(new_agents) >= 2:
-                    new_connections.append({
-                        "from": new_agents[-2],
-                        "to": "critic",
-                        "label": "draft",
-                    })
+                    new_connections.append(
+                        {
+                            "from": new_agents[-2],
+                            "to": "critic",
+                            "label": "draft",
+                        }
+                    )
                 mutations_applied.append("added critic")
 
         if "add fact_checker" in lesson_lower or "needs fact checking" in lesson_lower:
             if "fact_checker" not in new_agents:
                 new_agents.append("fact_checker")
                 if len(new_agents) >= 2:
-                    new_connections.append({
-                        "from": new_agents[-2],
-                        "to": "fact_checker",
-                        "label": "claims",
-                    })
+                    new_connections.append(
+                        {
+                            "from": new_agents[-2],
+                            "to": "fact_checker",
+                            "label": "claims",
+                        }
+                    )
                 mutations_applied.append("added fact_checker")
 
         if "remove summarizer" in lesson_lower or "skip summary" in lesson_lower:
             if "summarizer" in new_agents:
                 new_agents.remove("summarizer")
                 new_connections = [
-                    c for c in new_connections
+                    c
+                    for c in new_connections
                     if c.get("to") != "summarizer" and c.get("from") != "summarizer"
                 ]
                 mutations_applied.append("removed summarizer")
@@ -447,7 +461,8 @@ class TopologyManager:
         if "remove researcher" in lesson_lower and "researcher" in new_agents:
             new_agents.remove("researcher")
             new_connections = [
-                c for c in new_connections
+                c
+                for c in new_connections
                 if c.get("to") != "researcher" and c.get("from") != "researcher"
             ]
             # Reconnect around the removed agent
@@ -539,38 +554,41 @@ class TopologyManager:
             task_counts: dict[str, int] = defaultdict(int)
             for e in successes:
                 task_counts[e["task_type"]] += 1
-            best_task = max(task_counts, key=task_counts.get) if task_counts else "unknown"
+            best_task = (
+                max(task_counts, key=task_counts.get) if task_counts else "unknown"
+            )
 
             # Efficiency score: success rate / (avg_tokens / 1000)
             avg_t = sum(e["tokens"] for e in entries) / len(entries) if entries else 0
             efficiency = success_rate / (avg_t / 1000 + 1)
 
-            patterns.append({
-                "topology_name": topo.name if topo else topo_id,
-                "topology_id": topo_id,
-                "topology_agents": topo.agents if topo else [],
-                "executions": len(entries),
-                "successes": len(successes),
-                "failures": len(failures),
-                "success_rate": round(success_rate, 3),
-                "avg_tokens": round(avg_t, 1),
-                "avg_time": round(
-                    sum(e["time"] for e in entries) / len(entries), 2
-                ),
-                "best_task_type": best_task,
-                "efficiency_score": round(efficiency, 3),
-                "insight": self._generate_insight(
-                    success_rate, len(topo.agents) if topo else 0
-                ),
-            })
+            patterns.append(
+                {
+                    "topology_name": topo.name if topo else topo_id,
+                    "topology_id": topo_id,
+                    "topology_agents": topo.agents if topo else [],
+                    "executions": len(entries),
+                    "successes": len(successes),
+                    "failures": len(failures),
+                    "success_rate": round(success_rate, 3),
+                    "avg_tokens": round(avg_t, 1),
+                    "avg_time": round(
+                        sum(e["time"] for e in entries) / len(entries), 2
+                    ),
+                    "best_task_type": best_task,
+                    "efficiency_score": round(efficiency, 3),
+                    "insight": self._generate_insight(
+                        success_rate, len(topo.agents) if topo else 0
+                    ),
+                }
+            )
 
         # Sort by success rate descending
         patterns.sort(key=lambda p: p["success_rate"], reverse=True)
 
         # Cross-topology insights
-        overall_success = (
-            sum(1 for e in self._execution_log if e["success"])
-            / len(self._execution_log)
+        overall_success = sum(1 for e in self._execution_log if e["success"]) / len(
+            self._execution_log
         )
         best_overall = patterns[0] if patterns else {}
 
@@ -646,7 +664,9 @@ class TopologyManager:
                 )
 
         if not recommendations:
-            recommendations.append("All topologies performing within acceptable ranges.")
+            recommendations.append(
+                "All topologies performing within acceptable ranges."
+            )
 
         return recommendations
 
@@ -702,9 +722,7 @@ class TopologyManager:
         """Return comprehensive topology statistics."""
         return {
             "topology_count": len(self._topologies),
-            "default_count": sum(
-                1 for t in self._topologies.values() if t.is_default
-            ),
+            "default_count": sum(1 for t in self._topologies.values() if t.is_default),
             "execution_log_size": len(self._execution_log),
             "total_executions": len(self._execution_log),
             "overall_success_rate": (

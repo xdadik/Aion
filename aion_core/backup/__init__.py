@@ -23,11 +23,10 @@ from __future__ import annotations
 
 import asyncio
 import os
-import shutil
 import tarfile
 import time
 from dataclasses import dataclass
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -38,9 +37,11 @@ logger = __import__("logging").getLogger("aion_hand.backup")
 # Backup entry
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class BackupEntry:
     """A single backup archive on disk."""
+
     path: Path
     created_at: float  # unix timestamp
     size_bytes: int
@@ -66,6 +67,7 @@ class BackupEntry:
 # ---------------------------------------------------------------------------
 # Backup manager
 # ---------------------------------------------------------------------------
+
 
 class BackupManager:
     """Back up and restore the entire ~/.aion-hand/ directory."""
@@ -109,7 +111,9 @@ class BackupManager:
         logger.info(f"Backup created: {archive_path} ({size / 1024:.1f} KB)")
         return archive_path
 
-    def _create_archive_sync(self, archive_path: Path, compress: bool, include_voice: bool) -> None:
+    def _create_archive_sync(
+        self, archive_path: Path, compress: bool, include_voice: bool
+    ) -> None:
         """Synchronous tar archive creation."""
         if not self.home_dir.is_dir():
             raise FileNotFoundError(f"Home directory does not exist: {self.home_dir}")
@@ -117,9 +121,14 @@ class BackupManager:
         # Items to back up (relative paths inside ~/.aion-hand/)
         items_to_include: list[str] = []
         for item in [
-            "config.json", "mcp_servers.json",
-            "memories", "skills", "personas", "cron_jobs.json",
-            "lessons.json", "conversation.md",
+            "config.json",
+            "mcp_servers.json",
+            "memories",
+            "skills",
+            "personas",
+            "cron_jobs.json",
+            "lessons.json",
+            "conversation.md",
         ]:
             p = self.home_dir / item
             if p.exists():
@@ -134,6 +143,7 @@ class BackupManager:
 
         # Build manifest first
         import json
+
         manifest = {
             "created_at": datetime.now(UTC).isoformat(),
             "aion_version": self._detect_version(),
@@ -154,6 +164,7 @@ class BackupManager:
 
             # Add manifest as an in-archive file
             import io
+
             manifest_bytes = manifest_str.encode("utf-8")
             info = tarfile.TarInfo(name="MANIFEST.json")
             info.size = len(manifest_bytes)
@@ -163,6 +174,7 @@ class BackupManager:
     def _detect_version(self) -> str:
         try:
             from aion_core import __version__  # type: ignore[attr-defined]
+
             return __version__
         except Exception:  # noqa: BLE001
             return "unknown"
@@ -171,7 +183,9 @@ class BackupManager:
     #  Restore
     # ------------------------------------------------------------------
 
-    async def restore(self, archive_path: Path | str, *, overwrite: bool = False) -> dict[str, Any]:
+    async def restore(
+        self, archive_path: Path | str, *, overwrite: bool = False
+    ) -> dict[str, Any]:
         """Restore from a backup archive.
 
         Args:
@@ -188,12 +202,17 @@ class BackupManager:
         self.home_dir.mkdir(parents=True, exist_ok=True)
 
         result = await asyncio.get_event_loop().run_in_executor(
-            None, self._extract_archive_sync, archive_path, overwrite,
+            None,
+            self._extract_archive_sync,
+            archive_path,
+            overwrite,
         )
         logger.info(f"Restored {len(result['extracted'])} items from {archive_path}")
         return result
 
-    def _extract_archive_sync(self, archive_path: Path, overwrite: bool) -> dict[str, Any]:
+    def _extract_archive_sync(
+        self, archive_path: Path, overwrite: bool
+    ) -> dict[str, Any]:
         """Synchronous tar extraction."""
         extracted: list[str] = []
         skipped: list[str] = []
@@ -204,7 +223,15 @@ class BackupManager:
                 try:
                     target_resolved = target.resolve()
                     home_resolved = self.home_dir.resolve()
-                    if not str(target_resolved).startswith(str(home_resolved)):
+                    # Use is_relative_to when available (Python 3.9+), fallback to startswith check
+                    try:
+                        is_inside = target_resolved.is_relative_to(home_resolved)
+                    except AttributeError:
+                        is_inside = (
+                            str(target_resolved).startswith(str(home_resolved) + "/")
+                            or target_resolved == home_resolved
+                        )
+                    if not is_inside:
                         skipped.append(f"{member.name} (path traversal blocked)")
                         continue
                 except (OSError, RuntimeError):
@@ -218,7 +245,9 @@ class BackupManager:
                     # Use the modern 'data' filter (Python 3.12+) to prevent
                     # path-traversal and other tar-based attacks.
                     try:
-                        tar.extract(member, path=self.home_dir, filter="data")  # noqa: S202
+                        tar.extract(
+                            member, path=self.home_dir, filter="data"
+                        )  # noqa: S202
                     except TypeError:
                         # Older Python without filter kwarg
                         tar.extract(member, path=self.home_dir)  # noqa: S202
@@ -237,11 +266,13 @@ class BackupManager:
         for p in self.backup_dir.glob("aion-*.tar.gz"):
             try:
                 stat = p.stat()
-                entries.append(BackupEntry(
-                    path=p,
-                    created_at=stat.st_mtime,
-                    size_bytes=stat.st_size,
-                ))
+                entries.append(
+                    BackupEntry(
+                        path=p,
+                        created_at=stat.st_mtime,
+                        size_bytes=stat.st_size,
+                    )
+                )
             except OSError:
                 continue
         entries.sort(key=lambda e: e.created_at, reverse=True)
@@ -282,6 +313,7 @@ class BackupManager:
                     if f is None:
                         return None
                     import json
+
                     return json.loads(f.read().decode("utf-8"))
                 except KeyError:
                     return None

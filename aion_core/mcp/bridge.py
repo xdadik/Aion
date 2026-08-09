@@ -136,9 +136,7 @@ class MCPBridge:
                 count = await self.bridge_server(server.name)
                 results[server.name] = count
             except Exception as exc:
-                logger.error(
-                    "Failed to bridge server '%s': %s", server.name, exc
-                )
+                logger.error("Failed to bridge server '%s': %s", server.name, exc)
                 results[server.name] = -1
         return results
 
@@ -165,21 +163,16 @@ class MCPBridge:
                 self._qualified_to_original.pop(qname, None)
                 removed += 1
             except Exception as exc:
-                logger.warning(
-                    "Failed to unbridge tool '%s': %s", qname, exc
-                )
+                logger.warning("Failed to unbridge tool '%s': %s", qname, exc)
 
         # Clean up mapping
         keys_to_remove = [
-            k for k, v in self._original_to_qualified.items()
-            if v in to_remove
+            k for k, v in self._original_to_qualified.items() if v in to_remove
         ]
         for k in keys_to_remove:
             del self._original_to_qualified[k]
 
-        logger.info(
-            "Unbridged %d tools from server '%s'", removed, server_name
-        )
+        logger.info("Unbridged %d tools from server '%s'", removed, server_name)
         return removed
 
     async def unbridge_all(self) -> int:
@@ -213,9 +206,7 @@ class MCPBridge:
     # Internal
     # ------------------------------------------------------------------
 
-    def _register_bridged_tool(
-        self, server_name: str, mcp_tool: MCPTool
-    ) -> None:
+    def _register_bridged_tool(self, server_name: str, mcp_tool: MCPTool) -> None:
         """Create a native Tool from an MCPTool and register it."""
         qualified_name = self._make_qualified_name(server_name, mcp_tool.name)
 
@@ -273,9 +264,7 @@ class MCPBridge:
         # Track the mapping
         self._bridged_tools[qualified_name] = server_name
         self._qualified_to_original[qualified_name] = mcp_tool.name
-        self._original_to_qualified[
-            f"{server_name}:{mcp_tool.name}"
-        ] = qualified_name
+        self._original_to_qualified[f"{server_name}:{mcp_tool.name}"] = qualified_name
 
         logger.debug(
             "Bridged tool: %s -> %s (server: %s)",
@@ -296,9 +285,7 @@ class MCPBridge:
         return f"{BRIDGE_PREFIX}{safe_server}{BRIDGE_SEPARATOR}{safe_tool}"
 
     @staticmethod
-    def _schema_to_parameters(
-        input_schema: dict[str, Any]
-    ) -> list[Any]:
+    def _schema_to_parameters(input_schema: dict[str, Any]) -> list[Any]:
         """Convert a JSON Schema input_schema to ToolParameter list.
 
         Handles the standard MCP tool schema format:
@@ -362,6 +349,7 @@ def _sanitize_name(name: str) -> str:
     into a single underscore.
     """
     import re
+
     sanitized = re.sub(r"[^a-zA-Z0-9]", "_", name)
     sanitized = re.sub(r"_+", "_", sanitized)
     return sanitized.strip("_")

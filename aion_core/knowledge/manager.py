@@ -52,11 +52,11 @@ class KnowledgeManager:
         """Load the graph from disk (no error if files don't exist yet)."""
         if self.storage_dir.exists():
             self._graph.load(self.storage_dir)
-            logger.info(
-                "Loaded knowledge graph: %s", self._graph
-            )
+            logger.info("Loaded knowledge graph: %s", self._graph)
         else:
-            logger.info("No existing knowledge graph at %s — starting fresh.", self.storage_dir)
+            logger.info(
+                "No existing knowledge graph at %s — starting fresh.", self.storage_dir
+            )
         self._initialized = True
 
     def save(self) -> None:
@@ -180,7 +180,4 @@ class KnowledgeManager:
         return self._reasoner
 
     def __repr__(self) -> str:
-        return (
-            f"KnowledgeManager(graph={self._graph}, "
-            f"storage={self.storage_dir})"
-        )
+        return f"KnowledgeManager(graph={self._graph}, " f"storage={self.storage_dir})"

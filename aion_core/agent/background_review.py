@@ -14,10 +14,10 @@ import logging
 import time
 import uuid
 from collections import Counter
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
-from collections.abc import Callable, Coroutine
 
 logger = logging.getLogger(__name__)
 
@@ -65,9 +65,7 @@ class ReviewResult:
 
 
 # Callable signature for review checks
-ReviewCheck = Callable[
-    [dict[str, Any]], Coroutine[Any, Any, ReviewResult]
-]
+ReviewCheck = Callable[[dict[str, Any]], Coroutine[Any, Any, ReviewResult]]
 
 
 # ---------------------------------------------------------------------------
@@ -122,9 +120,7 @@ class BackgroundReviewer:
             return
         self._running = True
         for i in range(self._max_concurrent):
-            task = asyncio.create_task(
-                self._worker(i), name=f"review-worker-{i}"
-            )
+            task = asyncio.create_task(self._worker(i), name=f"review-worker-{i}")
             self._workers.append(task)
         logger.info(
             "BackgroundReviewer started with %d worker(s)", self._max_concurrent
@@ -162,9 +158,7 @@ class BackgroundReviewer:
         """Long-running coroutine that pulls tasks from the queue."""
         while self._running:
             try:
-                _, _, task = await asyncio.wait_for(
-                    self._queue.get(), timeout=1.0
-                )
+                _, _, task = await asyncio.wait_for(self._queue.get(), timeout=1.0)
             except TimeoutError:
                 continue
             except asyncio.CancelledError:
@@ -198,9 +192,7 @@ class BackgroundReviewer:
             result.elapsed = time.monotonic() - t0
             return result
         except Exception as exc:
-            logger.error(
-                "Review task %s failed: %s", task.task_id, exc, exc_info=True
-            )
+            logger.error("Review task %s failed: %s", task.task_id, exc, exc_info=True)
             return ReviewResult(
                 task_id=task.task_id,
                 review_type=task.review_type,
@@ -219,9 +211,7 @@ class BackgroundReviewer:
         Looks for contradictions between the turn output and previously
         stored facts in ``payload[\"existing_facts\"]``.
         """
-        result = ReviewResult(
-            task_id="", review_type=ReviewType.MEMORY, turn_id=""
-        )
+        result = ReviewResult(task_id="", review_type=ReviewType.MEMORY, turn_id="")
         self._stats["memory_reviews"] += 1
 
         facts: list[str] = payload.get("existing_facts", [])
@@ -229,27 +219,20 @@ class BackgroundReviewer:
         new_claims: list[str] = payload.get("new_claims", [])
 
         if not turn_output:
-            result.findings.append(
-                "Empty turn output \u2013 nothing to review."
-            )
+            result.findings.append("Empty turn output \u2013 nothing to review.")
             result.score = 0.5
             return result
 
         contradictions: list[str] = []
         for fact in facts:
-            negation_markers = [
-                "not ", "no longer", "never", "incorrectly", "wrong"
-            ]
+            negation_markers = ["not ", "no longer", "never", "incorrectly", "wrong"]
             lower_fact = fact.lower()
             for marker in negation_markers:
                 if (
                     marker in lower_fact
-                    and lower_fact.replace(marker, "")
-                    in turn_output.lower()
+                    and lower_fact.replace(marker, "") in turn_output.lower()
                 ):
-                    contradictions.append(
-                        f"Potential contradiction with fact: {fact}"
-                    )
+                    contradictions.append(f"Potential contradiction with fact: {fact}")
                     break
 
         result.findings.extend(contradictions)
@@ -262,9 +245,7 @@ class BackgroundReviewer:
 
     async def _review_skills(self, payload: dict[str, Any]) -> ReviewResult:
         """Audit skill/tool usage during the turn."""
-        result = ReviewResult(
-            task_id="", review_type=ReviewType.SKILLS, turn_id=""
-        )
+        result = ReviewResult(task_id="", review_type=ReviewType.SKILLS, turn_id="")
         self._stats["skill_reviews"] += 1
 
         tools_used: list[str] = payload.get("tools_used", [])
@@ -272,9 +253,7 @@ class BackgroundReviewer:
         errors: list[str] = payload.get("tool_errors", [])
 
         if not tools_used:
-            result.findings.append(
-                "No tools/skills were invoked this turn."
-            )
+            result.findings.append("No tools/skills were invoked this turn.")
             result.score = 0.7
             return result
 
@@ -286,19 +265,13 @@ class BackgroundReviewer:
             result.findings.extend(f"Tool error: {e}" for e in errors)
 
         result.passed = len(unknown) == 0 and len(errors) == 0
-        result.score = max(
-            0.0, 1.0 - len(unknown) * 0.2 - len(errors) * 0.3
-        )
-        result.suggestions.append(
-            f"{len(tools_used)} tool(s) used this turn."
-        )
+        result.score = max(0.0, 1.0 - len(unknown) * 0.2 - len(errors) * 0.3)
+        result.suggestions.append(f"{len(tools_used)} tool(s) used this turn.")
         return result
 
     async def _review_quality(self, payload: dict[str, Any]) -> ReviewResult:
         """Assess response quality heuristically."""
-        result = ReviewResult(
-            task_id="", review_type=ReviewType.QUALITY, turn_id=""
-        )
+        result = ReviewResult(task_id="", review_type=ReviewType.QUALITY, turn_id="")
         self._stats["quality_reviews"] += 1
 
         response: str = payload.get("response", "")
@@ -335,9 +308,7 @@ class BackgroundReviewer:
 
     async def _extract_insights(self, payload: dict[str, Any]) -> ReviewResult:
         """Extract reusable insights from the turn."""
-        result = ReviewResult(
-            task_id="", review_type=ReviewType.INSIGHTS, turn_id=""
-        )
+        result = ReviewResult(task_id="", review_type=ReviewType.INSIGHTS, turn_id="")
         self._stats["insight_reviews"] += 1
 
         turn_output: str = payload.get("turn_output", "")
@@ -353,7 +324,6 @@ class BackgroundReviewer:
         ]
 
         insights: list[str] = []
-        lower = turn_output.lower()
         sentences = turn_output.replace(". ", ".\n").split("\n")
         for sentence in sentences:
             for marker in insight_markers:
@@ -365,9 +335,7 @@ class BackgroundReviewer:
 
         if insights:
             result.suggestions.extend(insights)
-            result.findings.append(
-                f"Extracted {len(insights)} potential insight(s)."
-            )
+            result.findings.append(f"Extracted {len(insights)} potential insight(s).")
             result.score = min(1.0, 0.5 + 0.1 * len(insights))
         else:
             result.findings.append("No explicit insights detected.")

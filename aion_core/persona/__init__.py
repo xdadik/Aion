@@ -43,7 +43,6 @@ memory (so the new persona starts fresh).
 
 from __future__ import annotations
 
-import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -51,6 +50,7 @@ from typing import Any
 
 try:
     import yaml  # type: ignore[import-not-found]
+
     _YAML_AVAILABLE = True
 except ImportError:
     _YAML_AVAILABLE = False
@@ -63,9 +63,11 @@ BUILTIN_PERSONA_DIR = Path(__file__).parent / "templates"
 # Data model
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class Persona:
     """A single agent persona."""
+
     name: str
     display_name: str = ""
     description: str = ""
@@ -98,7 +100,9 @@ class Persona:
         if self.default_temperature is not None:
             front["default_temperature"] = self.default_temperature
         if _YAML_AVAILABLE:
-            front_str = yaml.safe_dump(front, sort_keys=False, allow_unicode=True).strip()
+            front_str = yaml.safe_dump(
+                front, sort_keys=False, allow_unicode=True
+            ).strip()
         else:
             # Minimal YAML serialiser — good enough for our flat structure.
             front_str = "\n".join(f"{k}: {v!r}" for k, v in front.items())
@@ -152,7 +156,9 @@ def parse_persona_markdown(text: str, source_path: str | None = None) -> Persona
             k, _, v = line.partition(":")
             k, v = k.strip(), v.strip()
             if v.startswith("[") and v.endswith("]"):
-                front[k] = [x.strip().strip("'\"") for x in v[1:-1].split(",") if x.strip()]
+                front[k] = [
+                    x.strip().strip("'\"") for x in v[1:-1].split(",") if x.strip()
+                ]
             else:
                 front[k] = v.strip("'\"")
 
@@ -171,6 +177,7 @@ def parse_persona_markdown(text: str, source_path: str | None = None) -> Persona
 # ---------------------------------------------------------------------------
 # Manager
 # ---------------------------------------------------------------------------
+
 
 class PersonaManager:
     """Load, list, switch, and persist personas.
@@ -300,7 +307,9 @@ class PersonaManager:
                     cfg.default_model = persona.default_model
                 except Exception:  # noqa: BLE001
                     pass
-            if persona.default_temperature is not None and hasattr(cfg, "default_temperature"):
+            if persona.default_temperature is not None and hasattr(
+                cfg, "default_temperature"
+            ):
                 try:
                     cfg.default_temperature = persona.default_temperature
                 except Exception:  # noqa: BLE001

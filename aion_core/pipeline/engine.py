@@ -30,6 +30,7 @@ logger = logging.getLogger("aion_hand.pipeline")
 @dataclass
 class PipelineResult:
     """Complete result from a pipeline execution."""
+
     success: bool = False
     output: Any = None
     confidence: float = 0.0
@@ -52,12 +53,16 @@ class PipelineResult:
             "output": self._safe_output(),
             "confidence": round(self.confidence, 4),
             "mission": self.mission.to_dict() if self.mission else None,
-            "plan": {
-                "node_count": len(self.plan.nodes) if self.plan else 0,
-                "entry_node": self.plan.entry_node if self.plan else "",
-                "risk_level": self.plan.risk_level if self.plan else "",
-                "complexity": self.plan.complexity if self.plan else 0,
-            } if self.plan else None,
+            "plan": (
+                {
+                    "node_count": len(self.plan.nodes) if self.plan else 0,
+                    "entry_node": self.plan.entry_node if self.plan else "",
+                    "risk_level": self.plan.risk_level if self.plan else "",
+                    "complexity": self.plan.complexity if self.plan else 0,
+                }
+                if self.plan
+                else None
+            ),
             "execution_summary": self._execution_summary(),
             "verifications": [v.to_dict() for v in self.verifications],
             "critique": self.critique.to_dict() if self.critique else None,
@@ -75,7 +80,9 @@ class PipelineResult:
             return None
         output_str = str(self.output)
         if len(output_str) > 10000:
-            return output_str[:10000] + f"... [truncated, total {len(output_str)} chars]"
+            return (
+                output_str[:10000] + f"... [truncated, total {len(output_str)} chars]"
+            )
         return self.output
 
     def _execution_summary(self) -> dict[str, Any]:
@@ -88,7 +95,9 @@ class PipelineResult:
             "total": len(self.execution_results),
             "statuses": statuses,
             "total_tokens": sum(r.tokens_used for r in self.execution_results.values()),
-            "total_time": round(sum(r.elapsed for r in self.execution_results.values()), 3),
+            "total_time": round(
+                sum(r.elapsed for r in self.execution_results.values()), 3
+            ),
         }
 
 
@@ -201,7 +210,9 @@ class PipelineEngine:
                 lessons = self._learning.get_relevant_lessons(task)
                 rules = self._learning.get_applicable_rules(task)
                 lessons_applied = [r["rule"] for r in rules[:5]]
-                logger.info(f"Retrieved {len(lessons)} relevant lessons, {len(rules)} applicable rules")
+                logger.info(
+                    f"Retrieved {len(lessons)} relevant lessons, {len(rules)} applicable rules"
+                )
             result.lessons_applied = lessons_applied
             result.stages_completed.append("lessons")
 
@@ -209,13 +220,17 @@ class PipelineEngine:
             mission = await self._analyzer.analyze(task, context)
             result.mission = mission
             analysis_tokens = mission.estimated_tokens
-            logger.info(f"Mission analyzed: complexity={mission.complexity:.2f}, goals={len(mission.goals)}")
+            logger.info(
+                f"Mission analyzed: complexity={mission.complexity:.2f}, goals={len(mission.goals)}"
+            )
             result.stages_completed.append("analyze")
 
             # Stage 3: Create plan (informed by lessons)
             plan = await self._planner.plan(mission, lessons=lessons)
             result.plan = plan
-            logger.info(f"Plan created: {len(plan.nodes)} nodes, entry={plan.entry_node}")
+            logger.info(
+                f"Plan created: {len(plan.nodes)} nodes, entry={plan.entry_node}"
+            )
             result.stages_completed.append("plan")
 
             # Stage 4: Execute plan
@@ -224,25 +239,35 @@ class PipelineEngine:
             exec_tokens = sum(r.tokens_used for r in execution_results.values())
             total_tokens += analysis_tokens + exec_tokens
 
-            succeeded = sum(1 for r in execution_results.values() if r.status == "success")
+            succeeded = sum(
+                1 for r in execution_results.values() if r.status == "success"
+            )
             total = len(execution_results)
-            logger.info(f"Execution complete: {succeeded}/{total} nodes succeeded, {exec_tokens} tokens")
+            logger.info(
+                f"Execution complete: {succeeded}/{total} nodes succeeded, {exec_tokens} tokens"
+            )
             result.stages_completed.append("execute")
 
             # Extract the primary output from execution results
             primary_output = self._extract_primary_output(plan, execution_results)
 
             # Stage 5: Verify results
-            verifications = await self._verifier.verify(task, primary_output, mission=mission)
+            verifications = await self._verifier.verify(
+                task, primary_output, mission=mission
+            )
             result.verifications = verifications
             verif_passed = sum(1 for v in verifications if v.passed)
-            logger.info(f"Verification complete: {verif_passed}/{len(verifications)} passed")
+            logger.info(
+                f"Verification complete: {verif_passed}/{len(verifications)} passed"
+            )
             result.stages_completed.append("verify")
 
             # Stage 6: Critique results
             critique = await self._critic.critique(task, primary_output, verifications)
             result.critique = critique
-            logger.info(f"Critique complete: score={critique.score:.2f}, should_repair={critique.should_repair}")
+            logger.info(
+                f"Critique complete: score={critique.score:.2f}, should_repair={critique.should_repair}"
+            )
             result.stages_completed.append("critique")
 
             # Stage 7: Estimate confidence and decide on repair
@@ -261,11 +286,18 @@ class PipelineEngine:
             repair_result = None
 
             for cycle in range(1, self._max_repair_cycles + 1):
-                if confidence >= self._confidence_threshold and not critique.should_repair:
-                    logger.info(f"Confidence {confidence:.3f} >= threshold {self._confidence_threshold}, skipping repair")
+                if (
+                    confidence >= self._confidence_threshold
+                    and not critique.should_repair
+                ):
+                    logger.info(
+                        f"Confidence {confidence:.3f} >= threshold {self._confidence_threshold}, skipping repair"
+                    )
                     break
 
-                logger.info(f"Repair cycle {cycle}/{self._max_repair_cycles} (confidence={confidence:.3f})")
+                logger.info(
+                    f"Repair cycle {cycle}/{self._max_repair_cycles} (confidence={confidence:.3f})"
+                )
                 repair_result = await self._repair_engine.repair(
                     task=task,
                     result=current_output,
@@ -277,20 +309,30 @@ class PipelineEngine:
                 total_tokens += repair_result.tokens_used
 
                 if not repair_result.success or repair_result.repaired_output is None:
-                    logger.warning(f"Repair cycle {cycle} failed, keeping current output")
+                    logger.warning(
+                        f"Repair cycle {cycle} failed, keeping current output"
+                    )
                     break
 
                 current_output = repair_result.repaired_output
-                logger.info(f"Repair cycle {cycle} applied: {len(repair_result.repairs_made)} repairs")
+                logger.info(
+                    f"Repair cycle {cycle} applied: {len(repair_result.repairs_made)} repairs"
+                )
 
                 # Re-verify the repaired output
-                current_verifications = await self._verifier.verify(task, current_output, mission=mission)
+                current_verifications = await self._verifier.verify(
+                    task, current_output, mission=mission
+                )
                 result.verifications = current_verifications
                 reverify_passed = sum(1 for v in current_verifications if v.passed)
-                logger.info(f"Re-verification: {reverify_passed}/{len(current_verifications)} passed")
+                logger.info(
+                    f"Re-verification: {reverify_passed}/{len(current_verifications)} passed"
+                )
 
                 # Re-critique
-                current_critique = await self._critic.critique(task, current_output, current_verifications)
+                current_critique = await self._critic.critique(
+                    task, current_output, current_verifications
+                )
                 result.critique = current_critique
                 logger.info(f"Re-critique: score={current_critique.score:.2f}")
 
@@ -312,9 +354,11 @@ class PipelineEngine:
             result.time_total = time.monotonic() - pipeline_start
 
             # Determine success
-            all_exec_succeeded = all(
-                r.status == "success" for r in execution_results.values()
-            ) if execution_results else True
+            all_exec_succeeded = (
+                all(r.status == "success" for r in execution_results.values())
+                if execution_results
+                else True
+            )
             result.success = all_exec_succeeded and confidence >= 0.5
 
             result.stages_completed.append("confidence")
@@ -331,7 +375,9 @@ class PipelineEngine:
                         confidence=confidence,
                     )
                     result.lessons_learned = lesson.learned_rules
-                    logger.info(f"Recorded lesson: {len(lesson.learned_rules)} rules learned")
+                    logger.info(
+                        f"Recorded lesson: {len(lesson.learned_rules)} rules learned"
+                    )
                 except Exception as e:
                     logger.error(f"Failed to record lesson: {e}")
 
@@ -393,10 +439,20 @@ class PipelineEngine:
 
             # Direct execution
             exec_response = await self._agent.chat(message=task)
-            content = exec_response.get("content", "") if isinstance(exec_response, dict) else str(exec_response)
-            tokens = exec_response.get("metadata", {}).get("tokens_used", 0) if isinstance(exec_response, dict) else 0
+            content = (
+                exec_response.get("content", "")
+                if isinstance(exec_response, dict)
+                else str(exec_response)
+            )
+            tokens = (
+                exec_response.get("metadata", {}).get("tokens_used", 0)
+                if isinstance(exec_response, dict)
+                else 0
+            )
             if not tokens:
-                tokens = exec_response.get("metadata", {}).get("total_tokens", len(content) // 4)
+                tokens = exec_response.get("metadata", {}).get(
+                    "total_tokens", len(content) // 4
+                )
             result.tokens_total = tokens
 
             # Quick verification
@@ -478,10 +534,7 @@ class PipelineEngine:
         all_deps = set()
         for node in plan.nodes.values():
             all_deps.update(node.dependencies)
-        terminal = [
-            nid for nid in plan.nodes
-            if nid not in all_deps
-        ]
+        terminal = [nid for nid in plan.nodes if nid not in all_deps]
 
         # Among terminal nodes, prefer non-verify, then merge, then any
         for node_id in terminal:

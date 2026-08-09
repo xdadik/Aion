@@ -79,32 +79,30 @@ _API_KEY_PREFIX_PATTERNS: list[re.Pattern] = [
 _VENDOR_PATTERNS: list[re.Pattern] = [
     # ---- OpenAI ----
     re.compile(r"(sk-proj-[A-Za-z0-9_\-]{40,})", re.IGNORECASE),
-
     # ---- Anthropic ----
     re.compile(r"(sk-ant-api03-[A-Za-z0-9_\-]{80,})", re.IGNORECASE),
     re.compile(r"(sk-ant-[A-Za-z0-9_\-]{20,})", re.IGNORECASE),
-
     # ---- Google / GCP ----
     re.compile(r"(AIza[A-Za-z0-9_\-]{33})", re.IGNORECASE),
     re.compile(r"(ya29\.[A-Za-z0-9_\-]+[A-Za-z0-9_.\-]*)"),
     re.compile(r'("private_key_id"\s*:\s*"[a-f0-9]{40}")'),
-
     # ---- Firebase ----
     re.compile(r"([a-zA-Z0-9_\-]{40}\.[a-zA-Z0-9_\-]{30,}\.firebaseio\.com)"),
-    re.compile(r"(firebase[\s\S]*?secret[\s]*[=:][\s]*)([a-zA-Z0-9_\-]{40})", re.IGNORECASE),
-
+    re.compile(
+        r"(firebase[\s\S]*?secret[\s]*[=:][\s]*)([a-zA-Z0-9_\-]{40})", re.IGNORECASE
+    ),
     # ---- AWS ----
     re.compile(r"(AKIA[A-Z0-9]{16})"),
     re.compile(r"(aws_secret_access_key\s*[=:]\s*)([A-Za-z0-9/+=]{40})", re.IGNORECASE),
-    re.compile(r"(aws_session_token\s*[=:]\s*)(FQoGZXIvYXdzE[a-zA-Z0-9/+=]+)", re.IGNORECASE),
-
+    re.compile(
+        r"(aws_session_token\s*[=:]\s*)(FQoGZXIvYXdzE[a-zA-Z0-9/+=]+)", re.IGNORECASE
+    ),
     # ---- Azure ----
     re.compile(r"(AccountKey=[A-Za-z0-9+/=]{40,})", re.IGNORECASE),
     re.compile(
         r"(sv=[0-9]+&ss=[a-z]&srt=[a-z]&sp=[a-z&]+&se=[0-9T]+&spr=https&sig=[A-Za-z0-9%+/=]+)",
         re.IGNORECASE,
     ),
-
     # ---- Stripe ----
     re.compile(r"(sk_live_[A-Za-z0-9]{24,})"),
     re.compile(r"(sk_test_[A-Za-z0-9]{24,})"),
@@ -114,7 +112,6 @@ _VENDOR_PATTERNS: list[re.Pattern] = [
     re.compile(r"(pk_test_[A-Za-z0-9]{24,})"),
     re.compile(r"(ct_[A-Za-z0-9]{24,})"),
     re.compile(r"(ca_[A-Za-z0-9]{24,})"),
-
     # ---- GitHub ----
     re.compile(r"(ghp_[A-Za-z0-9]{36,})"),
     re.compile(r"(gho_[A-Za-z0-9]{36,})"),
@@ -122,116 +119,109 @@ _VENDOR_PATTERNS: list[re.Pattern] = [
     re.compile(r"(ghs_[A-Za-z0-9]{36,})"),
     re.compile(r"(ghr_[A-Za-z0-9]{36,})"),
     re.compile(r"(github_pat_[A-Za-z0-9_\-]{20,})", re.IGNORECASE),
-
     # ---- GitLab ----
     re.compile(r"(glpat-[A-Za-z0-9_\-]{20,})"),
     re.compile(r"(glptt-[A-Za-z0-9_\-]{20,})"),
     re.compile(r"(grpt-[A-Za-z0-9_\-]{20,})"),
-
     # ---- Bitbucket ----
     re.compile(r"(BITBUCKET_[A-Za-z0-9_\-]{30,})", re.IGNORECASE),
-
     # ---- Slack ----
     re.compile(r"(xoxb-[A-Za-z0-9\-]{30,})"),
     re.compile(r"(xoxp-[A-Za-z0-9\-]{30,})"),
     re.compile(r"(xoxa-[A-Za-z0-9\-]{30,})"),
     re.compile(r"(xoxr-[A-Za-z0-9\-]{30,})"),
     re.compile(r"(xoxs-[A-Za-z0-9\-]{30,})"),
-
     # ---- Discord ----
     re.compile(r"([MN][A-Za-z\d]{23,}\.\w{6}\.[A-Za-z\d]{27})"),
-
     # ---- Telegram ----
     re.compile(r"([0-9]{8,10}:[A-Za-z0-9_\-]{35})"),
-
     # ---- Twilio ----
     re.compile(r"(AC[a-f0-9]{32})"),
     re.compile(r"(SK[a-f0-9]{32})"),
-
     # ---- SendGrid ----
     re.compile(r"(SG\.[A-Za-z0-9_\-]{22}\.[A-Za-z0-9_\-]{43})"),
-
     # ---- Mailgun ----
     re.compile(r"(key-[a-f0-9]{32})"),
-
     # ---- DigitalOcean ----
     re.compile(r"(dop_v1_[a-f0-9]{64})"),
     re.compile(r"(doo_v1_[a-f0-9]{64})"),
-
     # ---- Vultr ----
-    re.compile(r"(vultr[\s\S]*?api[_.]?key[\s]*[=:][\s]*)([A-Za-z0-9]{36})", re.IGNORECASE),
-
+    re.compile(
+        r"(vultr[\s\S]*?api[_.]?key[\s]*[=:][\s]*)([A-Za-z0-9]{36})", re.IGNORECASE
+    ),
     # ---- Cloudflare ----
     re.compile(r"(v1\.0-[a-f0-9]{24}-[a-f0-9]{146})"),
-    re.compile(r"(cloudflare[\s\S]*?api[_.]?key[\s]*[=:][\s]*)([a-f0-9]{37})", re.IGNORECASE),
-
+    re.compile(
+        r"(cloudflare[\s\S]*?api[_.]?key[\s]*[=:][\s]*)([a-f0-9]{37})", re.IGNORECASE
+    ),
     # ---- Datadog ----
-    re.compile(r"(datadog[\s\S]*?api[_.]?key[\s]*[=:][\s]*)([a-f0-9]{32})", re.IGNORECASE),
-    re.compile(r"(datadog[\s\S]*?app[_.]?key[\s]*[=:][\s]*)([a-f0-9]{40})", re.IGNORECASE),
-
+    re.compile(
+        r"(datadog[\s\S]*?api[_.]?key[\s]*[=:][\s]*)([a-f0-9]{32})", re.IGNORECASE
+    ),
+    re.compile(
+        r"(datadog[\s\S]*?app[_.]?key[\s]*[=:][\s]*)([a-f0-9]{40})", re.IGNORECASE
+    ),
     # ---- PagerDuty ----
     re.compile(r"(PD-[a-zA-Z0-9]{24,})"),
-
     # ---- MongoDB ----
     re.compile(r"(mongodb(\+srv)?://[^:\s]+:[^@\s]+@[^\s]+)", re.IGNORECASE),
-
     # ---- Redis ----
     re.compile(r"(redis://[^:\s]+:[^@\s]+@[^\s]+)", re.IGNORECASE),
-
     # ---- PostgreSQL ----
     re.compile(r"(postgres(ql)?://[^:\s]+:[^@\s]+@[^\s]+)", re.IGNORECASE),
-
     # ---- MySQL ----
     re.compile(r"(mysql://[^:\s]+:[^@\s]+@[^\s]+)", re.IGNORECASE),
-
     # ---- Supabase ----
-    re.compile(r"(eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.[A-Za-z0-9_\-]{20,}\.supabase)", re.IGNORECASE),
+    re.compile(
+        r"(eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.[A-Za-z0-9_\-]{20,}\.supabase)",
+        re.IGNORECASE,
+    ),
     re.compile(
         r"(supabase[\s\S]*?service[_.]?role[\s]*[=:][\s]*)(eyJ[A-Za-z0-9_\-]+\.eyJ[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+)",
         re.IGNORECASE,
     ),
-
     # ---- Algolia ----
-    re.compile(r"(algolia[\s\S]*?api[_.]?key[\s]*[=:][\s]*)([A-Za-z0-9]{32})", re.IGNORECASE),
-
+    re.compile(
+        r"(algolia[\s\S]*?api[_.]?key[\s]*[=:][\s]*)([A-Za-z0-9]{32})", re.IGNORECASE
+    ),
     # ---- Mapbox ----
     re.compile(r"(pk\.[A-Za-z0-9_\-.]{100,})"),
-
     # ---- Twitch ----
     re.compile(r"(twitch[\s\S]*?oauth[\s]*[=:]\s*)([a-zA-Z0-9]{30})"),
-
     # ---- Patreon ----
-    re.compile(r"(patreon[\s\S]*?token[\s]*[=:]\s*)([A-Za-z0-9_\-]{40,})", re.IGNORECASE),
-
+    re.compile(
+        r"(patreon[\s\S]*?token[\s]*[=:]\s*)([A-Za-z0-9_\-]{40,})", re.IGNORECASE
+    ),
     # ---- Shopify ----
     re.compile(r"(shpat_[a-f0-9]{32})"),
     re.compile(r"(shpca_[a-f0-9]{32})"),
     re.compile(r"(shppa_[a-f0-9]{32})"),
-
     # ---- Square ----
     re.compile(r"(sq0atp-[A-Za-z0-9_\-]{20,})"),
     re.compile(r"(EAAA[AE][A-Za-z0-9_\-]{50,})"),
-
     # ---- PayPal ----
-    re.compile(r"(paypal[\s\S]*?client[_.]?secret[\s]*[=:]\s*)([A-Za-z0-9]{40,})", re.IGNORECASE),
-
+    re.compile(
+        r"(paypal[\s\S]*?client[_.]?secret[\s]*[=:]\s*)([A-Za-z0-9]{40,})",
+        re.IGNORECASE,
+    ),
     # ---- Spotify ----
-    re.compile(r"(spotify[\s\S]*?client[_.]?secret[\s]*[=:]\s*)([a-f0-9]{32})", re.IGNORECASE),
-
+    re.compile(
+        r"(spotify[\s\S]*?client[_.]?secret[\s]*[=:]\s*)([a-f0-9]{32})", re.IGNORECASE
+    ),
     # ---- Signal ----
     re.compile(r"(signal-key-[A-Za-z0-9]{32,})", re.IGNORECASE),
-
     # ---- NuGet / .NET ----
     re.compile(r"(oy[0-9][a-z0-9]{43})", re.IGNORECASE),
-
     # ---- PyPI / twine ----
     re.compile(r"(pypi-AgEIcHlwaS5vcmc[A-Za-z0-9_\-]+)", re.IGNORECASE),
-
     # ---- Heroku ----
-    re.compile(r"(heroku[\s\S]*?api[_.]?key[\s]*[=:]\s*)([a-f0-9]{40,})", re.IGNORECASE),
-
+    re.compile(
+        r"(heroku[\s\S]*?api[_.]?key[\s]*[=:]\s*)([a-f0-9]{40,})", re.IGNORECASE
+    ),
     # ---- Vercel ----
-    re.compile(r"(vercel[\s\S]*?token[\s]*[=:]\s*)([A-Za-z0-9_\-]{30,})", re.IGNORECASE),
+    re.compile(
+        r"(vercel[\s\S]*?token[\s]*[=:]\s*)([A-Za-z0-9_\-]{30,})", re.IGNORECASE
+    ),
 ]
 
 # ---------------------------------------------------------------------------
@@ -331,13 +321,23 @@ _URL_QUERY_PATTERNS: list[re.Pattern] = [
 # ---------------------------------------------------------------------------
 
 _PRIVATE_KEY_PATTERNS: list[re.Pattern] = [
-    re.compile(r"(-----BEGIN RSA PRIVATE KEY-----[\s\S]*?-----END RSA PRIVATE KEY-----)"),
+    re.compile(
+        r"(-----BEGIN RSA PRIVATE KEY-----[\s\S]*?-----END RSA PRIVATE KEY-----)"
+    ),
     re.compile(r"(-----BEGIN EC PRIVATE KEY-----[\s\S]*?-----END EC PRIVATE KEY-----)"),
-    re.compile(r"(-----BEGIN OPENSSH PRIVATE KEY-----[\s\S]*?-----END OPENSSH PRIVATE KEY-----)"),
-    re.compile(r"(-----BEGIN DSA PRIVATE KEY-----[\s\S]*?-----END DSA PRIVATE KEY-----)"),
+    re.compile(
+        r"(-----BEGIN OPENSSH PRIVATE KEY-----[\s\S]*?-----END OPENSSH PRIVATE KEY-----)"
+    ),
+    re.compile(
+        r"(-----BEGIN DSA PRIVATE KEY-----[\s\S]*?-----END DSA PRIVATE KEY-----)"
+    ),
     re.compile(r"(-----BEGIN PRIVATE KEY-----[\s\S]*?-----END PRIVATE KEY-----)"),
-    re.compile(r"(-----BEGIN ENCRYPTED PRIVATE KEY-----[\s\S]*?-----END ENCRYPTED PRIVATE KEY-----)"),
-    re.compile(r"(-----BEGIN PGP PRIVATE KEY BLOCK-----[\s\S]*?-----END PGP PRIVATE KEY BLOCK-----)"),
+    re.compile(
+        r"(-----BEGIN ENCRYPTED PRIVATE KEY-----[\s\S]*?-----END ENCRYPTED PRIVATE KEY-----)"
+    ),
+    re.compile(
+        r"(-----BEGIN PGP PRIVATE KEY BLOCK-----[\s\S]*?-----END PGP PRIVATE KEY BLOCK-----)"
+    ),
     re.compile(r"(-----BEGIN DH PRIVATE KEY-----[\s\S]*?-----END DH PRIVATE KEY-----)"),
     re.compile(r"(-----BEGIN EC PARAMETERS-----[\s\S]*?-----END EC PARAMETERS-----)"),
 ]
@@ -357,9 +357,15 @@ _MISC_PATTERNS: list[re.Pattern] = [
     re.compile(r"(aws_access_key_id\s*=\s*)(AKIA[A-Z0-9]{16})"),
     re.compile(r"(aws_secret_access_key\s*=\s*)([A-Za-z0-9/+=]{40})"),
     # Generic credential exports
-    re.compile(r"(export\s+[A-Z_]*(?:SECRET|KEY|TOKEN|PASSWORD|CREDENTIAL)[A-Z_]*\s*=\s*)([^\s'\"]+)"),
-    re.compile(r"(export\s+[A-Z_]*(?:SECRET|KEY|TOKEN|PASSWORD|CREDENTIAL)[A-Z_]*\s*=\s*')([^']+)(')"),
-    re.compile(r'(export\s+[A-Z_]*(?:SECRET|KEY|TOKEN|PASSWORD|CREDENTIAL)[A-Z_]*\s*=\s*")([^"]+)(")'),
+    re.compile(
+        r"(export\s+[A-Z_]*(?:SECRET|KEY|TOKEN|PASSWORD|CREDENTIAL)[A-Z_]*\s*=\s*)([^\s'\"]+)"
+    ),
+    re.compile(
+        r"(export\s+[A-Z_]*(?:SECRET|KEY|TOKEN|PASSWORD|CREDENTIAL)[A-Z_]*\s*=\s*')([^']+)(')"
+    ),
+    re.compile(
+        r'(export\s+[A-Z_]*(?:SECRET|KEY|TOKEN|PASSWORD|CREDENTIAL)[A-Z_]*\s*=\s*")([^"]+)(")'
+    ),
 ]
 
 # ---------------------------------------------------------------------------
@@ -383,61 +389,115 @@ _ALL_PATTERNS: list[tuple[str, re.Pattern]] = [
 
 _SENSITIVE_ENV_NAMES: set[str] = {
     # ---- generic ----
-    "api_key", "apikey", "api_secret", "api_token",
-    "secret", "secret_key", "secret_token",
-    "password", "passwd", "pass",
-    "token", "access_token", "auth_token", "refresh_token", "id_token",
-    "private_key", "public_key",
-    "credential", "credentials",
-    "auth_key", "encryption_key", "signing_key",
-    "master_key", "root_key",
+    "api_key",
+    "apikey",
+    "api_secret",
+    "api_token",
+    "secret",
+    "secret_key",
+    "secret_token",
+    "password",
+    "passwd",
+    "pass",
+    "token",
+    "access_token",
+    "auth_token",
+    "refresh_token",
+    "id_token",
+    "private_key",
+    "public_key",
+    "credential",
+    "credentials",
+    "auth_key",
+    "encryption_key",
+    "signing_key",
+    "master_key",
+    "root_key",
     # ---- database ----
-    "db_password", "database_password", "db_url", "database_url",
-    "mongodb_uri", "mongodb_url", "mongo_uri",
-    "redis_url", "redis_password",
-    "postgres_url", "postgresql_url", "postgres_password",
-    "mysql_url", "mysql_password",
+    "db_password",
+    "database_password",
+    "db_url",
+    "database_url",
+    "mongodb_uri",
+    "mongodb_url",
+    "mongo_uri",
+    "redis_url",
+    "redis_password",
+    "postgres_url",
+    "postgresql_url",
+    "postgres_password",
+    "mysql_url",
+    "mysql_password",
     "couchdb_password",
     # ---- cloud providers ----
-    "aws_access_key_id", "aws_secret_access_key", "aws_session_token",
-    "azure_client_secret", "azure_subscription_key",
-    "gcp_api_key", "google_application_credentials",
-    "digitalocean_token", "do_api_token",
-    "cloudflare_api_token", "cloudflare_api_key",
+    "aws_access_key_id",
+    "aws_secret_access_key",
+    "aws_session_token",
+    "azure_client_secret",
+    "azure_subscription_key",
+    "gcp_api_key",
+    "google_application_credentials",
+    "digitalocean_token",
+    "do_api_token",
+    "cloudflare_api_token",
+    "cloudflare_api_key",
     "heroku_api_key",
-    "vercel_token", "vercel_api_key",
+    "vercel_token",
+    "vercel_api_key",
     # ---- AI / LLM ----
-    "openai_api_key", "anthropic_api_key",
-    "google_ai_api_key", "huggingface_token",
+    "openai_api_key",
+    "anthropic_api_key",
+    "google_ai_api_key",
+    "huggingface_token",
     "cohere_api_key",
     # ---- payment ----
-    "stripe_secret_key", "stripe_publishable_key",
-    "paypal_client_secret", "paypal_client_id",
+    "stripe_secret_key",
+    "stripe_publishable_key",
+    "paypal_client_secret",
+    "paypal_client_id",
     "square_access_token",
-    "shopify_api_password", "shopify_token",
+    "shopify_api_password",
+    "shopify_token",
     # ---- dev tools ----
-    "github_token", "github_pat", "gh_token",
-    "gitlab_token", "gitlab_pat",
+    "github_token",
+    "github_pat",
+    "gh_token",
+    "gitlab_token",
+    "gitlab_pat",
     "bitbucket_token",
-    "slack_token", "slack_signing_secret",
-    "discord_token", "discord_bot_token",
+    "slack_token",
+    "slack_signing_secret",
+    "discord_token",
+    "discord_bot_token",
     "telegram_bot_token",
-    "twilio_account_sid", "twilio_auth_token",
-    "sendgrid_api_key", "mailgun_api_key",
-    "datadog_api_key", "datadog_app_key",
-    "pagerduty_key", "pagerduty_service_key",
+    "twilio_account_sid",
+    "twilio_auth_token",
+    "sendgrid_api_key",
+    "mailgun_api_key",
+    "datadog_api_key",
+    "datadog_app_key",
+    "pagerduty_key",
+    "pagerduty_service_key",
     "mapbox_access_token",
     "algolia_api_key",
-    "firebase_secret", "firebase_api_key",
-    "supabase_service_role_key", "supabase_anon_key",
-    "spotify_client_secret", "spotify_client_id",
+    "firebase_secret",
+    "firebase_api_key",
+    "supabase_service_role_key",
+    "supabase_anon_key",
+    "spotify_client_secret",
+    "spotify_client_id",
     "twitch_oauth_token",
-    "patreon_token", "patreon_client_secret",
+    "patreon_token",
+    "patreon_client_secret",
     # ---- misc ----
-    "jwt_secret", "jwt_key",
-    "npm_token", "pypi_token", "twine_password",
+    "jwt_secret",
+    "jwt_key",
+    "npm_token",
+    "pypi_token",
+    "twine_password",
     "nuget_api_key",
-    "ssh_key", "ssh_password",
+    "ssh_key",
+    "ssh_password",
 }
 
 
@@ -551,7 +611,9 @@ class SecretRedactor:
             return self.FULL_MASK_PLACEHOLDER
 
         if eff_mode == RedactionMode.HASH_MASK:
-            digest = hashlib.sha256(secret.encode("utf-8", errors="replace")).hexdigest()[:12]
+            digest = hashlib.sha256(
+                secret.encode("utf-8", errors="replace")
+            ).hexdigest()[:12]
             return f"{self.FULL_MASK_PLACEHOLDER}:{digest}"
 
         # PARTIAL_MASK (default)
@@ -559,7 +621,11 @@ class SecretRedactor:
             return self.FULL_MASK_PLACEHOLDER
 
         start = secret[: self._partial_start]
-        tail = secret[-self._partial_end :] if len(secret) > self._partial_start + self._partial_end else ""
+        tail = (
+            secret[-self._partial_end :]
+            if len(secret) > self._partial_start + self._partial_end
+            else ""
+        )
         return f"{start}****{tail}"
 
     # ------------------------------------------------------------------

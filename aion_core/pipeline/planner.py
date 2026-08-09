@@ -14,6 +14,7 @@ logger = logging.getLogger("aion_hand.pipeline")
 @dataclass
 class PlanNode:
     """A single node in the execution plan graph."""
+
     id: str = ""
     name: str = ""
     node_type: str = "agent"  # agent, tool, parallel, condition, merge, verify
@@ -37,6 +38,7 @@ class PlanNode:
 @dataclass
 class ExecutionPlan:
     """A complete execution plan: a DAG of PlanNodes."""
+
     nodes: dict[str, PlanNode] = field(default_factory=dict)
     entry_node: str = ""
     total_estimated_tokens: int = 0
@@ -178,7 +180,9 @@ Return ONLY the JSON array. No markdown, no explanation."""
             id=repair_id,
             name=f"Repair: {failed_node.name}",
             node_type="agent",
-            agent_type="coder" if "code" in (failed_node.prompt or "").lower() else "planner",
+            agent_type=(
+                "coder" if "code" in (failed_node.prompt or "").lower() else "planner"
+            ),
             prompt=repair_prompt,
             dependencies=list(failed_node.dependencies),
             retry_limit=1,
@@ -196,8 +200,7 @@ Return ONLY the JSON array. No markdown, no explanation."""
         for nid in downstream:
             node = plan.nodes[nid]
             node.dependencies = [
-                repair_id if dep == failure_point else dep
-                for dep in node.dependencies
+                repair_id if dep == failure_point else dep for dep in node.dependencies
             ]
 
         # If the failed node was the entry, make repair the new entry
@@ -211,7 +214,9 @@ Return ONLY the JSON array. No markdown, no explanation."""
         failed_node.metadata["failed"] = True
         failed_node.metadata["error"] = error
 
-        logger.info(f"Replan complete: added repair node '{repair_id}', redirected {len(downstream)} downstream nodes")
+        logger.info(
+            f"Replan complete: added repair node '{repair_id}', redirected {len(downstream)} downstream nodes"
+        )
         return plan
 
     def _determine_risk_level(self, mission: MissionAnalysis) -> str:
@@ -230,7 +235,9 @@ Return ONLY the JSON array. No markdown, no explanation."""
             return "medium"
         return "low"
 
-    def _create_simple_plan(self, mission: MissionAnalysis, risk_level: str) -> ExecutionPlan:
+    def _create_simple_plan(
+        self, mission: MissionAnalysis, risk_level: str
+    ) -> ExecutionPlan:
         """Create a linear execution plan for simple tasks."""
         nodes = {}
 
@@ -240,13 +247,19 @@ Return ONLY the JSON array. No markdown, no explanation."""
             "Please complete this task thoroughly."
         )
         if mission.constraints:
-            exec_prompt += "\n\nConstraints:\n" + "\n".join(f"- {c}" for c in mission.constraints)
+            exec_prompt += "\n\nConstraints:\n" + "\n".join(
+                f"- {c}" for c in mission.constraints
+            )
 
         exec_node = PlanNode(
             id="step_execute",
             name="Execute Task",
             node_type="agent",
-            agent_type="coder" if "code" in " ".join(mission.capabilities_needed) else "planner",
+            agent_type=(
+                "coder"
+                if "code" in " ".join(mission.capabilities_needed)
+                else "planner"
+            ),
             prompt=exec_prompt,
             dependencies=[],
             retry_limit=2 if risk_level != "low" else 1,
@@ -272,8 +285,16 @@ Return ONLY the JSON array. No markdown, no explanation."""
     ) -> ExecutionPlan:
         """Create a complex execution plan using LLM assistance."""
         capabilities_str = ", ".join(mission.capabilities_needed)
-        constraints_str = "\n".join(f"- {c}" for c in mission.constraints) if mission.constraints else "None specified"
-        risks_str = "\n".join(f"- {r}" for r in mission.risks) if mission.risks else "None identified"
+        constraints_str = (
+            "\n".join(f"- {c}" for c in mission.constraints)
+            if mission.constraints
+            else "None specified"
+        )
+        risks_str = (
+            "\n".join(f"- {r}" for r in mission.risks)
+            if mission.risks
+            else "None identified"
+        )
         goals_str = "\n".join(f"- {g}" for g in mission.goals)
 
         lesson_str = ""
@@ -285,7 +306,9 @@ Return ONLY the JSON array. No markdown, no explanation."""
                 if hasattr(lesson, "learned_rules") and lesson.learned_rules:
                     lesson_parts.append(f"- Rule: {lesson.learned_rules[0]}")
             if lesson_parts:
-                lesson_str = "\n\nLessons from past similar tasks:\n" + "\n".join(lesson_parts)
+                lesson_str = "\n\nLessons from past similar tasks:\n" + "\n".join(
+                    lesson_parts
+                )
 
         user_message = (
             f"Create an execution plan for this mission:\n\n"
@@ -302,7 +325,9 @@ Return ONLY the JSON array. No markdown, no explanation."""
 
         try:
             result = await self._agent.chat(message=user_message)
-            raw_content = result.get("content", "") if isinstance(result, dict) else str(result)
+            raw_content = (
+                result.get("content", "") if isinstance(result, dict) else str(result)
+            )
         except Exception as e:
             logger.warning(f"LLM planning failed, using deterministic fallback: {e}")
             return self._create_deterministic_complex_plan(mission, risk_level)
@@ -321,14 +346,16 @@ Return ONLY the JSON array. No markdown, no explanation."""
         import re
 
         json_str = None
-        code_block_match = re.search(r"```(?:json)?\s*\n?(\[.*?\])\s*\n?```", raw_content, re.DOTALL)
+        code_block_match = re.search(
+            r"```(?:json)?\s*\n?(\[.*?\])\s*\n?```", raw_content, re.DOTALL
+        )
         if code_block_match:
             json_str = code_block_match.group(1)
         else:
             bracket_start = raw_content.find("[")
             bracket_end = raw_content.rfind("]")
             if bracket_start != -1 and bracket_end > bracket_start:
-                json_str = raw_content[bracket_start:bracket_end + 1]
+                json_str = raw_content[bracket_start : bracket_end + 1]
 
         if not json_str:
             return ExecutionPlan(risk_level=risk_level, complexity=mission.complexity)
@@ -439,7 +466,9 @@ Return ONLY the JSON array. No markdown, no explanation."""
                     dependencies=list(execution_deps),
                     parallel_group=group_id,
                     retry_limit=2 if risk_level != "low" else 1,
-                    timeout=max(mission.estimated_time // max(len(mission.goals), 1) + 30, 60),
+                    timeout=max(
+                        mission.estimated_time // max(len(mission.goals), 1) + 30, 60
+                    ),
                 )
                 goal_nodes.append(goal_id)
 
@@ -469,7 +498,11 @@ Return ONLY the JSON array. No markdown, no explanation."""
                 f"Goals:\n" + "\n".join(f"- {g}" for g in mission.goals) + "\n\n"
             )
             if mission.constraints:
-                exec_prompt += "Constraints:\n" + "\n".join(f"- {c}" for c in mission.constraints) + "\n\n"
+                exec_prompt += (
+                    "Constraints:\n"
+                    + "\n".join(f"- {c}" for c in mission.constraints)
+                    + "\n\n"
+                )
             if research_id in nodes:
                 exec_prompt += "Research findings: {{upstream_results}}\n\n"
             exec_prompt += "Please complete this task thoroughly and precisely."
@@ -478,7 +511,11 @@ Return ONLY the JSON array. No markdown, no explanation."""
                 id=exec_id,
                 name="Execute Task",
                 node_type="agent",
-                agent_type="coder" if "code" in " ".join(mission.capabilities_needed) else "planner",
+                agent_type=(
+                    "coder"
+                    if "code" in " ".join(mission.capabilities_needed)
+                    else "planner"
+                ),
                 prompt=exec_prompt,
                 dependencies=execution_deps,
                 retry_limit=2 if risk_level != "low" else 1,
@@ -496,7 +533,9 @@ Return ONLY the JSON array. No markdown, no explanation."""
             risk_level=risk_level,
         )
 
-    def _ensure_verification_node(self, plan: ExecutionPlan, mission: MissionAnalysis) -> None:
+    def _ensure_verification_node(
+        self, plan: ExecutionPlan, mission: MissionAnalysis
+    ) -> None:
         """Ensure the plan always ends with a verification node."""
         verify_nodes = [nid for nid, n in plan.nodes.items() if n.node_type == "verify"]
 
@@ -538,12 +577,15 @@ Return ONLY the JSON array. No markdown, no explanation."""
         for node in plan.nodes.values():
             all_deps.update(node.dependencies)
         terminal = [
-            nid for nid in plan.nodes
+            nid
+            for nid in plan.nodes
             if nid not in all_deps and plan.nodes[nid].node_type != "verify"
         ]
         return terminal if terminal else [plan.entry_node]
 
-    def _add_retry_protection(self, plan: ExecutionPlan, mission: MissionAnalysis) -> None:
+    def _add_retry_protection(
+        self, plan: ExecutionPlan, mission: MissionAnalysis
+    ) -> None:
         """Add retry metadata and increase retry limits for risky nodes."""
         for node in plan.nodes.values():
             if node.node_type in ("agent", "tool") and node.retry_limit < 2:

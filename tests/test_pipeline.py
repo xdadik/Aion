@@ -22,10 +22,10 @@ from aion_core.pipeline.planner import PlanNode, ExecutionPlan, DynamicPlanner
 from aion_core.pipeline.repair import RepairResult, RepairEngine
 from aion_core.pipeline.verification import VerificationResult, Verifier
 
-
 # ===================================================================
 # ConfidenceEstimator tests
 # ===================================================================
+
 
 class TestConfidenceEstimator(unittest.TestCase):
     """Tests for the ConfidenceEstimator class."""
@@ -33,7 +33,9 @@ class TestConfidenceEstimator(unittest.TestCase):
     def test_estimate_returns_dict_with_confidence_key(self):
         """estimate should return a float between 0 and 1."""
         estimator = ConfidenceEstimator()
-        verif = VerificationResult(passed=True, confidence=0.9, issues=[], checked_by="test")
+        verif = VerificationResult(
+            passed=True, confidence=0.9, issues=[], checked_by="test"
+        )
         critique = CritiqueResult(score=0.8)
         confidence = estimator.estimate(
             result="Some good output",
@@ -47,17 +49,23 @@ class TestConfidenceEstimator(unittest.TestCase):
     def test_estimate_high_confidence_for_clear_task(self):
         """A clear, structured result with passing verification should yield high confidence."""
         estimator = ConfidenceEstimator()
-        verif = VerificationResult(passed=True, confidence=0.95, issues=[], checked_by="test")
+        verif = VerificationResult(
+            passed=True, confidence=0.95, issues=[], checked_by="test"
+        )
         critique = CritiqueResult(score=0.9)
         result = "# Step 1: Research\n## Findings\nDetailed analysis here.\n```python\ndef hello():\n    pass\n```"
-        confidence = estimator.estimate(result=result, verifications=[verif], critique=critique)
+        confidence = estimator.estimate(
+            result=result, verifications=[verif], critique=critique
+        )
         self.assertGreater(confidence, 0.6)
 
     def test_estimate_low_confidence_for_vague_task(self):
         """A vague, error-containing result with failing verification should yield low confidence."""
         estimator = ConfidenceEstimator()
         verif = VerificationResult(
-            passed=False, confidence=0.2, issues=["Critical error"],
+            passed=False,
+            confidence=0.2,
+            issues=["Critical error"],
             checked_by="test",
         )
         critique = CritiqueResult(score=0.2, issues=["Major issue"])
@@ -71,6 +79,7 @@ class TestConfidenceEstimator(unittest.TestCase):
 # ===================================================================
 # CritiqueResult tests
 # ===================================================================
+
 
 class TestCritiqueResult(unittest.TestCase):
     """Tests for the CritiqueResult dataclass."""
@@ -102,6 +111,7 @@ class TestCritiqueResult(unittest.TestCase):
 # Critic tests
 # ===================================================================
 
+
 class TestCritic(unittest.TestCase):
     """Tests for the Critic class."""
 
@@ -115,14 +125,19 @@ class TestCritic(unittest.TestCase):
     def test_critic_analyze_returns_critique_result(self):
         """critique() should return a CritiqueResult."""
         mock_agent = MagicMock()
-        mock_agent.chat = AsyncMock(return_value={
-            "content": '{"score": 0.8, "issues": ["small issue"], "improvements": ["fix it"], "should_repair": false}',
-        })
+        mock_agent.chat = AsyncMock(
+            return_value={
+                "content": '{"score": 0.8, "issues": ["small issue"], "improvements": ["fix it"], "should_repair": false}',
+            }
+        )
         critic = Critic(agent=mock_agent)
 
-        verif = VerificationResult(passed=True, confidence=0.9, issues=[], checked_by="test")
+        verif = VerificationResult(
+            passed=True, confidence=0.9, issues=[], checked_by="test"
+        )
 
         import asyncio
+
         result = asyncio.run(
             critic.critique("Write code", "def hello(): pass", [verif])
         )
@@ -133,6 +148,7 @@ class TestCritic(unittest.TestCase):
 # ===================================================================
 # PipelineResult tests
 # ===================================================================
+
 
 class TestPipelineResult(unittest.TestCase):
     """Tests for the PipelineResult dataclass."""
@@ -169,6 +185,7 @@ class TestPipelineResult(unittest.TestCase):
 # PipelineEngine tests
 # ===================================================================
 
+
 class TestPipelineEngine(unittest.TestCase):
     """Tests for the PipelineEngine class."""
 
@@ -197,8 +214,11 @@ class TestPipelineEngine(unittest.TestCase):
         # Create a custom verifier
         class CustomVerifier(Verifier):
             name = "custom_verifier"
+
             async def verify(self, task, result, context):
-                return VerificationResult(passed=True, confidence=1.0, checked_by=self.name)
+                return VerificationResult(
+                    passed=True, confidence=1.0, checked_by=self.name
+                )
 
         engine.add_verifier(CustomVerifier())
         self.assertIn("custom_verifier", engine._verifier.get_verifiers())
@@ -229,6 +249,7 @@ class TestPipelineEngine(unittest.TestCase):
 # ===================================================================
 # ExecutionResult tests
 # ===================================================================
+
 
 class TestExecutionResult(unittest.TestCase):
     """Tests for the ExecutionResult dataclass."""
@@ -264,6 +285,7 @@ class TestExecutionResult(unittest.TestCase):
 # ParallelExecutor tests
 # ===================================================================
 
+
 class TestParallelExecutor(unittest.TestCase):
     """Tests for the ParallelExecutor class."""
 
@@ -285,6 +307,7 @@ class TestParallelExecutor(unittest.TestCase):
 # ===================================================================
 # TaskLesson tests
 # ===================================================================
+
 
 class TestTaskLesson(unittest.TestCase):
     """Tests for the TaskLesson dataclass."""
@@ -330,6 +353,7 @@ class TestTaskLesson(unittest.TestCase):
 # ===================================================================
 # RuntimeLearning tests
 # ===================================================================
+
 
 class TestRuntimeLearning(unittest.TestCase):
     """Tests for the RuntimeLearning class."""
@@ -420,14 +444,24 @@ class TestRuntimeLearning(unittest.TestCase):
 
             # Add some lessons
             rl._loaded = True
-            rl._lessons.append(TaskLesson(
-                task_hash="h1", task_summary="task1",
-                task_keywords=["t"], execution_success=True, final_confidence=0.9,
-            ))
-            rl._lessons.append(TaskLesson(
-                task_hash="h2", task_summary="task2",
-                task_keywords=["t"], execution_success=False, final_confidence=0.3,
-            ))
+            rl._lessons.append(
+                TaskLesson(
+                    task_hash="h1",
+                    task_summary="task1",
+                    task_keywords=["t"],
+                    execution_success=True,
+                    final_confidence=0.9,
+                )
+            )
+            rl._lessons.append(
+                TaskLesson(
+                    task_hash="h2",
+                    task_summary="task2",
+                    task_keywords=["t"],
+                    execution_success=False,
+                    final_confidence=0.3,
+                )
+            )
             stats = rl.get_stats()
             self.assertEqual(stats["total_lessons"], 2)
             self.assertAlmostEqual(stats["success_rate"], 0.5)
@@ -436,6 +470,7 @@ class TestRuntimeLearning(unittest.TestCase):
 # ===================================================================
 # MissionAnalysis tests
 # ===================================================================
+
 
 class TestMissionAnalysis(unittest.TestCase):
     """Tests for the MissionAnalysis dataclass."""
@@ -477,6 +512,7 @@ class TestMissionAnalysis(unittest.TestCase):
 # MissionAnalyzer tests
 # ===================================================================
 
+
 class TestMissionAnalyzer(unittest.TestCase):
     """Tests for the MissionAnalyzer class."""
 
@@ -495,9 +531,8 @@ class TestMissionAnalyzer(unittest.TestCase):
         analyzer = MissionAnalyzer(agent=mock_agent)
 
         import asyncio
-        result = asyncio.run(
-            analyzer.analyze("Build a REST API")
-        )
+
+        result = asyncio.run(analyzer.analyze("Build a REST API"))
         self.assertIsInstance(result, MissionAnalysis)
         self.assertGreater(len(result.raw_task), 0)
 
@@ -505,6 +540,7 @@ class TestMissionAnalyzer(unittest.TestCase):
 # ===================================================================
 # PlanNode tests
 # ===================================================================
+
 
 class TestPlanNode(unittest.TestCase):
     """Tests for the PlanNode dataclass."""
@@ -548,6 +584,7 @@ class TestPlanNode(unittest.TestCase):
 # ===================================================================
 # ExecutionPlan tests
 # ===================================================================
+
 
 class TestExecutionPlan(unittest.TestCase):
     """Tests for the ExecutionPlan dataclass."""
@@ -596,6 +633,7 @@ class TestExecutionPlan(unittest.TestCase):
 # DynamicPlanner tests
 # ===================================================================
 
+
 class TestDynamicPlanner(unittest.TestCase):
     """Tests for the DynamicPlanner class."""
 
@@ -609,6 +647,7 @@ class TestDynamicPlanner(unittest.TestCase):
 # ===================================================================
 # RepairResult tests
 # ===================================================================
+
 
 class TestRepairResult(unittest.TestCase):
     """Tests for the RepairResult dataclass."""
@@ -644,6 +683,7 @@ class TestRepairResult(unittest.TestCase):
 # RepairEngine tests
 # ===================================================================
 
+
 class TestRepairEngine(unittest.TestCase):
     """Tests for the RepairEngine class."""
 
@@ -658,6 +698,7 @@ class TestRepairEngine(unittest.TestCase):
 # ===================================================================
 # VerificationResult tests
 # ===================================================================
+
 
 class TestVerificationResult(unittest.TestCase):
     """Tests for the VerificationResult dataclass."""
@@ -691,26 +732,35 @@ class TestVerificationResult(unittest.TestCase):
 # Verifier tests
 # ===================================================================
 
+
 class TestVerifier(unittest.TestCase):
     """Tests for the abstract Verifier base class."""
 
     def test_verifier_creation(self):
         """A concrete Verifier subclass should have a name attribute."""
+
         # Verifier is abstract, so we create a minimal concrete subclass
         class MinimalVerifier(Verifier):
             name = "minimal_verifier"
+
             async def verify(self, task, result, context):
-                return VerificationResult(passed=True, confidence=1.0, checked_by=self.name)
+                return VerificationResult(
+                    passed=True, confidence=1.0, checked_by=self.name
+                )
 
         v = MinimalVerifier()
         self.assertEqual(v.name, "minimal_verifier")
 
     def test_is_applicable(self):
         """Default is_applicable should return True."""
+
         class MinimalVerifier(Verifier):
             name = "minimal_verifier"
+
             async def verify(self, task, result, context):
-                return VerificationResult(passed=True, confidence=1.0, checked_by=self.name)
+                return VerificationResult(
+                    passed=True, confidence=1.0, checked_by=self.name
+                )
 
         v = MinimalVerifier()
         self.assertTrue(v.is_applicable("any task", "any result", {}))

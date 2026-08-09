@@ -5,6 +5,7 @@ Heuristic-based scoring that examines task text and context to produce a
 tier suggestion.  No ML model is required — pure keyword / structural
 heuristics tuned for real-world prompt patterns.
 """
+
 from __future__ import annotations
 
 import re
@@ -25,7 +26,8 @@ class ReasoningType(str, Enum):
 @dataclass
 class TaskComplexity:
     """Full complexity breakdown produced by ``ComplexityEstimator``."""
-    score: float                          # 0.0 – 1.0
+
+    score: float  # 0.0 – 1.0
     reasoning_type: ReasoningType = ReasoningType.SIMPLE
     estimated_turns: int = 1
     suggested_model_tier: str = "budget"  # budget / standard / premium
@@ -34,63 +36,227 @@ class TaskComplexity:
 
 # ── Keyword / pattern tables ──────────────────────────────────────────
 _CODING_KEYWORDS: list[str] = [
-    "function", "class", "def ", "import ", "return ", "async ", "await ",
-    "refactor", "debug", "compile", "syntax error", "runtime error",
-    "unit test", "integration test", "api endpoint", "sql query",
-    "algorithm", "data structure", "git merge", "pull request",
-    "code review", "type hint", "interface", "implement", "module",
-    "dependency", "dockerfile", "kubernetes", "ci/cd", "microservice",
-    "protobuf", "graphql", "rest api", "websocket", "multithread",
-    "python", "javascript", "typescript", "rust", "golang", "java ",
-    "code", "coding", "program", "script", "parse", "serialize",
-    "error handling", "exception", "recursion", "optimization",
+    "function",
+    "class",
+    "def ",
+    "import ",
+    "return ",
+    "async ",
+    "await ",
+    "refactor",
+    "debug",
+    "compile",
+    "syntax error",
+    "runtime error",
+    "unit test",
+    "integration test",
+    "api endpoint",
+    "sql query",
+    "algorithm",
+    "data structure",
+    "git merge",
+    "pull request",
+    "code review",
+    "type hint",
+    "interface",
+    "implement",
+    "module",
+    "dependency",
+    "dockerfile",
+    "kubernetes",
+    "ci/cd",
+    "microservice",
+    "protobuf",
+    "graphql",
+    "rest api",
+    "websocket",
+    "multithread",
+    "python",
+    "javascript",
+    "typescript",
+    "rust",
+    "golang",
+    "java ",
+    "code",
+    "coding",
+    "program",
+    "script",
+    "parse",
+    "serialize",
+    "error handling",
+    "exception",
+    "recursion",
+    "optimization",
 ]
 
 _RESEARCH_KEYWORDS: list[str] = [
-    "research", "study", "survey", "literature", "citation", "reference",
-    "peer-reviewed", "experiment", "hypothesis", "methodology",
-    "systematic review", "meta-analysis", "dataset", "correlation",
-    "statistical significance", "empirical", "qualitative",
-    "quantitative", "longitudinal", "cross-sectional", "case study",
-    "randomized", "control group", "variable", "p-value",
-    "investigate", "investigation", "review of", "examine",
-    "academic", "journal", "paper", "publication", "findings",
-    "literature review", "state of the art", "prior work",
+    "research",
+    "study",
+    "survey",
+    "literature",
+    "citation",
+    "reference",
+    "peer-reviewed",
+    "experiment",
+    "hypothesis",
+    "methodology",
+    "systematic review",
+    "meta-analysis",
+    "dataset",
+    "correlation",
+    "statistical significance",
+    "empirical",
+    "qualitative",
+    "quantitative",
+    "longitudinal",
+    "cross-sectional",
+    "case study",
+    "randomized",
+    "control group",
+    "variable",
+    "p-value",
+    "investigate",
+    "investigation",
+    "review of",
+    "examine",
+    "academic",
+    "journal",
+    "paper",
+    "publication",
+    "findings",
+    "literature review",
+    "state of the art",
+    "prior work",
 ]
 
 _ANALYSIS_KEYWORDS: list[str] = [
-    "analyze", "analysis", "compare", "compar", "contrast", "evaluate", "evaluat",
-    "assess", "benchmark", "metrics", "kpi", "dashboard", "trend", "forecast",
-    "regression", "classification", "clustering", "anomaly detection",
-    "data pipeline", "etl", "aggregate", "breakdown", "pivot",
-    "correlation", "insight", "roi", "cost-benefit", "trade-off",
-    "across", "versus", "vs ", "pros and cons", "strengths",
-    "weaknesses", "opportunities", "threats", "swot",
-    "architecture", "mechanism", "performance", "accuracy",
+    "analyze",
+    "analysis",
+    "compare",
+    "compar",
+    "contrast",
+    "evaluate",
+    "evaluat",
+    "assess",
+    "benchmark",
+    "metrics",
+    "kpi",
+    "dashboard",
+    "trend",
+    "forecast",
+    "regression",
+    "classification",
+    "clustering",
+    "anomaly detection",
+    "data pipeline",
+    "etl",
+    "aggregate",
+    "breakdown",
+    "pivot",
+    "correlation",
+    "insight",
+    "roi",
+    "cost-benefit",
+    "trade-off",
+    "across",
+    "versus",
+    "vs ",
+    "pros and cons",
+    "strengths",
+    "weaknesses",
+    "opportunities",
+    "threats",
+    "swot",
+    "architecture",
+    "mechanism",
+    "performance",
+    "accuracy",
 ]
 
 _CREATIVE_KEYWORDS: list[str] = [
-    "write", "story", "poem", "song", "creative", "brainstorm", "ideate",
-    "design", "mockup", "wireframe", "prototype", "narrative", "script",
-    "slogan", "tagline", "brand voice", "campaign", "copywriting",
-    "headline", "blog post", "article", "whitepaper", "ebook",
-    "newsletter", "social media post", "landing page",
+    "write",
+    "story",
+    "poem",
+    "song",
+    "creative",
+    "brainstorm",
+    "ideate",
+    "design",
+    "mockup",
+    "wireframe",
+    "prototype",
+    "narrative",
+    "script",
+    "slogan",
+    "tagline",
+    "brand voice",
+    "campaign",
+    "copywriting",
+    "headline",
+    "blog post",
+    "article",
+    "whitepaper",
+    "ebook",
+    "newsletter",
+    "social media post",
+    "landing page",
 ]
 
 _MULTI_STEP_INDICATORS: list[str] = [
-    "then", "after that", "next step", "finally", "lastly",
-    "step 1", "step 2", "step 3", "first", "second", "third",
-    "part 1", "part 2", "part 3", "phase 1", "phase 2", "phase 3",
-    "multi-step", "multi-step", "pipeline", "workflow", "chain of",
-    "sequential", "iterative", "loop through", "repeat until",
+    "then",
+    "after that",
+    "next step",
+    "finally",
+    "lastly",
+    "step 1",
+    "step 2",
+    "step 3",
+    "first",
+    "second",
+    "third",
+    "part 1",
+    "part 2",
+    "part 3",
+    "phase 1",
+    "phase 2",
+    "phase 3",
+    "multi-step",
+    "multi-step",
+    "pipeline",
+    "workflow",
+    "chain of",
+    "sequential",
+    "iterative",
+    "loop through",
+    "repeat until",
 ]
 
 _TOOL_INDICATORS: list[str] = [
-    "search", "look up", "find", "fetch", "scrape", "download",
-    "calculate", "compute", "convert", "translate", "summarize",
-    "extract", "parse", "read file", "write file", "run command",
-    "execute", "api call", "http request", "database query",
-    "webhook", "browser", "screenshot", "pdf", "spreadsheet",
+    "search",
+    "look up",
+    "find",
+    "fetch",
+    "scrape",
+    "download",
+    "calculate",
+    "compute",
+    "convert",
+    "translate",
+    "summarize",
+    "extract",
+    "parse",
+    "read file",
+    "write file",
+    "run command",
+    "execute",
+    "api call",
+    "http request",
+    "database query",
+    "webhook",
+    "browser",
+    "screenshot",
+    "pdf",
+    "spreadsheet",
 ]
 
 
@@ -131,9 +297,7 @@ class ComplexityEstimator:
         factors["length"] = self._score_length(combined)
 
         # 2. Keyword / domain signal
-        reasoning_type, factors["keyword"] = self._score_keywords(
-            combined_lower
-        )
+        reasoning_type, factors["keyword"] = self._score_keywords(combined_lower)
 
         # 3. Multi-step signal
         factors["multi_step"] = self._score_multi_step(combined_lower)
@@ -202,7 +366,9 @@ class ComplexityEstimator:
                         n += 1
                 else:
                     # Single word: prefix match (word starts with keyword)
-                    if any(w.startswith(kw_stripped) for w in text_words if len(w) >= 3):
+                    if any(
+                        w.startswith(kw_stripped) for w in text_words if len(w) >= 3
+                    ):
                         n += 1
             return n
 

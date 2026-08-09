@@ -1,4 +1,5 @@
 """Tests for error classification system."""
+
 import sys
 import unittest
 from pathlib import Path
@@ -15,9 +16,11 @@ try:
         classify_error,
         get_recovery_strategy,
     )
+
     HAS_MODULE = True
 except ImportError:
     HAS_MODULE = False
+
 
 @unittest.skipUnless(HAS_MODULE, "error_classifier not available")
 class TestErrorClassifier(TestCase):
@@ -37,7 +40,9 @@ class TestErrorClassifier(TestCase):
 
     def test_error_tracker_record(self):
         tracker = ErrorTracker()
-        err = ClassifiedError(reason=FailoverReason.TIMEOUT, message="test", retryable=True)
+        err = ClassifiedError(
+            reason=FailoverReason.TIMEOUT, message="test", retryable=True
+        )
         tracker.record(err)
         counts = tracker.get_error_counts()
         self.assertTrue(len(counts) > 0)
@@ -51,6 +56,7 @@ class TestErrorClassifier(TestCase):
         budget.consume("test_provider")
         budget.consume("test_provider")
         self.assertFalse(budget.check("test_provider"))
+
 
 if __name__ == "__main__":
     unittest.main()

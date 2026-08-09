@@ -22,8 +22,8 @@ import json
 import logging
 import os
 import time
-import urllib.request
 import urllib.error
+import urllib.request
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -35,19 +35,19 @@ logger = logging.getLogger("aion_hand.mcp.client")
 
 MCP_PROTOCOL_VERSION = "2024-11-05"
 MCP_IMPLEMENTATION_NAME = "aion-hand"
-MCP_IMPLEMENTATION_VERSION = "0.1.0"
+MCP_IMPLEMENTATION_VERSION = "0.4.0"
 
 # Defaults for stdio transport
-STDIO_INIT_TIMEOUT = 30       # seconds to wait for server init response
-STDIO_CALL_TIMEOUT = 120      # seconds per tool call
+STDIO_INIT_TIMEOUT = 30  # seconds to wait for server init response
+STDIO_CALL_TIMEOUT = 120  # seconds per tool call
 STDIO_READ_BUF_SIZE = 65536  # bytes per stdout read chunk
 
 # Defaults for SSE transport
-SSE_CONNECT_TIMEOUT = 15      # seconds to establish SSE connection
-SSE_MESSAGE_TIMEOUT = 120     # seconds to wait for next SSE event
+SSE_CONNECT_TIMEOUT = 15  # seconds to establish SSE connection
+SSE_MESSAGE_TIMEOUT = 120  # seconds to wait for next SSE event
 
 # Reconnection
-RECONNECT_BASE_DELAY = 1.0   # seconds, doubled on each retry
+RECONNECT_BASE_DELAY = 1.0  # seconds, doubled on each retry
 RECONNECT_MAX_DELAY = 30.0
 RECONNECT_MAX_RETRIES = 5
 
@@ -91,11 +91,11 @@ class MCPServer:
 
     name: str
     transport_type: str = "stdio"  # stdio | sse | websocket
-    command: str | None = None   # for stdio
-    url: str | None = None       # for sse / websocket
+    command: str | None = None  # for stdio
+    url: str | None = None  # for sse / websocket
     args: list[str] = field(default_factory=list)
     env: dict[str, str] = field(default_factory=dict)
-    status: str = "disconnected"    # connected | disconnected | error
+    status: str = "disconnected"  # connected | disconnected | error
     tools: list[MCPTool] = field(default_factory=list)
     resources: list[dict[str, Any]] = field(default_factory=list)
     prompts: list[dict[str, Any]] = field(default_factory=list)
@@ -192,9 +192,7 @@ class _StdioConnection:
             raise RuntimeError("Failed to create subprocess stdout pipe")
         # Start background reader that dispatches responses to futures
         self._reader_task = asyncio.create_task(self._read_loop())
-        logger.info(
-            "Stdio MCP server started (pid=%d)", self.process.pid or 0
-        )
+        logger.info("Stdio MCP server started (pid=%d)", self.process.pid or 0)
 
     async def _read_loop(self) -> None:
         """Continuously read stdout lines and dispatch to pending futures."""
@@ -251,7 +249,10 @@ class _StdioConnection:
         self._notification_handlers.append(handler)
 
     async def send_request(
-        self, method: str, params: dict | None = None, timeout: float = STDIO_CALL_TIMEOUT
+        self,
+        method: str,
+        params: dict | None = None,
+        timeout: float = STDIO_CALL_TIMEOUT,
     ) -> dict[str, Any]:
         """Send a JSON-RPC request and wait for the response."""
         async with self._lock:
@@ -285,13 +286,9 @@ class _StdioConnection:
             return response.get("result", {})
         except TimeoutError:
             self._pending.pop(rid, None)
-            raise TimeoutError(
-                f"MCP request '{method}' timed out after {timeout}s"
-            )
+            raise TimeoutError(f"MCP request '{method}' timed out after {timeout}s")
 
-    async def send_notification(
-        self, method: str, params: dict | None = None
-    ) -> None:
+    async def send_notification(self, method: str, params: dict | None = None) -> None:
         """Send a JSON-RPC notification (fire-and-forget)."""
         async with self._lock:
             if self._closed or self.process is None or self.process.stdin is None:
@@ -397,9 +394,9 @@ class _SSEConnection:
                     data = ""
                     for line in lines:
                         if line.startswith("event:"):
-                            event_type = line[len("event:"):].strip()
+                            event_type = line[len("event:") :].strip()
                         elif line.startswith("data:"):
-                            data = line[len("data:"):].strip()
+                            data = line[len("data:") :].strip()
                     buf = ""
                     if event_type == "endpoint" and data:
                         endpoint = data
@@ -426,7 +423,10 @@ class _SSEConnection:
         logger.info("SSE MCP server connected, POST endpoint: %s", self._endpoint_url)
 
     async def send_request(
-        self, method: str, params: dict | None = None, timeout: float = SSE_MESSAGE_TIMEOUT
+        self,
+        method: str,
+        params: dict | None = None,
+        timeout: float = SSE_MESSAGE_TIMEOUT,
     ) -> dict[str, Any]:
         """Send a JSON-RPC request to the MCP server via HTTP POST."""
         if self._closed or not self._endpoint_url:
@@ -463,8 +463,6 @@ class _SSEConnection:
                 response_data = resp.read().decode("utf-8")
                 content_type = resp.headers.get("Content-Type", "")
 
-                resp_headers = dict(resp.headers)
-
                 # The response might be SSE or direct JSON
                 if "text/event-stream" in content_type:
                     # Parse SSE response
@@ -472,7 +470,7 @@ class _SSEConnection:
                         lines = event_block.strip().split("\n")
                         for line in lines:
                             if line.startswith("data:"):
-                                json_str = line[len("data:"):].strip()
+                                json_str = line[len("data:") :].strip()
                                 if json_str:
                                     return json.loads(json_str)
                     return {}
@@ -498,9 +496,7 @@ class _SSEConnection:
                     timeout=timeout,
                 )
             except TimeoutError:
-                raise TimeoutError(
-                    f"SSE request '{method}' timed out after {timeout}s"
-                )
+                raise TimeoutError(f"SSE request '{method}' timed out after {timeout}s")
 
         # Extract session ID from response headers if available
         # (We'd need to thread this through from the blocking function)
@@ -515,9 +511,7 @@ class _SSEConnection:
             return raw_response.get("result", {})
         return raw_response
 
-    async def send_notification(
-        self, method: str, params: dict | None = None
-    ) -> None:
+    async def send_notification(self, method: str, params: dict | None = None) -> None:
         """Send a notification via the SSE endpoint."""
         await self.send_request(method, params)
 
@@ -791,14 +785,14 @@ class MCPClient:
                 tool = MCPTool(
                     name=t.get("name", ""),
                     description=t.get("description", ""),
-                    input_schema=t.get("inputSchema", {"type": "object", "properties": {}}),
+                    input_schema=t.get(
+                        "inputSchema", {"type": "object", "properties": {}}
+                    ),
                     server_name=server_name,
                     protocol_version=protocol_version,
                 )
                 tools.append(tool)
-            logger.debug(
-                "Server '%s' reported %d tools", server_name, len(tools)
-            )
+            logger.debug("Server '%s' reported %d tools", server_name, len(tools))
             return tools
         except Exception as exc:
             logger.warning("Failed to fetch tools from '%s': %s", server_name, exc)
@@ -815,9 +809,7 @@ class MCPClient:
             logger.warning("Failed to fetch resources from '%s': %s", server_name, exc)
             return []
 
-    async def _fetch_prompts(
-        self, server_name: str, conn: Any
-    ) -> list[dict[str, Any]]:
+    async def _fetch_prompts(self, server_name: str, conn: Any) -> list[dict[str, Any]]:
         """Fetch the prompt list from a connected server."""
         try:
             result = await conn.send_request("prompts/list", {}, timeout=15)
@@ -917,9 +909,7 @@ class MCPClient:
             # Mark server as errored
             if server:
                 server.status = "error"
-            raise ConnectionError(
-                f"Tool call failed: {exc}"
-            ) from exc
+            raise ConnectionError(f"Tool call failed: {exc}") from exc
 
     # ------------------------------------------------------------------
     # Resources
@@ -938,16 +928,12 @@ class MCPClient:
             server.resources = resources
         return resources
 
-    async def read_resource(
-        self, server_name: str, uri: str
-    ) -> dict[str, Any]:
+    async def read_resource(self, server_name: str, uri: str) -> dict[str, Any]:
         """Read a specific resource from a connected MCP server."""
         conn = self._connections.get(server_name)
         if conn is None:
             raise ConnectionError(f"No connection to server '{server_name}'")
-        return await conn.send_request(
-            "resources/read", {"uri": uri}, timeout=30
-        )
+        return await conn.send_request("resources/read", {"uri": uri}, timeout=30)
 
     # ------------------------------------------------------------------
     # Prompts
@@ -1003,9 +989,7 @@ class MCPClient:
             try:
                 await conn.close()
             except Exception as exc:
-                logger.warning(
-                    "Error disconnecting server '%s': %s", server_name, exc
-                )
+                logger.warning("Error disconnecting server '%s': %s", server_name, exc)
         if server is not None:
             server.status = "disconnected"
             server.tools.clear()
@@ -1034,7 +1018,7 @@ class MCPClient:
             return False
 
         delay = min(
-            RECONNECT_BASE_DELAY * (2 ** server._reconnect_attempts),
+            RECONNECT_BASE_DELAY * (2**server._reconnect_attempts),
             RECONNECT_MAX_DELAY,
         )
         server._reconnect_attempts += 1
@@ -1112,9 +1096,7 @@ class MCPClient:
 
     def list_connected_servers(self) -> list[MCPServer]:
         """Return only connected servers."""
-        return [
-            s for s in self._servers.values() if s.status == "connected"
-        ]
+        return [s for s in self._servers.values() if s.status == "connected"]
 
     # ------------------------------------------------------------------
     # Health Check
@@ -1195,9 +1177,7 @@ class MCPClient:
                 try:
                     counts[name] = await self.refresh_tools(name)
                 except Exception as exc:
-                    logger.warning(
-                        "Failed to refresh tools for '%s': %s", name, exc
-                    )
+                    logger.warning("Failed to refresh tools for '%s': %s", name, exc)
                     counts[name] = -1
         return counts
 

@@ -22,7 +22,6 @@ Usage:
 from __future__ import annotations
 
 import asyncio
-import re
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
@@ -37,9 +36,11 @@ logger = __import__("logging").getLogger("aion_hand.browser")
 # Backend detection
 # ---------------------------------------------------------------------------
 
+
 def _playwright_available() -> bool:
     try:
         import playwright  # type: ignore[import-not-found]  # noqa: F401
+
         return True
     except ImportError:
         return False
@@ -49,8 +50,10 @@ def _playwright_available() -> bool:
 # Stdlib HTML parser
 # ---------------------------------------------------------------------------
 
+
 class _TextExtractor(HTMLParser):
     """Extract visible text from HTML, ignoring scripts/styles."""
+
     def __init__(self) -> None:
         super().__init__()
         self._chunks: list[str] = []
@@ -77,6 +80,7 @@ class _TextExtractor(HTMLParser):
 
 class _LinkExtractor(HTMLParser):
     """Extract all <a href> links from HTML."""
+
     def __init__(self) -> None:
         super().__init__()
         self.links: list[tuple[str, str]] = []  # (href, text)
@@ -109,6 +113,7 @@ class _LinkExtractor(HTMLParser):
 
 class _TitleExtractor(HTMLParser):
     """Extract the <title> of an HTML document."""
+
     def __init__(self) -> None:
         super().__init__()
         self.title: str = ""
@@ -129,6 +134,7 @@ class _TitleExtractor(HTMLParser):
 
 class _MetaExtractor(HTMLParser):
     """Extract <meta name="description"> and other meta tags."""
+
     def __init__(self) -> None:
         super().__init__()
         self.meta: dict[str, str] = {}
@@ -146,9 +152,11 @@ class _MetaExtractor(HTMLParser):
 # Parsed page
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class Page:
     """A fetched web page."""
+
     url: str
     status: int
     html: str
@@ -175,10 +183,13 @@ class Page:
 # Browser
 # ---------------------------------------------------------------------------
 
+
 class Browser:
     """Multi-backend web browser automation."""
 
-    USER_AGENT = "Mozilla/5.0 (compatible; AionHand/0.3; +https://github.com/xdadik/Aion)"
+    USER_AGENT = (
+        "Mozilla/5.0 (compatible; AionHand/0.3; +https://github.com/xdadik/Aion)"
+    )
 
     def __init__(self, *, use_playwright: bool = True, timeout: float = 30.0) -> None:
         self.timeout = timeout
@@ -217,9 +228,12 @@ class Browser:
 
     async def _fetch_urllib(self, url: str, *, follow_redirects: bool = True) -> Page:
         """Stdlib-based fetch — no JS execution."""
+
         def _do_fetch() -> tuple[int, str, str]:
             req = urllib.request.Request(url, headers={"User-Agent": self.USER_AGENT})
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:  # noqa: S310
+            with urllib.request.urlopen(
+                req, timeout=self.timeout
+            ) as resp:  # noqa: S310
                 final_url = resp.geturl()
                 status = resp.status
                 # Read up to 5 MB
@@ -228,7 +242,9 @@ class Browser:
                 html = raw.decode(charset, errors="replace")
                 return status, html, final_url
 
-        status, html, final_url = await asyncio.get_event_loop().run_in_executor(None, _do_fetch)
+        status, html, final_url = await asyncio.get_event_loop().run_in_executor(
+            None, _do_fetch
+        )
 
         # Parse
         text_extractor = _TextExtractor()
@@ -265,13 +281,18 @@ class Browser:
     async def _fetch_playwright(self, url: str) -> Page:
         """Playwright-based fetch — full JS execution."""
         if self._pw_browser is None:
-            from playwright.async_api import async_playwright  # type: ignore[import-not-found]
+            from playwright.async_api import (
+                async_playwright,  # type: ignore[import-not-found]
+            )
+
             self._pw = await async_playwright().start()
             self._pw_browser = await self._pw.chromium.launch(headless=True)
 
         page = await self._pw_browser.new_page()
         try:
-            response = await page.goto(url, timeout=int(self.timeout * 1000), wait_until="domcontentloaded")
+            response = await page.goto(
+                url, timeout=int(self.timeout * 1000), wait_until="domcontentloaded"
+            )
             status = response.status if response else 0
             html = await page.content()
             title = await page.title()
@@ -311,18 +332,27 @@ class Browser:
     #  Advanced (Playwright only)
     # ------------------------------------------------------------------
 
-    async def screenshot(self, url: str, output_path: Path | str, *, full_page: bool = True) -> Path:
+    async def screenshot(
+        self, url: str, output_path: Path | str, *, full_page: bool = True
+    ) -> Path:
         """Render a URL and save a screenshot. Requires Playwright."""
         if not self._use_pw:
-            raise RuntimeError("screenshot() requires Playwright. Install: pip install playwright && playwright install chromium")
+            raise RuntimeError(
+                "screenshot() requires Playwright. Install: pip install playwright && playwright install chromium"
+            )
         if self._pw_browser is None:
-            from playwright.async_api import async_playwright  # type: ignore[import-not-found]
+            from playwright.async_api import (
+                async_playwright,  # type: ignore[import-not-found]
+            )
+
             self._pw = await async_playwright().start()
             self._pw_browser = await self._pw.chromium.launch(headless=True)
 
         page = await self._pw_browser.new_page()
         try:
-            await page.goto(url, timeout=int(self.timeout * 1000), wait_until="networkidle")
+            await page.goto(
+                url, timeout=int(self.timeout * 1000), wait_until="networkidle"
+            )
             out = Path(output_path)
             out.parent.mkdir(parents=True, exist_ok=True)
             await page.screenshot(path=str(out), full_page=full_page)
@@ -335,13 +365,18 @@ class Browser:
         if not self._use_pw:
             raise RuntimeError("click() requires Playwright")
         if self._pw_browser is None:
-            from playwright.async_api import async_playwright  # type: ignore[import-not-found]
+            from playwright.async_api import (
+                async_playwright,  # type: ignore[import-not-found]
+            )
+
             self._pw = await async_playwright().start()
             self._pw_browser = await self._pw.chromium.launch(headless=True)
 
         page = await self._pw_browser.new_page()
         try:
-            await page.goto(url, timeout=int(self.timeout * 1000), wait_until="domcontentloaded")
+            await page.goto(
+                url, timeout=int(self.timeout * 1000), wait_until="domcontentloaded"
+            )
             await page.click(selector)
             await page.wait_for_timeout(int(wait * 1000))
             html = await page.content()
@@ -350,20 +385,29 @@ class Browser:
             final_url = page.url
         finally:
             await page.close()
-        return Page(url=url, status=200, html=html, text=text, title=title, final_url=final_url)
+        return Page(
+            url=url, status=200, html=html, text=text, title=title, final_url=final_url
+        )
 
-    async def fill_form(self, url: str, fields: dict[str, str], submit_selector: str | None = None) -> Page:
+    async def fill_form(
+        self, url: str, fields: dict[str, str], submit_selector: str | None = None
+    ) -> Page:
         """Fill a form on a URL and optionally submit it."""
         if not self._use_pw:
             raise RuntimeError("fill_form() requires Playwright")
         if self._pw_browser is None:
-            from playwright.async_api import async_playwright  # type: ignore[import-not-found]
+            from playwright.async_api import (
+                async_playwright,  # type: ignore[import-not-found]
+            )
+
             self._pw = await async_playwright().start()
             self._pw_browser = await self._pw.chromium.launch(headless=True)
 
         page = await self._pw_browser.new_page()
         try:
-            await page.goto(url, timeout=int(self.timeout * 1000), wait_until="domcontentloaded")
+            await page.goto(
+                url, timeout=int(self.timeout * 1000), wait_until="domcontentloaded"
+            )
             for selector, value in fields.items():
                 await page.fill(selector, value)
             if submit_selector:
@@ -375,7 +419,9 @@ class Browser:
             final_url = page.url
         finally:
             await page.close()
-        return Page(url=url, status=200, html=html, text=text, title=title, final_url=final_url)
+        return Page(
+            url=url, status=200, html=html, text=text, title=title, final_url=final_url
+        )
 
     # ------------------------------------------------------------------
     #  Cleanup

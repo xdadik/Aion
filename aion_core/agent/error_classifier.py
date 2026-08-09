@@ -175,14 +175,14 @@ class ErrorRecoveryStrategy(str, Enum):
     rotate credentials, switch models, compress context, or abort.
     """
 
-    RETRY = "retry"                         # Simple retry (same provider/model)
-    BACKOFF = "backoff"                     # Retry with exponential back-off
+    RETRY = "retry"  # Simple retry (same provider/model)
+    BACKOFF = "backoff"  # Retry with exponential back-off
     ROTATE_CREDENTIAL = "rotate_credential"  # Switch API key / refresh token
-    FALLBACK_MODEL = "fallback_model"       # Try a different model
-    COMPRESS_CONTEXT = "compress_context"   # Summarise / truncate context
-    SHRINK_IMAGE = "shrink_image"           # Downscale images & retry
-    ABORT = "abort"                         # Fatal – give up
-    SKIP_RETRY = "skip_retry"              # Non-retryable but not fatal
+    FALLBACK_MODEL = "fallback_model"  # Try a different model
+    COMPRESS_CONTEXT = "compress_context"  # Summarise / truncate context
+    SHRINK_IMAGE = "shrink_image"  # Downscale images & retry
+    ABORT = "abort"  # Fatal – give up
+    SKIP_RETRY = "skip_retry"  # Non-retryable but not fatal
 
 
 # ======================================================================
@@ -191,48 +191,40 @@ class ErrorRecoveryStrategy(str, Enum):
 
 _REASON_STRATEGY_MAP: dict[FailoverReason, ErrorRecoveryStrategy] = {
     # Auth / Billing
-    FailoverReason.AUTH:               ErrorRecoveryStrategy.ROTATE_CREDENTIAL,
-    FailoverReason.AUTH_PERMANENT:     ErrorRecoveryStrategy.ABORT,
-    FailoverReason.BILLING:            ErrorRecoveryStrategy.ABORT,
-
+    FailoverReason.AUTH: ErrorRecoveryStrategy.ROTATE_CREDENTIAL,
+    FailoverReason.AUTH_PERMANENT: ErrorRecoveryStrategy.ABORT,
+    FailoverReason.BILLING: ErrorRecoveryStrategy.ABORT,
     # Rate limiting / overload
-    FailoverReason.RATE_LIMIT:         ErrorRecoveryStrategy.BACKOFF,
+    FailoverReason.RATE_LIMIT: ErrorRecoveryStrategy.BACKOFF,
     FailoverReason.UPSTREAM_RATE_LIMIT: ErrorRecoveryStrategy.BACKOFF,
-    FailoverReason.OVERLOADED:         ErrorRecoveryStrategy.BACKOFF,
-
+    FailoverReason.OVERLOADED: ErrorRecoveryStrategy.BACKOFF,
     # Server transients
-    FailoverReason.SERVER_ERROR:       ErrorRecoveryStrategy.RETRY,
-    FailoverReason.TIMEOUT:            ErrorRecoveryStrategy.BACKOFF,
-    FailoverReason.SSL_CERT:           ErrorRecoveryStrategy.BACKOFF,
+    FailoverReason.SERVER_ERROR: ErrorRecoveryStrategy.RETRY,
+    FailoverReason.TIMEOUT: ErrorRecoveryStrategy.BACKOFF,
+    FailoverReason.SSL_CERT: ErrorRecoveryStrategy.BACKOFF,
     FailoverReason.CONNECTION_REFUSED: ErrorRecoveryStrategy.BACKOFF,
-
     # Client-side
-    FailoverReason.CONTEXT_OVERFLOW:   ErrorRecoveryStrategy.COMPRESS_CONTEXT,
-    FailoverReason.IMAGE_TOO_LARGE:    ErrorRecoveryStrategy.SHRINK_IMAGE,
-    FailoverReason.MODEL_NOT_FOUND:    ErrorRecoveryStrategy.FALLBACK_MODEL,
-
+    FailoverReason.CONTEXT_OVERFLOW: ErrorRecoveryStrategy.COMPRESS_CONTEXT,
+    FailoverReason.IMAGE_TOO_LARGE: ErrorRecoveryStrategy.SHRINK_IMAGE,
+    FailoverReason.MODEL_NOT_FOUND: ErrorRecoveryStrategy.FALLBACK_MODEL,
     # Content / format
-    FailoverReason.CONTENT_POLICY:     ErrorRecoveryStrategy.SKIP_RETRY,
-    FailoverReason.FORMAT_ERROR:       ErrorRecoveryStrategy.RETRY,
+    FailoverReason.CONTENT_POLICY: ErrorRecoveryStrategy.SKIP_RETRY,
+    FailoverReason.FORMAT_ERROR: ErrorRecoveryStrategy.RETRY,
     FailoverReason.MULTIMODAL_UNSUPPORTED: ErrorRecoveryStrategy.FALLBACK_MODEL,
-
     # Input validation
-    FailoverReason.INVALID_REQUEST:   ErrorRecoveryStrategy.SKIP_RETRY,
+    FailoverReason.INVALID_REQUEST: ErrorRecoveryStrategy.SKIP_RETRY,
     FailoverReason.STREAM_INTERRUPTED: ErrorRecoveryStrategy.RETRY,
-
     # Tool / execution
     FailoverReason.TOOL_EXECUTION_ERROR: ErrorRecoveryStrategy.RETRY,
-    FailoverReason.TOOL_TIMEOUT:       ErrorRecoveryStrategy.BACKOFF,
-    FailoverReason.SANDBOX_VIOLATION:   ErrorRecoveryStrategy.ABORT,
-    FailoverReason.MEMORY_ERROR:       ErrorRecoveryStrategy.ABORT,
-    FailoverReason.MCP_ERROR:          ErrorRecoveryStrategy.BACKOFF,
-
+    FailoverReason.TOOL_TIMEOUT: ErrorRecoveryStrategy.BACKOFF,
+    FailoverReason.SANDBOX_VIOLATION: ErrorRecoveryStrategy.ABORT,
+    FailoverReason.MEMORY_ERROR: ErrorRecoveryStrategy.ABORT,
+    FailoverReason.MCP_ERROR: ErrorRecoveryStrategy.BACKOFF,
     # Availability / network
     FailoverReason.PROVIDER_UNAVAILABLE: ErrorRecoveryStrategy.FALLBACK_MODEL,
-    FailoverReason.NETWORK_ERROR:      ErrorRecoveryStrategy.BACKOFF,
-
+    FailoverReason.NETWORK_ERROR: ErrorRecoveryStrategy.BACKOFF,
     # Catch-all
-    FailoverReason.UNKNOWN:            ErrorRecoveryStrategy.RETRY,
+    FailoverReason.UNKNOWN: ErrorRecoveryStrategy.RETRY,
 }
 
 
@@ -279,7 +271,13 @@ _REASON_KEYWORD_MAP: list[tuple] = [
         1.0,
     ),
     (
-        ("quota", "billing", "insufficient_quota", "payment_required", "payment required"),
+        (
+            "quota",
+            "billing",
+            "insufficient_quota",
+            "payment_required",
+            "payment required",
+        ),
         FailoverReason.BILLING,
         0.0,
     ),
@@ -294,8 +292,14 @@ _REASON_KEYWORD_MAP: list[tuple] = [
         0.0,
     ),
     (
-        ("context_length", "context_length_exceeded", "token limit", "max tokens",
-         "too many tokens", "context window"),
+        (
+            "context_length",
+            "context_length_exceeded",
+            "token limit",
+            "max tokens",
+            "too many tokens",
+            "context window",
+        ),
         FailoverReason.CONTEXT_OVERFLOW,
         0.0,
     ),
@@ -310,8 +314,14 @@ _REASON_KEYWORD_MAP: list[tuple] = [
         0.0,
     ),
     (
-        ("content_filter", "content_policy", "content management", "safety",
-         "blocked by policy", "refusal"),
+        (
+            "content_filter",
+            "content_policy",
+            "content management",
+            "safety",
+            "blocked by policy",
+            "refusal",
+        ),
         FailoverReason.CONTENT_POLICY,
         0.0,
     ),
@@ -331,8 +341,13 @@ _REASON_KEYWORD_MAP: list[tuple] = [
         2.0,
     ),
     (
-        ("overloaded", "capacity", "service unavailable", "try again later",
-         "temporarily unavailable"),
+        (
+            "overloaded",
+            "capacity",
+            "service unavailable",
+            "try again later",
+            "temporarily unavailable",
+        ),
         FailoverReason.OVERLOADED,
         5.0,
     ),
@@ -347,14 +362,25 @@ _REASON_KEYWORD_MAP: list[tuple] = [
         0.0,
     ),
     (
-        ("invalid_request", "invalid request", "bad request", "invalid parameter",
-         "invalid payload", "request validation"),
+        (
+            "invalid_request",
+            "invalid request",
+            "bad request",
+            "invalid parameter",
+            "invalid payload",
+            "request validation",
+        ),
         FailoverReason.INVALID_REQUEST,
         0.0,
     ),
     (
-        ("stream", "streaming", "stream interrupted", "incomplete response",
-         "chunked encoding"),
+        (
+            "stream",
+            "streaming",
+            "stream interrupted",
+            "incomplete response",
+            "chunked encoding",
+        ),
         FailoverReason.STREAM_INTERRUPTED,
         1.0,
     ),
@@ -711,14 +737,10 @@ class ErrorTracker:
                 for p, counts in self._provider_counts.items()
             },
             "rate_limited_providers": [
-                p
-                for p in self._provider_counts
-                if self.is_rate_limited(p)
+                p for p in self._provider_counts if self.is_rate_limited(p)
             ],
             "auth_failing_providers": [
-                p
-                for p in self._provider_counts
-                if self.is_auth_failing(p)
+                p for p in self._provider_counts if self.is_auth_failing(p)
             ],
         }
 

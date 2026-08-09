@@ -45,10 +45,16 @@ def _make_config(tmpdir: str, **overrides) -> AgentConfig:
 
 def _mock_provider():
     provider = MagicMock()
-    provider.chat = AsyncMock(return_value=MagicMock(
-        content="ok", tool_calls=None, usage=MagicMock(),
-        model="gpt-4o", raw_response={}, finish_reason="stop",
-    ))
+    provider.chat = AsyncMock(
+        return_value=MagicMock(
+            content="ok",
+            tool_calls=None,
+            usage=MagicMock(),
+            model="gpt-4o",
+            raw_response={},
+            finish_reason="stop",
+        )
+    )
     return provider
 
 
@@ -57,7 +63,8 @@ class TestWorkflowNode(unittest.TestCase):
 
     def test_create_agent_node(self):
         node = WorkflowNode(
-            node_id="step_1", name="Research",
+            node_id="step_1",
+            name="Research",
             node_type=NodeType.AGENT,
             config={"task": "Research {{topic}}"},
         )
@@ -69,7 +76,8 @@ class TestWorkflowNode(unittest.TestCase):
 
     def test_create_tool_node(self):
         node = WorkflowNode(
-            node_id="tool_1", name="Run Code",
+            node_id="tool_1",
+            name="Run Code",
             node_type=NodeType.TOOL,
             config={"tool": "code_execute", "args": {"code": "1+1"}},
             timeout=60,
@@ -79,7 +87,8 @@ class TestWorkflowNode(unittest.TestCase):
 
     def test_create_condition_node(self):
         node = WorkflowNode(
-            node_id="check", name="Check Result",
+            node_id="check",
+            name="Check Result",
             node_type=NodeType.CONDITION,
             config={"expression": "ctx.result == 'ok'"},
         )
@@ -87,7 +96,8 @@ class TestWorkflowNode(unittest.TestCase):
 
     def test_create_merge_node(self):
         node = WorkflowNode(
-            node_id="merge", name="Merge Results",
+            node_id="merge",
+            name="Merge Results",
             node_type=NodeType.MERGE,
             dependencies=["step_1", "step_2"],
         )
@@ -95,7 +105,8 @@ class TestWorkflowNode(unittest.TestCase):
 
     def test_node_to_dict(self):
         node = WorkflowNode(
-            node_id="n1", name="Node 1",
+            node_id="n1",
+            name="Node 1",
             node_type=NodeType.AGENT,
             config={"task": "test"},
         )
@@ -150,7 +161,9 @@ class TestSubAgentResult(unittest.TestCase):
 
     def test_to_dict(self):
         result = SubAgentResult(
-            task="Task", content="Result", elapsed=2.0,
+            task="Task",
+            content="Result",
+            elapsed=2.0,
         )
         d = result.to_dict()
         self.assertEqual(d["task"], "Task")
@@ -164,16 +177,18 @@ class TestWorkflow(unittest.IsolatedAsyncioTestCase):
 
     def test_create_workflow(self):
         n1 = WorkflowNode(node_id="n1", name="Step 1", node_type=NodeType.AGENT)
-        n2 = WorkflowNode(node_id="n2", name="Step 2", node_type=NodeType.AGENT,
-                           dependencies=["n1"])
+        n2 = WorkflowNode(
+            node_id="n2", name="Step 2", node_type=NodeType.AGENT, dependencies=["n1"]
+        )
         wf = Workflow(name="test_wf", nodes=[n1, n2])
         self.assertEqual(len(wf.nodes), 2)
         self.assertEqual(wf.status, WorkflowStatus.PENDING)
 
     def test_get_root_nodes(self):
         n1 = WorkflowNode(node_id="n1", name="Root", node_type=NodeType.AGENT)
-        n2 = WorkflowNode(node_id="n2", name="Child", node_type=NodeType.AGENT,
-                           dependencies=["n1"])
+        n2 = WorkflowNode(
+            node_id="n2", name="Child", node_type=NodeType.AGENT, dependencies=["n1"]
+        )
         wf = Workflow(name="test", nodes=[n1, n2])
         roots = wf.get_root_nodes()
         self.assertEqual(len(roots), 1)
@@ -181,8 +196,9 @@ class TestWorkflow(unittest.IsolatedAsyncioTestCase):
 
     def test_get_downstream(self):
         n1 = WorkflowNode(node_id="n1", name="Parent", node_type=NodeType.AGENT)
-        n2 = WorkflowNode(node_id="n2", name="Child", node_type=NodeType.AGENT,
-                           dependencies=["n1"])
+        n2 = WorkflowNode(
+            node_id="n2", name="Child", node_type=NodeType.AGENT, dependencies=["n1"]
+        )
         wf = Workflow(name="test", nodes=[n1, n2])
         downstream = wf.get_downstream("n1")
         self.assertEqual(len(downstream), 1)
@@ -196,8 +212,9 @@ class TestWorkflow(unittest.IsolatedAsyncioTestCase):
 
     def test_remove_node(self):
         n1 = WorkflowNode(node_id="n1", name="Step 1", node_type=NodeType.AGENT)
-        n2 = WorkflowNode(node_id="n2", name="Step 2", node_type=NodeType.AGENT,
-                           dependencies=["n1"])
+        n2 = WorkflowNode(
+            node_id="n2", name="Step 2", node_type=NodeType.AGENT, dependencies=["n1"]
+        )
         wf = Workflow(name="test", nodes=[n1, n2])
         wf.remove_node("n1")
         self.assertNotIn("n1", wf.nodes)
@@ -208,10 +225,20 @@ class TestWorkflow(unittest.IsolatedAsyncioTestCase):
             "name": "pipeline",
             "timeout": 300,
             "nodes": [
-                {"id": "step_1", "name": "Research", "type": "agent",
-                 "config": {"task": "Research {{topic}}"}, "dependencies": []},
-                {"id": "step_2", "name": "Summarize", "type": "agent",
-                 "config": {"task": "Summarize"}, "dependencies": ["step_1"]},
+                {
+                    "id": "step_1",
+                    "name": "Research",
+                    "type": "agent",
+                    "config": {"task": "Research {{topic}}"},
+                    "dependencies": [],
+                },
+                {
+                    "id": "step_2",
+                    "name": "Summarize",
+                    "type": "agent",
+                    "config": {"task": "Summarize"},
+                    "dependencies": ["step_1"],
+                },
             ],
         }
         wf = Workflow.from_dict(definition)
@@ -227,10 +254,12 @@ class TestWorkflow(unittest.IsolatedAsyncioTestCase):
         self.assertIn("n1", d["nodes"])
 
     def test_cycle_detection(self):
-        n1 = WorkflowNode(node_id="n1", name="A", node_type=NodeType.AGENT,
-                           dependencies=["n2"])
-        n2 = WorkflowNode(node_id="n2", name="B", node_type=NodeType.AGENT,
-                           dependencies=["n1"])
+        n1 = WorkflowNode(
+            node_id="n1", name="A", node_type=NodeType.AGENT, dependencies=["n2"]
+        )
+        n2 = WorkflowNode(
+            node_id="n2", name="B", node_type=NodeType.AGENT, dependencies=["n1"]
+        )
         wf = Workflow(name="cyclic", nodes=[n1, n2])
         with self.assertRaises(ValueError) as ctx:
             wf._topological_layers()
@@ -246,11 +275,14 @@ class TestOrchestrationEngine(unittest.IsolatedAsyncioTestCase):
 
     def tearDown(self):
         import shutil
+
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
     async def test_initialize_and_shutdown(self):
         engine = OrchestrationEngine(
-            agent=self.agent, max_subagents=3, timeout=60.0,
+            agent=self.agent,
+            max_subagents=3,
+            timeout=60.0,
         )
         await engine.initialize()
         self.assertTrue(engine._initialized)
@@ -260,11 +292,13 @@ class TestOrchestrationEngine(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(engine._initialized)
 
     async def test_spawn_subagent_success(self):
-        self.agent.chat = AsyncMock(return_value={
-            "content": "Task completed",
-            "tools_used": [],
-            "metadata": {},
-        })
+        self.agent.chat = AsyncMock(
+            return_value={
+                "content": "Task completed",
+                "tools_used": [],
+                "metadata": {},
+            }
+        )
         engine = OrchestrationEngine(agent=self.agent, max_subagents=5)
         await engine.initialize()
         result = await engine.spawn_subagent(
@@ -282,10 +316,13 @@ class TestOrchestrationEngine(unittest.IsolatedAsyncioTestCase):
             await engine.spawn_subagent(task="test")
 
     async def test_max_subagents_limit(self):
-        self.agent.chat = AsyncMock(return_value={
-            "content": "working", "tools_used": [],
-            "metadata": {},
-        })
+        self.agent.chat = AsyncMock(
+            return_value={
+                "content": "working",
+                "tools_used": [],
+                "metadata": {},
+            }
+        )
         engine = OrchestrationEngine(agent=self.agent, max_subagents=1, timeout=60)
         await engine.initialize()
 
@@ -297,9 +334,7 @@ class TestOrchestrationEngine(unittest.IsolatedAsyncioTestCase):
         self.agent.chat = slow_chat
 
         # Start a blocking task
-        blocker = asyncio.create_task(
-            engine.spawn_subagent(task="blocker", timeout=10)
-        )
+        blocker = asyncio.create_task(engine.spawn_subagent(task="blocker", timeout=10))
         await asyncio.sleep(0.05)
 
         # Try to spawn another - should fail due to max_subagents limit
@@ -313,16 +348,18 @@ class TestOrchestrationEngine(unittest.IsolatedAsyncioTestCase):
         await engine.shutdown()
 
     async def test_cancel_subagent(self):
-        self.agent.chat = AsyncMock(return_value={
-            "content": "ok", "tools_used": [], "metadata": {},
-        })
+        self.agent.chat = AsyncMock(
+            return_value={
+                "content": "ok",
+                "tools_used": [],
+                "metadata": {},
+            }
+        )
         engine = OrchestrationEngine(agent=self.agent, timeout=60)
         await engine.initialize()
 
         # Spawn and immediately cancel
-        task = asyncio.create_task(
-            engine.spawn_subagent(task="slow task", timeout=10)
-        )
+        task = asyncio.create_task(engine.spawn_subagent(task="slow task", timeout=10))
         await asyncio.sleep(0.05)
         active = engine.list_active_subagents()
         if active:
@@ -338,8 +375,13 @@ class TestOrchestrationEngine(unittest.IsolatedAsyncioTestCase):
         definition = {
             "name": "test_workflow",
             "nodes": [
-                {"id": "s1", "name": "Step 1", "type": "agent",
-                 "config": {"task": "Do something"}, "dependencies": []},
+                {
+                    "id": "s1",
+                    "name": "Step 1",
+                    "type": "agent",
+                    "config": {"task": "Do something"},
+                    "dependencies": [],
+                },
             ],
         }
         wf = engine.create_workflow(definition)
@@ -356,8 +398,15 @@ class TestOrchestrationEngine(unittest.IsolatedAsyncioTestCase):
         await engine.initialize()
         definition = {
             "name": "temp_wf",
-            "nodes": [{"id": "s1", "name": "S1", "type": "agent",
-                       "config": {}, "dependencies": []}],
+            "nodes": [
+                {
+                    "id": "s1",
+                    "name": "S1",
+                    "type": "agent",
+                    "config": {},
+                    "dependencies": [],
+                }
+            ],
         }
         engine.create_workflow(definition)
         self.assertTrue(engine.remove_workflow("temp_wf"))
@@ -383,12 +432,16 @@ class TestSubagentSpawning(unittest.IsolatedAsyncioTestCase):
 
     def tearDown(self):
         import shutil
+
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
     async def test_spawn_raises_when_orchestrator_not_initialized(self):
         config = _make_config(self.tmpdir, workflow_enabled=False)
         agent = AionHand(config=config)
-        with patch("aion_core.providers.factory.ProviderFactory.create", return_value=_mock_provider()):
+        with patch(
+            "aion_core.providers.factory.ProviderFactory.create",
+            return_value=_mock_provider(),
+        ):
             await agent.start()
         with self.assertRaises(RuntimeError) as ctx:
             await agent.spawn_subagent(task="Do something")
@@ -400,23 +453,41 @@ class TestSubagentSpawning(unittest.IsolatedAsyncioTestCase):
         mock_orchestrator = AsyncMock()
         mock_orchestrator.initialize = AsyncMock()
         mock_orchestrator.shutdown = AsyncMock()
-        mock_orchestrator.spawn_subagent = AsyncMock(return_value={
-            "task": "Analyze logs", "status": "completed", "result": "No errors",
-        })
+        mock_orchestrator.spawn_subagent = AsyncMock(
+            return_value={
+                "task": "Analyze logs",
+                "status": "completed",
+                "result": "No errors",
+            }
+        )
         mock_loop = MagicMock()
         mock_loop.initialize = AsyncMock()
         mock_loop.shutdown = AsyncMock()
-        mock_loop.run = AsyncMock(return_value={
-            "content": "ok", "tools_used": [], "metadata": {},
-        })
+        mock_loop.run = AsyncMock(
+            return_value={
+                "content": "ok",
+                "tools_used": [],
+                "metadata": {},
+            }
+        )
 
-        with patch("aion_core.providers.factory.ProviderFactory.create", return_value=_mock_provider()), \
-             patch("aion_core.agent.loop.AgentLoop", return_value=mock_loop), \
-             patch("aion_core.orchestration.engine.OrchestrationEngine", return_value=mock_orchestrator):
+        with (
+            patch(
+                "aion_core.providers.factory.ProviderFactory.create",
+                return_value=_mock_provider(),
+            ),
+            patch("aion_core.agent.loop.AgentLoop", return_value=mock_loop),
+            patch(
+                "aion_core.orchestration.engine.OrchestrationEngine",
+                return_value=mock_orchestrator,
+            ),
+        ):
             agent = AionHand(config=config)
             await agent.start()
             result = await agent.spawn_subagent(
-                task="Analyze logs", tools=["shell_command"], timeout=60,
+                task="Analyze logs",
+                tools=["shell_command"],
+                timeout=60,
             )
             self.assertEqual(result["status"], "completed")
             mock_orchestrator.spawn_subagent.assert_called_once()

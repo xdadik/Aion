@@ -1,4 +1,5 @@
 """Tests for advanced security modules: SecretRedactor and FileSafetyChecker."""
+
 import os
 import sys
 import tempfile
@@ -16,6 +17,7 @@ class TestSecretRedactor(TestCase):
     def setUp(self):
         try:
             from aion_core.security.redact import SecretRedactor
+
             self.redactor = SecretRedactor()
             self.has_module = True
         except ImportError:
@@ -33,7 +35,9 @@ class TestSecretRedactor(TestCase):
     def test_redact_bearer_token(self):
         if not self.has_module:
             self.skipTest("redact module not available")
-        result = self.redactor.redact_string("Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.abc.def")
+        result = self.redactor.redact_string(
+            "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.abc.def"
+        )
         self.assertIn("REDACTED", result)
         self.assertNotIn("eyJhbGciOiJIUzI1NiJ9", result)
 
@@ -74,7 +78,9 @@ class TestSecretRedactor(TestCase):
     def test_no_false_positives(self):
         if not self.has_module:
             self.skipTest("redact module not available")
-        result = self.redactor.redact_string("Hello, my name is John Doe and I work at Acme Corp.")
+        result = self.redactor.redact_string(
+            "Hello, my name is John Doe and I work at Acme Corp."
+        )
         # Should not redact normal text (may have some patterns but minimal)
         self.assertIn("John Doe", result)
 
@@ -82,7 +88,9 @@ class TestSecretRedactor(TestCase):
     def test_redact_url_params(self):
         if not self.has_module:
             self.skipTest("redact module not available")
-        result = self.redactor.redact_string("https://api.example.com/data?access_token=secret123&foo=bar")
+        result = self.redactor.redact_string(
+            "https://api.example.com/data?access_token=secret123&foo=bar"
+        )
         self.assertIn("REDACTED", result)
         # foo=bar should be preserved
         self.assertIn("foo=bar", result)
@@ -94,6 +102,7 @@ class TestFileSafetyChecker(TestCase):
     def setUp(self):
         try:
             from aion_core.security.filesafety import FileSafetyChecker
+
             self.checker = FileSafetyChecker()
             self.has_module = True
         except ImportError:

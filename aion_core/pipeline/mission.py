@@ -13,6 +13,7 @@ logger = logging.getLogger("aion_hand.pipeline")
 @dataclass
 class MissionAnalysis:
     """Complete analysis of a user mission before execution."""
+
     intent: str = ""
     goals: list[str] = field(default_factory=list)
     constraints: list[str] = field(default_factory=list)
@@ -90,10 +91,17 @@ Return ONLY the JSON. No markdown, no explanation."""
             for key, value in context.items():
                 if isinstance(value, (str, int, float, bool)):
                     context_parts.append(f"  {key}: {value}")
-                elif isinstance(value, list) and len(value) < 20 or isinstance(value, dict) and len(value) < 20:
+                elif (
+                    isinstance(value, list)
+                    and len(value) < 20
+                    or isinstance(value, dict)
+                    and len(value) < 20
+                ):
                     context_parts.append(f"  {key}: {json.dumps(value)}")
                 else:
-                    context_parts.append(f"  {key}: [{type(value).__name__}, len={len(value) if hasattr(value, '__len__') else '?'}]")
+                    context_parts.append(
+                        f"  {key}: [{type(value).__name__}, len={len(value) if hasattr(value, '__len__') else '?'}]"
+                    )
             if context_parts:
                 context_str = "\n\nAdditional context:\n" + "\n".join(context_parts)
 
@@ -104,8 +112,14 @@ Return ONLY the JSON. No markdown, no explanation."""
             result = await self._agent.chat(
                 message=user_message,
             )
-            raw_content = result.get("content", "") if isinstance(result, dict) else str(result)
-            tokens_used = result.get("metadata", {}).get("tokens_used", 0) if isinstance(result, dict) else 0
+            raw_content = (
+                result.get("content", "") if isinstance(result, dict) else str(result)
+            )
+            tokens_used = (
+                result.get("metadata", {}).get("tokens_used", 0)
+                if isinstance(result, dict)
+                else 0
+            )
         except Exception as e:
             logger.warning(f"LLM analysis failed, falling back to heuristic: {e}")
             raw_content = ""
@@ -163,7 +177,7 @@ Return ONLY the JSON. No markdown, no explanation."""
         brace_start = text.find("{")
         brace_end = text.rfind("}")
         if brace_start != -1 and brace_end > brace_start:
-            return text[brace_start:brace_end + 1]
+            return text[brace_start : brace_end + 1]
 
         return None
 
@@ -175,7 +189,9 @@ Return ONLY the JSON. No markdown, no explanation."""
             constraints=self._ensure_list(data.get("constraints")),
             risks=self._ensure_list(data.get("risks")),
             complexity=self._clamp_float(data.get("complexity", 0.5), 0.0, 1.0),
-            estimated_tokens=self._clamp_int(data.get("estimated_tokens", 2000), 200, 100000),
+            estimated_tokens=self._clamp_int(
+                data.get("estimated_tokens", 2000), 200, 100000
+            ),
             estimated_time=self._clamp_int(data.get("estimated_time", 30), 5, 3600),
             capabilities_needed=self._ensure_list(data.get("capabilities_needed")),
         )
@@ -225,7 +241,10 @@ Return ONLY the JSON. No markdown, no explanation."""
             (r"\b(search|find|look up|google)\b", "web_search"),
             (r"\b(code|program|script|function|class)\b", "code_execution"),
             (r"\b(read|open|load|parse)\s+(file|csv|json|xml)\b", "file_read"),
-            (r"\b(write|save|create|generate)\s+(file|csv|json|report)\b", "file_write"),
+            (
+                r"\b(write|save|create|generate)\s+(file|csv|json|report)\b",
+                "file_write",
+            ),
             (r"\b(calculate|compute|math|statistics|average|sum)\b", "math"),
             (r"\b(image|picture|diagram|chart|plot)\b", "data_analysis"),
             (r"\b(browser|webpage|website|scrape)\b", "browser"),
@@ -245,14 +264,19 @@ Return ONLY the JSON. No markdown, no explanation."""
         # Detect constraints
         constraints = []
         constraint_patterns = [
-            (r"\b(within|under|less than|no more than)\s+(\d+)\s*(seconds?|minutes?|hours?)\b",
-             lambda m: f"Time constraint: {m.group(0)}"),
-            (r"\b(budget|cost|under)\s+\$?(\d+)",
-             lambda m: f"Budget constraint: {m.group(0)}"),
-            (r"\b(safe|safely|secure|security)\b",
-             lambda m: "Safety requirement"),
-            (r"\b(compatible with|works with)\s+(\w+)",
-             lambda m: f"Compatibility: {m.group(0)}"),
+            (
+                r"\b(within|under|less than|no more than)\s+(\d+)\s*(seconds?|minutes?|hours?)\b",
+                lambda m: f"Time constraint: {m.group(0)}",
+            ),
+            (
+                r"\b(budget|cost|under)\s+\$?(\d+)",
+                lambda m: f"Budget constraint: {m.group(0)}",
+            ),
+            (r"\b(safe|safely|secure|security)\b", lambda m: "Safety requirement"),
+            (
+                r"\b(compatible with|works with)\s+(\w+)",
+                lambda m: f"Compatibility: {m.group(0)}",
+            ),
         ]
         for pattern, formatter in constraint_patterns:
             match = re.search(pattern, task_lower)
@@ -272,7 +296,9 @@ Return ONLY the JSON. No markdown, no explanation."""
             if re.search(pattern, task_lower):
                 risks.append(risk_msg)
 
-        logger.info(f"Heuristic analysis: complexity={complexity:.2f}, caps={capabilities}")
+        logger.info(
+            f"Heuristic analysis: complexity={complexity:.2f}, caps={capabilities}"
+        )
 
         return MissionAnalysis(
             intent=task[:200],
@@ -290,8 +316,16 @@ Return ONLY the JSON. No markdown, no explanation."""
         goals = []
 
         # Split on common separators that indicate multiple goals
-        separators = [r"\band then\b", r"\bafter that\b", r"\bthen\b", r"\bfurthermore\b",
-                       r"\balso\b", r"\badditionally\b", r"\bfinally\b", r"\bnext\b"]
+        separators = [
+            r"\band then\b",
+            r"\bafter that\b",
+            r"\bthen\b",
+            r"\bfurthermore\b",
+            r"\balso\b",
+            r"\badditionally\b",
+            r"\bfinally\b",
+            r"\bnext\b",
+        ]
         parts = [task]
         for sep in separators:
             new_parts = []

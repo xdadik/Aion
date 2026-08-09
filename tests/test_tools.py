@@ -66,9 +66,7 @@ class TestToolRegistryInit(unittest.IsolatedAsyncioTestCase):
 
         # Patch _build_builtin_tools to return empty list so we
         # don't depend on external dependencies during tests.
-        with patch(
-            "aion_core.tools.registry._build_builtin_tools", return_value=[]
-        ):
+        with patch("aion_core.tools.registry._build_builtin_tools", return_value=[]):
             await registry.initialize()
 
         # After initialize with no builtins and no custom tools dir,

@@ -38,8 +38,10 @@ logger = logging.getLogger(__name__)
 # Enums
 # ---------------------------------------------------------------------------
 
+
 class SkillStatus(str, Enum):
     """Lifecycle status of a skill."""
+
     DRAFT = "draft"
     ACTIVE = "active"
     ARCHIVED = "archived"
@@ -49,6 +51,7 @@ class SkillStatus(str, Enum):
 # ---------------------------------------------------------------------------
 # Data Models
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class Skill:
@@ -72,12 +75,8 @@ class Skill:
     status: SkillStatus = SkillStatus.DRAFT
     tags: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
-    created_at: str = field(
-        default_factory=lambda: datetime.now(UTC).isoformat()
-    )
-    modified_at: str = field(
-        default_factory=lambda: datetime.now(UTC).isoformat()
-    )
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    modified_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     usage_count: int = 0
     success_count: int = 0
     skill_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
@@ -129,11 +128,13 @@ class Skill:
             parts.append("")
 
         # Metadata footer
-        parts.extend([
-            "---",
-            f"Created: {self.created_at} | Modified: {self.modified_at}",
-            f"Usage: {self.usage_count} | Success Rate: {self.success_rate:.0%}",
-        ])
+        parts.extend(
+            [
+                "---",
+                f"Created: {self.created_at} | Modified: {self.modified_at}",
+                f"Usage: {self.usage_count} | Success Rate: {self.success_rate:.0%}",
+            ]
+        )
         return "\n".join(parts)
 
     def to_dict(self) -> dict[str, Any]:
@@ -193,6 +194,7 @@ class Skill:
             # Parse simple YAML key: value pairs (and inline lists)
             try:
                 import yaml  # type: ignore[import-not-found]
+
                 front_matter = yaml.safe_load(front_raw) or {}
             except ImportError:
                 # Crude fallback
@@ -202,7 +204,11 @@ class Skill:
                     k, _, v = line.partition(":")
                     k, v = k.strip(), v.strip()
                     if v.startswith("[") and v.endswith("]"):
-                        front_matter[k] = [x.strip().strip("'\"") for x in v[1:-1].split(",") if x.strip()]
+                        front_matter[k] = [
+                            x.strip().strip("'\"")
+                            for x in v[1:-1].split(",")
+                            if x.strip()
+                        ]
                     else:
                         front_matter[k] = v.strip("'\"")
 
@@ -280,6 +286,7 @@ class Skill:
 # ---------------------------------------------------------------------------
 # Skill Engine
 # ---------------------------------------------------------------------------
+
 
 class SkillEngine:
     """Manages the lifecycle of skills: create, find, evaluate, evolve.
@@ -463,8 +470,16 @@ class SkillEngine:
         """
         task_lower = task.lower()
         indicators = [
-            "build", "create", "implement", "develop", "deploy",
-            "configure", "setup", "install", "analyze", "process",
+            "build",
+            "create",
+            "implement",
+            "develop",
+            "deploy",
+            "configure",
+            "setup",
+            "install",
+            "analyze",
+            "process",
         ]
         has_indicator = any(ind in task_lower for ind in indicators)
         is_long_task = tokens_used > 1000 or len(task) > 100
@@ -507,9 +522,7 @@ class SkillEngine:
         if skill.status == SkillStatus.DRAFT:
             skill.status = SkillStatus.ACTIVE
 
-        logger.info(
-            f"Skill evolved: {skill.name} ({len(new_lessons)} new lessons)"
-        )
+        logger.info(f"Skill evolved: {skill.name} ({len(new_lessons)} new lessons)")
         return skill
 
     def record_usage(self, skill_id: str, success: bool = True) -> None:
@@ -531,7 +544,9 @@ class SkillEngine:
             filepath = save_dir / f"{skill.skill_id}.json"
             try:
                 atomic_write = getattr(
-                    __import__("aion_core.security.filesafety", fromlist=["FileSafetyChecker"]),
+                    __import__(
+                        "aion_core.security.filesafety", fromlist=["FileSafetyChecker"]
+                    ),
                     "FileSafetyChecker",
                     None,
                 )
@@ -539,7 +554,9 @@ class SkillEngine:
                 filepath.write_text(json.dumps(skill.to_dict(), indent=2))
             else:
                 checker = atomic_write()
-                checker.atomic_write(str(filepath), json.dumps(skill.to_dict(), indent=2))
+                checker.atomic_write(
+                    str(filepath), json.dumps(skill.to_dict(), indent=2)
+                )
             count += 1
         logger.info(f"Saved {count} skills to {save_dir}")
         return count
@@ -583,7 +600,9 @@ class SkillEngine:
             "total_skills": len(skills),
             "active_skills": len(active),
             "draft_skills": len([s for s in skills if s.status == SkillStatus.DRAFT]),
-            "archived_skills": len([s for s in skills if s.status == SkillStatus.ARCHIVED]),
+            "archived_skills": len(
+                [s for s in skills if s.status == SkillStatus.ARCHIVED]
+            ),
             "auto_create_enabled": self._auto_create_enabled,
             "storage_dir": str(self._storage_dir),
         }

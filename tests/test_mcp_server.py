@@ -13,12 +13,14 @@ class TestJSONRPCTypes:
     """JSON-RPC 2.0 dataclass behaviour."""
 
     def test_request_from_dict(self):
-        req = JSONRPCRequest.from_dict({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "initialize",
-            "params": {},
-        })
+        req = JSONRPCRequest.from_dict(
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {},
+            }
+        )
         assert req.id == 1
         assert req.method == "initialize"
 
@@ -69,6 +71,7 @@ class TestMCPServerToolsList:
     async def test_tools_list_returns_list(self):
         # Use a mock registry
         from unittest.mock import MagicMock
+
         mock_tool = MagicMock()
         mock_tool.name = "test_tool"
         mock_tool.description = "A test"
@@ -101,6 +104,7 @@ class TestMCPServerToolsCall:
     @pytest.mark.asyncio
     async def test_tools_call_executes_tool(self):
         from unittest.mock import AsyncMock, MagicMock
+
         mock_reg = MagicMock()
         mock_reg.execute = AsyncMock(return_value={"output": "tool result text"})
 
@@ -119,6 +123,7 @@ class TestMCPServerToolsCall:
     @pytest.mark.asyncio
     async def test_tools_call_missing_name_returns_error(self):
         from unittest.mock import MagicMock
+
         mock_reg = MagicMock()
         server = MCPServer(tool_registry=mock_reg)
         req = JSONRPCRequest(id=5, method="tools/call", params={})
@@ -129,10 +134,13 @@ class TestMCPServerToolsCall:
     @pytest.mark.asyncio
     async def test_tools_call_tool_raises_returns_iserror(self):
         from unittest.mock import AsyncMock, MagicMock
+
         mock_reg = MagicMock()
         mock_reg.execute = AsyncMock(side_effect=RuntimeError("boom"))
         server = MCPServer(tool_registry=mock_reg)
-        req = JSONRPCRequest(id=6, method="tools/call", params={"name": "broken", "arguments": {}})
+        req = JSONRPCRequest(
+            id=6, method="tools/call", params={"name": "broken", "arguments": {}}
+        )
         resp = await server.handle_request(req)
         assert resp.result["isError"] is True
         assert "boom" in resp.result["content"][0]["text"]

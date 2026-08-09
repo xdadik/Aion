@@ -39,11 +39,15 @@ class TestCreateRealAdapter:
         assert isinstance(a, RealTelegramAdapter)
 
     def test_create_discord(self):
-        a = create_real_adapter("discord", webhook_url="https://discord.com/api/webhooks/123/abc")
+        a = create_real_adapter(
+            "discord", webhook_url="https://discord.com/api/webhooks/123/abc"
+        )
         assert isinstance(a, RealDiscordAdapter)
 
     def test_create_slack(self):
-        a = create_real_adapter("slack", webhook_url="https://hooks.slack.com/services/xxx/yyy")
+        a = create_real_adapter(
+            "slack", webhook_url="https://hooks.slack.com/services/xxx/yyy"
+        )
         assert isinstance(a, RealSlackAdapter)
 
     def test_create_webhook(self):
@@ -192,6 +196,8 @@ class TestHTTPHelper:
     @pytest.mark.asyncio
     async def test_http_request_to_invalid_url_returns_error(self):
         # Use a deliberately bad URL
-        result = await _http_request("GET", "https://this-domain-does-not-exist-12345.com/api")
+        result = await _http_request(
+            "GET", "https://this-domain-does-not-exist-12345.com/api"
+        )
         # Should return an error dict, not raise
         assert isinstance(result, dict)

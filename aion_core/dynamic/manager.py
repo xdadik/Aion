@@ -63,36 +63,74 @@ _TASK_TYPE_KEYWORDS: dict[str, list[str]] = {
     # Multi-word keywords prevent false positives; single-word keywords
     # are used only when they're strongly domain-specific.
     "code_review": [
-        "review code", "code review", "audit code", "inspect code",
-        "check code", "code quality", "code standards",
-        "review the code", "audit the code", "pr review",
+        "review code",
+        "code review",
+        "audit code",
+        "inspect code",
+        "check code",
+        "code quality",
+        "code standards",
+        "review the code",
+        "audit the code",
+        "pr review",
     ],
     "bugfix": [
-        "fix bug", "fix the bug", "debug error", "fix crash",
-        "not working", "broken", "failing", "exception",
-        "fix the", "bugfix",
+        "fix bug",
+        "fix the bug",
+        "debug error",
+        "fix crash",
+        "not working",
+        "broken",
+        "failing",
+        "exception",
+        "fix the",
+        "bugfix",
     ],
     "writing": [
-        "write documentation", "write a guide", "write tutorial",
-        "draft document", "write readme", "write article",
-        "create documentation", "documentation for",
+        "write documentation",
+        "write a guide",
+        "write tutorial",
+        "draft document",
+        "write readme",
+        "write article",
+        "create documentation",
+        "documentation for",
     ],
     "analysis": [
-        "analyze performance", "benchmark", "profile code",
-        "assess performance", "measure performance",
+        "analyze performance",
+        "benchmark",
+        "profile code",
+        "assess performance",
+        "measure performance",
         "performance of the",
     ],
     "research": [
-        "research", "investigate", "study the",
-        "explore the", "find out about", "learn about",
-        "compare and contrast", "evaluate the",
+        "research",
+        "investigate",
+        "study the",
+        "explore the",
+        "find out about",
+        "learn about",
+        "compare and contrast",
+        "evaluate the",
     ],
     "coding": [
-        "implement", "build", "develop", "program",
-        "create api", "write code", "code the",
-        "create function", "create class", "write script",
-        "build app", "build web", "deploy",
-        "write tests", "refactor", "debug",
+        "implement",
+        "build",
+        "develop",
+        "program",
+        "create api",
+        "write code",
+        "code the",
+        "create function",
+        "create class",
+        "write script",
+        "build app",
+        "build web",
+        "deploy",
+        "write tests",
+        "refactor",
+        "debug",
     ],
     "general": [],
 }
@@ -123,7 +161,7 @@ def classify_task(task: str) -> str:
         score = sum(
             len(kw.split())  # multi-word keywords get higher weight
             for kw in keywords
-            if re.search(r'\b' + re.escape(kw) + r'\b', task_lower)
+            if re.search(r"\b" + re.escape(kw) + r"\b", task_lower)
         )
         if score > best_score:
             best_score = score
@@ -153,22 +191,32 @@ def estimate_complexity(task: str) -> int:
     base = min(5, len(task) // 50)
 
     # Multi-part indicators
-    multi_part = sum([
-        task_lower.count(" and "),
-        task_lower.count(" also "),
-        task_lower.count(" additionally "),
-        task_lower.count(" furthermore "),
-        task_lower.count(" moreover "),
-        task_lower.count(", then "),
-        task_lower.count(". then "),
-    ])
+    multi_part = sum(
+        [
+            task_lower.count(" and "),
+            task_lower.count(" also "),
+            task_lower.count(" additionally "),
+            task_lower.count(" furthermore "),
+            task_lower.count(" moreover "),
+            task_lower.count(", then "),
+            task_lower.count(". then "),
+        ]
+    )
     base += min(3, multi_part)
 
     # Scope indicators
     scope_keywords = [
-        "full", "complete", "end-to-end", "comprehensive",
-        "entire", "whole", "all of", "from scratch",
-        "production", "enterprise", "distributed",
+        "full",
+        "complete",
+        "end-to-end",
+        "comprehensive",
+        "entire",
+        "whole",
+        "all of",
+        "from scratch",
+        "production",
+        "enterprise",
+        "distributed",
     ]
     for kw in scope_keywords:
         if kw in task_lower:
@@ -301,8 +349,7 @@ class DynamicManager:
         self.initialized = False
         elapsed = time.time() - self._start_time if self._start_time else 0
         logger.info(
-            f"DynamicManager shutdown complete "
-            f"(session duration: {elapsed:.1f}s)"
+            f"DynamicManager shutdown complete " f"(session duration: {elapsed:.1f}s)"
         )
 
     # ------------------------------------------------------------------
@@ -441,7 +488,9 @@ class DynamicManager:
         """
         plans = self.orchestrator.get_active_plans()
         if plan_id not in plans:
-            raise KeyError(f"Plan '{plan_id}' not found. Active plans: {list(plans.keys())}")
+            raise KeyError(
+                f"Plan '{plan_id}' not found. Active plans: {list(plans.keys())}"
+            )
         return await self.orchestrator.execute_plan(plans[plan_id])
 
     # ------------------------------------------------------------------
@@ -502,11 +551,7 @@ class DynamicManager:
                 - orchestrator: execution history stats
                 - session: manager session info
         """
-        uptime = (
-            time.time() - self._start_time
-            if self._start_time
-            else 0.0
-        )
+        uptime = time.time() - self._start_time if self._start_time else 0.0
 
         return {
             "session": {

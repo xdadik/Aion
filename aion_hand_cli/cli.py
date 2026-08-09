@@ -35,44 +35,47 @@ from . import __version__
 #  ANSI COLOR CODES
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class Colors:
     """ANSI escape code constants for terminal coloring."""
-    RESET   = "\033[0m"
-    BOLD    = "\033[1m"
-    DIM     = "\033[2m"
+
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+    DIM = "\033[2m"
     UNDERLINE = "\033[4m"
 
-    BLACK   = "\033[30m"
-    RED     = "\033[31m"
-    GREEN   = "\033[32m"
-    YELLOW  = "\033[33m"
-    BLUE    = "\033[34m"
+    BLACK = "\033[30m"
+    RED = "\033[31m"
+    GREEN = "\033[32m"
+    YELLOW = "\033[33m"
+    BLUE = "\033[34m"
     MAGENTA = "\033[35m"
-    CYAN    = "\033[36m"
-    WHITE   = "\033[37m"
+    CYAN = "\033[36m"
+    WHITE = "\033[37m"
 
-    BRIGHT_BLACK   = "\033[90m"
-    BRIGHT_RED     = "\033[91m"
-    BRIGHT_GREEN   = "\033[92m"
-    BRIGHT_YELLOW  = "\033[93m"
-    BRIGHT_BLUE    = "\033[94m"
+    BRIGHT_BLACK = "\033[90m"
+    BRIGHT_RED = "\033[91m"
+    BRIGHT_GREEN = "\033[92m"
+    BRIGHT_YELLOW = "\033[93m"
+    BRIGHT_BLUE = "\033[94m"
     BRIGHT_MAGENTA = "\033[95m"
-    BRIGHT_CYAN    = "\033[96m"
-    BRIGHT_WHITE   = "\033[97m"
+    BRIGHT_CYAN = "\033[96m"
+    BRIGHT_WHITE = "\033[97m"
 
-    BG_BLACK   = "\033[40m"
-    BG_RED     = "\033[41m"
-    BG_GREEN   = "\033[42m"
-    BG_YELLOW  = "\033[43m"
-    BG_BLUE    = "\033[44m"
+    BG_BLACK = "\033[40m"
+    BG_RED = "\033[41m"
+    BG_GREEN = "\033[42m"
+    BG_YELLOW = "\033[43m"
+    BG_BLUE = "\033[44m"
     BG_MAGENTA = "\033[45m"
-    BG_CYAN    = "\033[46m"
-    BG_WHITE   = "\033[47m"
+    BG_CYAN = "\033[46m"
+    BG_WHITE = "\033[47m"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  STREAM SPINNER
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class StreamSpinner:
     """Displays a spinning indicator while the agent is processing."""
@@ -90,7 +93,9 @@ class StreamSpinner:
         idx = 0
         while self._running:
             frame = self.FRAMES[idx % len(self.FRAMES)]
-            sys.stdout.write(f"\r  {Colors.CYAN}{Colors.BOLD}{frame}{Colors.RESET} {self.message}...")
+            sys.stdout.write(
+                f"\r  {Colors.CYAN}{Colors.BOLD}{frame}{Colors.RESET} {self.message}..."
+            )
             sys.stdout.flush()
             idx += 1
             time.sleep(self.INTERVAL)
@@ -200,53 +205,60 @@ def _set_nested(obj: dict, dotted_key: str, value):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 _KNOWN_PROVIDERS = [
-    ("openai",           "gpt-4o",              True),
-    ("openai",           "gpt-4o-mini",         True),
-    ("anthropic",        "claude-sonnet-4-20250514", True),
-    ("anthropic",        "claude-haiku-4-20250414",  True),
-    ("google",           "gemini-2.5-pro",      True),
-    ("google",           "gemini-2.5-flash",     True),
-    ("ollama",           "llama3",               False),
-    ("ollama",           "mistral",              False),
-    ("ollama",           "codellama",            False),
+    ("openai", "gpt-4o", True),
+    ("openai", "gpt-4o-mini", True),
+    ("anthropic", "claude-sonnet-4-20250514", True),
+    ("anthropic", "claude-haiku-4-20250414", True),
+    ("google", "gemini-2.5-pro", True),
+    ("google", "gemini-2.5-flash", True),
+    ("ollama", "llama3", False),
+    ("ollama", "mistral", False),
+    ("ollama", "codellama", False),
 ]
 
 _KNOWN_TOOLS = [
-    ("web_search",    "Search the web for information",                "core"),
-    ("file_read",     "Read file contents",                            "core"),
-    ("file_write",    "Write or create files",                         "core"),
-    ("file_edit",     "Edit existing files with search/replace",       "core"),
-    ("shell",         "Execute shell commands",                         "core"),
-    ("code_execute",  "Run Python / JavaScript code in sandbox",        "core"),
-    ("memory_store",  "Store information in long-term memory",         "memory"),
-    ("memory_recall", "Recall information from memory",                  "memory"),
-    ("calendar",      "Manage calendar events",                        "core"),
-    ("email",         "Send and read emails",                          "extended"),
-    ("browser",       "Automate web browser interactions",             "extended"),
-    ("image_gen",     "Generate images from text prompts",             "extended"),
-    ("knowledge_store", "Store facts in knowledge graph",               "knowledge"),
-    ("knowledge_query", "Query knowledge graph",                        "knowledge"),
+    ("web_search", "Search the web for information", "core"),
+    ("file_read", "Read file contents", "core"),
+    ("file_write", "Write or create files", "core"),
+    ("file_edit", "Edit existing files with search/replace", "core"),
+    ("shell", "Execute shell commands", "core"),
+    ("code_execute", "Run Python / JavaScript code in sandbox", "core"),
+    ("memory_store", "Store information in long-term memory", "memory"),
+    ("memory_recall", "Recall information from memory", "memory"),
+    ("calendar", "Manage calendar events", "core"),
+    ("email", "Send and read emails", "extended"),
+    ("browser", "Automate web browser interactions", "extended"),
+    ("image_gen", "Generate images from text prompts", "extended"),
+    ("knowledge_store", "Store facts in knowledge graph", "knowledge"),
+    ("knowledge_query", "Query knowledge graph", "knowledge"),
 ]
 
 _KNOWN_TOOLSETS = sorted({t[2] for t in _KNOWN_TOOLS})
 
 _KNOWN_SKILLS = [
-    ("research",      "Deep research and report generation"),
-    ("code_review",   "Analyze and review code for quality"),
-    ("debugging",     "Systematic debugging assistant"),
-    ("writing",       "Content creation and editing"),
+    ("research", "Deep research and report generation"),
+    ("code_review", "Analyze and review code for quality"),
+    ("debugging", "Systematic debugging assistant"),
+    ("writing", "Content creation and editing"),
     ("data_analysis", "Data analysis and visualization"),
-    ("planning",      "Task planning and decomposition"),
+    ("planning", "Task planning and decomposition"),
 ]
 
 _BENCHMARK_CATEGORIES = [
-    "all", "planning", "tool_use", "code", "recovery", "memory", "multi_step",
+    "all",
+    "planning",
+    "tool_use",
+    "code",
+    "recovery",
+    "memory",
+    "multi_step",
 ]
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  CLI CLASS
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class AionHandCLI:
     """Main CLI class for Aion Hand — comprehensive command-line interface."""
@@ -272,14 +284,16 @@ class AionHandCLI:
                 "  aion-hand                      Start interactive REPL\n"
                 "  aion-hand chat                 Start chat session\n"
                 "  aion-hand config --show        Show configuration\n"
-                "  aion-hand pipeline \"build API\"  Run pipeline\n"
+                '  aion-hand pipeline "build API"  Run pipeline\n'
                 "  aion-hand status               System status\n"
                 "  aion-hand --help               Show all commands"
             ),
             formatter_class=argparse.RawDescriptionHelpFormatter,
         )
         parser.add_argument(
-            "-v", "--version", action="version",
+            "-v",
+            "--version",
+            action="version",
             version=f"%(prog)s {__version__}",
         )
 
@@ -292,11 +306,15 @@ class AionHandCLI:
             description="Open an interactive REPL session to chat with the Aion Hand agent.",
         )
         chat_p.add_argument(
-            "-m", "--model", type=str, default=None,
+            "-m",
+            "--model",
+            type=str,
+            default=None,
             help="Override model for this session (provider:model)",
         )
         chat_p.add_argument(
-            "--no-stream", action="store_true",
+            "--no-stream",
+            action="store_true",
             help="Disable streaming output",
         )
         chat_p.set_defaults(func=self._cmd_chat)
@@ -308,15 +326,22 @@ class AionHandCLI:
             description="View or modify Aion Hand configuration settings.",
         )
         config_p.add_argument(
-            "--set", type=str, default=None, metavar="KEY=VALUE",
+            "--set",
+            type=str,
+            default=None,
+            metavar="KEY=VALUE",
             help="Set a config value (e.g. --set default_model=openai:gpt-4o)",
         )
         config_p.add_argument(
-            "--show", action="store_true",
+            "--show",
+            action="store_true",
             help="Show current configuration",
         )
         config_p.add_argument(
-            "--profile", type=str, default=None, metavar="NAME",
+            "--profile",
+            type=str,
+            default=None,
+            metavar="NAME",
             help="Switch to named configuration profile",
         )
         config_p.set_defaults(func=self._cmd_config)
@@ -328,7 +353,8 @@ class AionHandCLI:
             description="Interactive setup wizard for initial configuration.",
         )
         setup_p.add_argument(
-            "--skip-gateway", action="store_true",
+            "--skip-gateway",
+            action="store_true",
             help="Skip messaging gateway setup",
         )
         setup_p.set_defaults(func=self._cmd_setup)
@@ -340,7 +366,8 @@ class AionHandCLI:
             description="Display health and status of every subsystem in Aion Hand.",
         )
         status_p.add_argument(
-            "--json", action="store_true",
+            "--json",
+            action="store_true",
             help="Output as JSON",
         )
         status_p.set_defaults(func=self._cmd_status)
@@ -352,15 +379,23 @@ class AionHandCLI:
             description="Execute a mission through the full planning/execution/verification pipeline.",
         )
         pipeline_p.add_argument(
-            "mission", type=str, nargs="?", default=None,
+            "mission",
+            type=str,
+            nargs="?",
+            default=None,
             help="Mission text to execute",
         )
         pipeline_p.add_argument(
-            "-s", "--steps", type=str, default=None,
+            "-s",
+            "--steps",
+            type=str,
+            default=None,
             help="Comma-separated list of pipeline steps to run",
         )
         pipeline_p.add_argument(
-            "-v", "--verbose", action="store_true",
+            "-v",
+            "--verbose",
+            action="store_true",
             help="Show detailed step-by-step output",
         )
         pipeline_p.set_defaults(func=self._cmd_pipeline)
@@ -372,16 +407,23 @@ class AionHandCLI:
             description="Evaluate agent performance across multiple categories.",
         )
         bench_p.add_argument(
-            "--category", type=str, default="all",
+            "--category",
+            type=str,
+            default="all",
             choices=_BENCHMARK_CATEGORIES,
             help="Benchmark category (default: all)",
         )
         bench_p.add_argument(
-            "--runs", type=int, default=1,
+            "--runs",
+            type=int,
+            default=1,
             help="Number of benchmark runs (default: 1)",
         )
         bench_p.add_argument(
-            "-o", "--output", type=str, default=None,
+            "-o",
+            "--output",
+            type=str,
+            default=None,
             help="Output file for results (JSON)",
         )
         bench_p.set_defaults(func=self._cmd_benchmark)
@@ -393,15 +435,22 @@ class AionHandCLI:
             description="Query, search, and manage the knowledge graph.",
         )
         knowledge_p.add_argument(
-            "--search", type=str, default=None, metavar="QUERY",
+            "--search",
+            type=str,
+            default=None,
+            metavar="QUERY",
             help="Search the knowledge graph",
         )
         knowledge_p.add_argument(
-            "--stats", action="store_true",
+            "--stats",
+            action="store_true",
             help="Show knowledge graph statistics",
         )
         knowledge_p.add_argument(
-            "--export", type=str, default=None, metavar="FILE",
+            "--export",
+            type=str,
+            default=None,
+            metavar="FILE",
             help="Export knowledge graph to file",
         )
         knowledge_p.set_defaults(func=self._cmd_knowledge)
@@ -413,15 +462,22 @@ class AionHandCLI:
             description="Manage MCP servers for tool extension.",
         )
         mcp_p.add_argument(
-            "--list", action="store_true",
+            "--list",
+            action="store_true",
             help="List configured MCP servers",
         )
         mcp_p.add_argument(
-            "--add", type=str, nargs=2, metavar=("NAME", "COMMAND"),
+            "--add",
+            type=str,
+            nargs=2,
+            metavar=("NAME", "COMMAND"),
             help="Add an MCP server (name and command)",
         )
         mcp_p.add_argument(
-            "--remove", type=str, default=None, metavar="NAME",
+            "--remove",
+            type=str,
+            default=None,
+            metavar="NAME",
             help="Remove an MCP server by name",
         )
         mcp_p.set_defaults(func=self._cmd_mcp)
@@ -433,19 +489,28 @@ class AionHandCLI:
             description="Execute tasks with dynamically composed agent teams.",
         )
         dynamic_p.add_argument(
-            "task", type=str, nargs="?", default=None,
+            "task",
+            type=str,
+            nargs="?",
+            default=None,
             help="Task description for dynamic execution",
         )
         dynamic_p.add_argument(
-            "--complexity", type=int, default=5,
+            "--complexity",
+            type=int,
+            default=5,
             help="Task complexity level 1-10 (default: 5)",
         )
         dynamic_p.add_argument(
-            "--plan", type=str, default=None, metavar="TASK",
+            "--plan",
+            type=str,
+            default=None,
+            metavar="TASK",
             help="Show execution plan without executing",
         )
         dynamic_p.add_argument(
-            "--stats", action="store_true",
+            "--stats",
+            action="store_true",
             help="Show dynamic agent statistics",
         )
         dynamic_p.set_defaults(func=self._cmd_dynamic)
@@ -457,16 +522,22 @@ class AionHandCLI:
             description="Connect Aion Hand to messaging platforms (Telegram, Discord, Slack, etc.).",
         )
         gateway_p.add_argument(
-            "--platform", type=str, default=None,
+            "--platform",
+            type=str,
+            default=None,
             choices=["telegram", "discord", "slack", "webhook", "matrix"],
             help="Start a specific platform gateway",
         )
         gateway_p.add_argument(
-            "--all", action="store_true",
+            "--all",
+            action="store_true",
             help="Start all configured platform gateways",
         )
         gateway_p.add_argument(
-            "-p", "--port", type=int, default=8080,
+            "-p",
+            "--port",
+            type=int,
+            default=8080,
             help="Port for the gateway server (default: 8080)",
         )
         gateway_p.set_defaults(func=self._cmd_gateway)
@@ -478,19 +549,25 @@ class AionHandCLI:
             description="Search, manage, and export agent long-term memory.",
         )
         memory_p.add_argument(
-            "--search", type=str, default=None, metavar="QUERY",
+            "--search",
+            type=str,
+            default=None,
+            metavar="QUERY",
             help="Search memory for a query",
         )
         memory_p.add_argument(
-            "--stats", action="store_true",
+            "--stats",
+            action="store_true",
             help="Show memory statistics",
         )
         memory_p.add_argument(
-            "--export", action="store_true",
+            "--export",
+            action="store_true",
             help="Export memory to MEMORY.md",
         )
         memory_p.add_argument(
-            "--nudge", action="store_true",
+            "--nudge",
+            action="store_true",
             help="Force a memory consolidation nudge",
         )
         memory_p.set_defaults(func=self._cmd_memory)
@@ -502,15 +579,20 @@ class AionHandCLI:
             description="List, create, and evaluate agent skills.",
         )
         skills_p.add_argument(
-            "--list", action="store_true",
+            "--list",
+            action="store_true",
             help="List all skills",
         )
         skills_p.add_argument(
-            "--create", type=str, default=None, metavar="NAME",
+            "--create",
+            type=str,
+            default=None,
+            metavar="NAME",
             help="Create a new skill",
         )
         skills_p.add_argument(
-            "--evaluate", action="store_true",
+            "--evaluate",
+            action="store_true",
             help="Evaluate all skills",
         )
         skills_p.set_defaults(func=self._cmd_skills)
@@ -522,15 +604,22 @@ class AionHandCLI:
             description="Manage scheduled recurring tasks.",
         )
         cron_p.add_argument(
-            "--list", action="store_true",
+            "--list",
+            action="store_true",
             help="List cron jobs",
         )
         cron_p.add_argument(
-            "--add", type=str, nargs=2, metavar=("EXPR", "COMMAND"),
+            "--add",
+            type=str,
+            nargs=2,
+            metavar=("EXPR", "COMMAND"),
             help="Add a cron job (cron expression and command)",
         )
         cron_p.add_argument(
-            "--remove", type=str, default=None, metavar="ID",
+            "--remove",
+            type=str,
+            default=None,
+            metavar="ID",
             help="Remove a cron job by ID",
         )
         cron_p.set_defaults(func=self._cmd_cron)
@@ -542,15 +631,22 @@ class AionHandCLI:
             description="Run security audits, scan for secrets, and check file safety.",
         )
         security_p.add_argument(
-            "--audit", action="store_true",
+            "--audit",
+            action="store_true",
             help="Run security audit",
         )
         security_p.add_argument(
-            "--scan-secrets", type=str, default=None, metavar="FILE",
+            "--scan-secrets",
+            type=str,
+            default=None,
+            metavar="FILE",
             help="Scan a file for leaked secrets/API keys",
         )
         security_p.add_argument(
-            "--check-file", type=str, default=None, metavar="PATH",
+            "--check-file",
+            type=str,
+            default=None,
+            metavar="PATH",
             help="Check if a file path is safe to access",
         )
         security_p.set_defaults(func=self._cmd_security)
@@ -562,19 +658,27 @@ class AionHandCLI:
             description="List, search, and manage agent tools.",
         )
         tools_p.add_argument(
-            "--list", action="store_true",
+            "--list",
+            action="store_true",
             help="List all tools",
         )
         tools_p.add_argument(
-            "--toolset", type=str, default=None, metavar="NAME",
+            "--toolset",
+            type=str,
+            default=None,
+            metavar="NAME",
             help="Filter tools by toolset name",
         )
         tools_p.add_argument(
-            "--search", type=str, default=None, metavar="QUERY",
+            "--search",
+            type=str,
+            default=None,
+            metavar="QUERY",
             help="Search tools by name or description",
         )
         tools_p.add_argument(
-            "--stats", action="store_true",
+            "--stats",
+            action="store_true",
             help="Show tool usage statistics",
         )
         tools_p.set_defaults(func=self._cmd_tools)
@@ -586,15 +690,23 @@ class AionHandCLI:
             description="List, test, and configure LLM providers.",
         )
         providers_p.add_argument(
-            "--list", action="store_true",
+            "--list",
+            action="store_true",
             help="List all providers",
         )
         providers_p.add_argument(
-            "--test", type=str, default=None, metavar="PROVIDER",
+            "--test",
+            type=str,
+            default=None,
+            metavar="PROVIDER",
             help="Test a provider connection",
         )
         providers_p.add_argument(
-            "--set", type=str, nargs=2, default=None, metavar=("PROVIDER", "MODEL"),
+            "--set",
+            type=str,
+            nargs=2,
+            default=None,
+            metavar=("PROVIDER", "MODEL"),
             help="Set active provider and model",
         )
         providers_p.set_defaults(func=self._cmd_providers)
@@ -605,7 +717,9 @@ class AionHandCLI:
             help="Diagnose Aion installation health",
             description="Run a series of health checks on your Aion installation: Python version, dependencies, config, providers, MCP servers, skills, personas.",
         )
-        doctor_p.add_argument("--fix", action="store_true", help="Attempt to fix detected issues")
+        doctor_p.add_argument(
+            "--fix", action="store_true", help="Attempt to fix detected issues"
+        )
         doctor_p.set_defaults(func=self._cmd_doctor)
 
         # ── backup ───────────────────────────────────────────────────────
@@ -614,11 +728,29 @@ class AionHandCLI:
             help="Backup / restore agent state",
             description="Create a backup archive of ~/.aion-hand/ or restore from one.",
         )
-        backup_p.add_argument("--create", action="store_true", help="Create a new backup")
-        backup_p.add_argument("--restore", type=str, default=None, metavar="PATH", help="Restore from archive")
-        backup_p.add_argument("--list", action="store_true", help="List existing backups")
-        backup_p.add_argument("--cleanup", type=int, default=None, metavar="KEEP", help="Delete old backups, keep newest N")
-        backup_p.add_argument("--label", type=str, default="", help="Label for the backup")
+        backup_p.add_argument(
+            "--create", action="store_true", help="Create a new backup"
+        )
+        backup_p.add_argument(
+            "--restore",
+            type=str,
+            default=None,
+            metavar="PATH",
+            help="Restore from archive",
+        )
+        backup_p.add_argument(
+            "--list", action="store_true", help="List existing backups"
+        )
+        backup_p.add_argument(
+            "--cleanup",
+            type=int,
+            default=None,
+            metavar="KEEP",
+            help="Delete old backups, keep newest N",
+        )
+        backup_p.add_argument(
+            "--label", type=str, default="", help="Label for the backup"
+        )
         backup_p.set_defaults(func=self._cmd_backup)
 
         # ── serve ────────────────────────────────────────────────────────
@@ -627,9 +759,15 @@ class AionHandCLI:
             help="Start the HTTP API server",
             description="Run the Aion HTTP API server for the web UI and external clients.",
         )
-        serve_p.add_argument("--host", default="0.0.0.0", help="Bind host (default: 0.0.0.0)")
-        serve_p.add_argument("--port", type=int, default=8000, help="Bind port (default: 8000)")
-        serve_p.add_argument("--log-level", default="INFO", help="Log level (default: INFO)")
+        serve_p.add_argument(
+            "--host", default="0.0.0.0", help="Bind host (default: 0.0.0.0)"
+        )
+        serve_p.add_argument(
+            "--port", type=int, default=8000, help="Bind port (default: 8000)"
+        )
+        serve_p.add_argument(
+            "--log-level", default="INFO", help="Log level (default: INFO)"
+        )
         serve_p.set_defaults(func=self._cmd_serve)
 
         # ── Default: no command → interactive REPL ─────────────────────
@@ -695,7 +833,9 @@ class AionHandCLI:
                         f"  {Colors.BRIGHT_WHITE}{key}:{Colors.RESET}\n"
                     )
                     for k, v in value.items():
-                        val_str = json.dumps(v) if isinstance(v, (dict, list)) else str(v)
+                        val_str = (
+                            json.dumps(v) if isinstance(v, (dict, list)) else str(v)
+                        )
                         self._print_colored(
                             f"    {Colors.DIM}{k:<22}{Colors.RESET} {val_str}\n"
                         )
@@ -708,8 +848,12 @@ class AionHandCLI:
                         f"  {Colors.BRIGHT_WHITE}{key:<24}{Colors.RESET} {value}\n"
                     )
         else:
-            self._print_colored(f"  {Colors.DIM}No configuration set. Run 'aion-hand setup' to begin.{Colors.RESET}\n")
-        self._print_colored(f"\n  {Colors.DIM}Config file: {_CONFIG_FILE}{Colors.RESET}\n\n")
+            self._print_colored(
+                f"  {Colors.DIM}No configuration set. Run 'aion-hand setup' to begin.{Colors.RESET}\n"
+            )
+        self._print_colored(
+            f"\n  {Colors.DIM}Config file: {_CONFIG_FILE}{Colors.RESET}\n\n"
+        )
 
     async def _config_set_value(self, key_value: str):
         """Set a configuration value (KEY=VALUE format)."""
@@ -780,9 +924,16 @@ class AionHandCLI:
         config = _load_config()
 
         # Step 1: Provider selection
-        self._print_colored(f"  {Colors.BOLD}Step 1: LLM Provider{Colors.RESET}\n", Colors.CYAN)
-        self._print_colored("  Available providers: openai, anthropic, google, ollama\n", Colors.DIM)
-        self._print_colored(f"  {Colors.WHITE}Enter provider name{Colors.RESET} [openai]: ", Colors.RESET)
+        self._print_colored(
+            f"  {Colors.BOLD}Step 1: LLM Provider{Colors.RESET}\n", Colors.CYAN
+        )
+        self._print_colored(
+            "  Available providers: openai, anthropic, google, ollama\n", Colors.DIM
+        )
+        self._print_colored(
+            f"  {Colors.WHITE}Enter provider name{Colors.RESET} [openai]: ",
+            Colors.RESET,
+        )
         try:
             provider = input().strip() or "openai"
         except (EOFError, KeyboardInterrupt):
@@ -791,12 +942,16 @@ class AionHandCLI:
         config["provider"] = provider
 
         # Step 2: Model selection
-        self._print_colored(f"\n  {Colors.BOLD}Step 2: Model{Colors.RESET}\n", Colors.CYAN)
+        self._print_colored(
+            f"\n  {Colors.BOLD}Step 2: Model{Colors.RESET}\n", Colors.CYAN
+        )
         models = [m for p, m, _ in _KNOWN_PROVIDERS if p == provider]
         if models:
             for m in models:
                 self._print_colored(f"    {Colors.GREEN}▸{Colors.RESET} {m}\n")
-        self._print_colored(f"  {Colors.WHITE}Enter model name{Colors.RESET}: ", Colors.RESET)
+        self._print_colored(
+            f"  {Colors.WHITE}Enter model name{Colors.RESET}: ", Colors.RESET
+        )
         try:
             model = input().strip()
         except (EOFError, KeyboardInterrupt):
@@ -811,8 +966,13 @@ class AionHandCLI:
                 f"\n  {Colors.GREEN}✔{Colors.RESET} API key found in environment variable {env_key}\n"
             )
         else:
-            self._print_colored(f"\n  {Colors.BOLD}Step 3: API Key{Colors.RESET}\n", Colors.CYAN)
-            self._print_colored(f"  {Colors.WHITE}Enter API key (or press Enter to skip){Colors.RESET}: ", Colors.RESET)
+            self._print_colored(
+                f"\n  {Colors.BOLD}Step 3: API Key{Colors.RESET}\n", Colors.CYAN
+            )
+            self._print_colored(
+                f"  {Colors.WHITE}Enter API key (or press Enter to skip){Colors.RESET}: ",
+                Colors.RESET,
+            )
             try:
                 api_key = input().strip()
                 if api_key:
@@ -827,15 +987,28 @@ class AionHandCLI:
 
         # Step 4: Gateway (optional)
         if not args.skip_gateway:
-            self._print_colored(f"\n  {Colors.BOLD}Step 4: Messaging Gateway (optional){Colors.RESET}\n", Colors.CYAN)
-            self._print_colored(f"  {Colors.WHITE}Configure messaging platform?{Colors.RESET} (y/n) [n]: ", Colors.RESET)
+            self._print_colored(
+                f"\n  {Colors.BOLD}Step 4: Messaging Gateway (optional){Colors.RESET}\n",
+                Colors.CYAN,
+            )
+            self._print_colored(
+                f"  {Colors.WHITE}Configure messaging platform?{Colors.RESET} (y/n) [n]: ",
+                Colors.RESET,
+            )
             try:
                 answer = input().strip().lower()
                 if answer == "y":
-                    self._print_colored(f"  {Colors.DIM}Platforms: telegram, discord, slack, webhook, matrix{Colors.RESET}\n")
-                    self._print_colored(f"  {Colors.WHITE}Enter platform{Colors.RESET}: ", Colors.RESET)
+                    self._print_colored(
+                        f"  {Colors.DIM}Platforms: telegram, discord, slack, webhook, matrix{Colors.RESET}\n"
+                    )
+                    self._print_colored(
+                        f"  {Colors.WHITE}Enter platform{Colors.RESET}: ", Colors.RESET
+                    )
                     platform = input().strip().lower()
-                    self._print_colored(f"  {Colors.WHITE}Enter {platform} token/key{Colors.RESET}: ", Colors.RESET)
+                    self._print_colored(
+                        f"  {Colors.WHITE}Enter {platform} token/key{Colors.RESET}: ",
+                        Colors.RESET,
+                    )
                     token = input().strip()
                     if platform and token:
                         if "gateway" not in config:
@@ -870,13 +1043,19 @@ class AionHandCLI:
         subsystems.append(("Memory", self._check_module("aion_core.memory")))
         subsystems.append(("Tools", self._check_module("aion_core.tools")))
         subsystems.append(("Pipeline", self._check_module("aion_core.pipeline")))
-        subsystems.append(("Knowledge Graph", self._check_module("aion_core.knowledge")))
+        subsystems.append(
+            ("Knowledge Graph", self._check_module("aion_core.knowledge"))
+        )
         subsystems.append(("MCP", self._check_module("aion_core.mcp")))
         subsystems.append(("Dynamic Agents", self._check_module("aion_core.dynamic")))
-        subsystems.append(("Orchestration", self._check_module("aion_core.orchestration")))
+        subsystems.append(
+            ("Orchestration", self._check_module("aion_core.orchestration"))
+        )
         subsystems.append(("Benchmark", self._check_module("aion_core.benchmark")))
         subsystems.append(("Router", self._check_module("aion_core.router")))
-        subsystems.append(("Messaging Gateway", self._check_module("aion_core.messaging")))
+        subsystems.append(
+            ("Messaging Gateway", self._check_module("aion_core.messaging"))
+        )
         subsystems.append(("Cron Scheduler", self._check_module("aion_core.cron")))
         subsystems.append(("Security", self._check_module("aion_core.security")))
         subsystems.append(("Config Manager", self._check_module("aion_core.config")))
@@ -904,9 +1083,13 @@ class AionHandCLI:
                 icon = f"{Colors.YELLOW}⚠{Colors.RESET}"
             else:
                 icon = f"{Colors.RED}✘{Colors.RESET}"
-            self._print_colored(f"  {icon} {name:<28} {Colors.DIM}{status}{Colors.RESET}\n")
+            self._print_colored(
+                f"  {icon} {name:<28} {Colors.DIM}{status}{Colors.RESET}\n"
+            )
 
-        self._print_colored(f"\n  {Colors.DIM}Version: {__version__}  |  Python: {sys.version.split()[0]}  |  Platform: {sys.platform}{Colors.RESET}\n")
+        self._print_colored(
+            f"\n  {Colors.DIM}Version: {__version__}  |  Python: {sys.version.split()[0]}  |  Platform: {sys.platform}{Colors.RESET}\n"
+        )
         model = config.get("default_model", "not set")
         self._print_colored(f"  {Colors.DIM}Model: {model}{Colors.RESET}\n\n")
 
@@ -928,7 +1111,7 @@ class AionHandCLI:
 
         if not mission:
             self._print_colored(
-                f"  {Colors.YELLOW}Usage: aion-hand pipeline \"mission text\"{Colors.RESET}\n"
+                f'  {Colors.YELLOW}Usage: aion-hand pipeline "mission text"{Colors.RESET}\n'
             )
             self._print_colored(
                 f"  {Colors.DIM}Run a mission through the planning/execution/verification pipeline.{Colors.RESET}\n"
@@ -941,9 +1124,13 @@ class AionHandCLI:
         self._print_colored(
             f"\n  {Colors.BOLD}Execution Pipeline{Colors.RESET}\n", Colors.CYAN
         )
-        self._print_colored(f"  Mission: {Colors.BRIGHT_WHITE}{mission}{Colors.RESET}\n")
+        self._print_colored(
+            f"  Mission: {Colors.BRIGHT_WHITE}{mission}{Colors.RESET}\n"
+        )
         if steps:
-            self._print_colored(f"  Steps:   {Colors.BRIGHT_CYAN}{steps}{Colors.RESET}\n")
+            self._print_colored(
+                f"  Steps:   {Colors.BRIGHT_CYAN}{steps}{Colors.RESET}\n"
+            )
         self._print_colored(f"  {Colors.DIM}Initializing pipeline...{Colors.RESET}\n\n")
 
         spinner = StreamSpinner("Pipeline executing")
@@ -951,16 +1138,17 @@ class AionHandCLI:
 
         try:
             from aion_core.pipeline.engine import PipelineEngine
+
             engine = PipelineEngine(verbose=verbose)
             step_list = [s.strip() for s in steps.split(",")] if steps else None
             result = await engine.run(mission, steps=step_list)
             spinner.stop()
-            self._print_colored(
-                f"  {Colors.GREEN}✔{Colors.RESET} Pipeline complete.\n"
-            )
+            self._print_colored(f"  {Colors.GREEN}✔{Colors.RESET} Pipeline complete.\n")
             if isinstance(result, dict):
                 for k, v in result.items():
-                    self._print_colored(f"    {Colors.BRIGHT_WHITE}{k}:{Colors.RESET} {v}\n")
+                    self._print_colored(
+                        f"    {Colors.BRIGHT_WHITE}{k}:{Colors.RESET} {v}\n"
+                    )
             else:
                 self._print_colored(f"  {Colors.BRIGHT_WHITE}{result}{Colors.RESET}\n")
         except ImportError:
@@ -974,7 +1162,9 @@ class AionHandCLI:
             )
         except Exception as exc:
             spinner.stop()
-            self._print_colored(f"  {Colors.RED}Error running pipeline:{Colors.RESET} {exc}\n")
+            self._print_colored(
+                f"  {Colors.RED}Error running pipeline:{Colors.RESET} {exc}\n"
+            )
         self._print_colored("")
 
     # ── benchmark ────────────────────────────────────────────────────────
@@ -988,7 +1178,9 @@ class AionHandCLI:
         self._print_colored(
             f"\n  {Colors.BOLD}Benchmark Suite{Colors.RESET}\n", Colors.CYAN
         )
-        self._print_colored(f"  Category: {Colors.BRIGHT_WHITE}{category}{Colors.RESET}\n")
+        self._print_colored(
+            f"  Category: {Colors.BRIGHT_WHITE}{category}{Colors.RESET}\n"
+        )
         self._print_colored(f"  Runs:     {Colors.BRIGHT_WHITE}{runs}{Colors.RESET}\n")
         self._print_colored(f"  {Colors.DIM}Running benchmarks...{Colors.RESET}\n\n")
 
@@ -997,6 +1189,7 @@ class AionHandCLI:
 
         try:
             from aion_core.benchmark.runner import BenchmarkRunner
+
             runner = BenchmarkRunner()
             results = await runner.run(
                 categories=[category] if category != "all" else None,
@@ -1005,7 +1198,9 @@ class AionHandCLI:
             spinner.stop()
 
             if isinstance(results, dict):
-                self._print_colored(f"  {Colors.GREEN}✔{Colors.RESET} Benchmarks complete.\n\n")
+                self._print_colored(
+                    f"  {Colors.GREEN}✔{Colors.RESET} Benchmarks complete.\n\n"
+                )
                 for name, score in results.items():
                     self._print_colored(
                         f"    {Colors.BRIGHT_WHITE}{name:<30}{Colors.RESET} {score}\n"
@@ -1018,7 +1213,11 @@ class AionHandCLI:
 
             if output:
                 _ensure_config_dir()
-                data = results if isinstance(results, (dict, list)) else {"result": str(results)}
+                data = (
+                    results
+                    if isinstance(results, (dict, list))
+                    else {"result": str(results)}
+                )
                 with open(output, "w", encoding="utf-8") as f:
                     json.dump(data, f, indent=2)
                 self._print_colored(
@@ -1032,7 +1231,9 @@ class AionHandCLI:
             )
         except Exception as exc:
             spinner.stop()
-            self._print_colored(f"  {Colors.RED}Error running benchmarks:{Colors.RESET} {exc}\n")
+            self._print_colored(
+                f"  {Colors.RED}Error running benchmarks:{Colors.RESET} {exc}\n"
+            )
         self._print_colored("")
 
     # ── knowledge ─────────────────────────────────────────────────────────
@@ -1062,6 +1263,7 @@ class AionHandCLI:
 
         try:
             from aion_core.knowledge.graph import KnowledgeGraph
+
             kg = KnowledgeGraph()
             results = await kg.search(query, limit=10)
             if results:
@@ -1073,9 +1275,13 @@ class AionHandCLI:
                             f"  {Colors.BRIGHT_GREEN}{i}.{Colors.RESET} "
                             f"{Colors.BOLD}{title}{Colors.RESET}\n"
                         )
-                        self._print_colored(f"     {Colors.DIM}{content}{Colors.RESET}\n")
+                        self._print_colored(
+                            f"     {Colors.DIM}{content}{Colors.RESET}\n"
+                        )
                     else:
-                        self._print_colored(f"  {Colors.BRIGHT_GREEN}{i}.{Colors.RESET} {item}\n")
+                        self._print_colored(
+                            f"  {Colors.BRIGHT_GREEN}{i}.{Colors.RESET} {item}\n"
+                        )
             else:
                 self._print_colored(f"  {Colors.DIM}No results found.{Colors.RESET}\n")
         except ImportError:
@@ -1094,6 +1300,7 @@ class AionHandCLI:
 
         try:
             from aion_core.knowledge.manager import KnowledgeManager
+
             km = KnowledgeManager()
             stats = await km.get_stats()
             for key, value in stats.items():
@@ -1113,6 +1320,7 @@ class AionHandCLI:
 
         try:
             from aion_core.knowledge.manager import KnowledgeManager
+
             km = KnowledgeManager()
             content = await km.export(format="json")
             with open(filepath, "w", encoding="utf-8") as f:
@@ -1163,11 +1371,14 @@ class AionHandCLI:
         # Also try live listing
         try:
             from aion_core.mcp.registry import MCPRegistry
+
             registry = MCPRegistry()
             live_servers = registry.list_servers()
             for s in live_servers:
                 name = s.get("name", s) if isinstance(s, dict) else s
-                status = s.get("status", "connected") if isinstance(s, dict) else "connected"
+                status = (
+                    s.get("status", "connected") if isinstance(s, dict) else "connected"
+                )
                 self._print_colored(
                     f"  {Colors.GREEN}●{Colors.RESET} {Colors.BRIGHT_WHITE}{name}{Colors.RESET}"
                     f"  {Colors.DIM}({status}){Colors.RESET}\n"
@@ -1176,14 +1387,18 @@ class AionHandCLI:
             pass
 
         if not servers and not os.path.exists(_MCP_FILE):
-            self._print_colored(f"  {Colors.DIM}No MCP servers configured.{Colors.RESET}\n")
+            self._print_colored(
+                f"  {Colors.DIM}No MCP servers configured.{Colors.RESET}\n"
+            )
             self._print_colored(
                 f"  {Colors.DIM}Use {Colors.CYAN}aion-hand mcp --add name command{Colors.RESET} "
                 f"to add one.{Colors.RESET}\n"
             )
         else:
             for server in servers:
-                name = server.get("name", server) if isinstance(server, dict) else server
+                name = (
+                    server.get("name", server) if isinstance(server, dict) else server
+                )
                 cmd = server.get("command", "") if isinstance(server, dict) else ""
                 self._print_colored(
                     f"  {Colors.BRIGHT_CYAN}▸{Colors.RESET} {Colors.BRIGHT_WHITE}{name}{Colors.RESET}"
@@ -1213,7 +1428,9 @@ class AionHandCLI:
                 )
                 return
 
-        servers.append({"name": name, "command": command, "added": datetime.now().isoformat()})
+        servers.append(
+            {"name": name, "command": command, "added": datetime.now().isoformat()}
+        )
         with open(_MCP_FILE, "w", encoding="utf-8") as f:
             json.dump(servers, f, indent=2)
 
@@ -1233,11 +1450,15 @@ class AionHandCLI:
             with open(_MCP_FILE, encoding="utf-8") as f:
                 servers = json.load(f)
         except (OSError, json.JSONDecodeError):
-            self._print_colored(f"  {Colors.RED}Error reading MCP config.{Colors.RESET}\n")
+            self._print_colored(
+                f"  {Colors.RED}Error reading MCP config.{Colors.RESET}\n"
+            )
             return
 
         original = len(servers)
-        servers = [s for s in servers if not (isinstance(s, dict) and s.get("name") == name)]
+        servers = [
+            s for s in servers if not (isinstance(s, dict) and s.get("name") == name)
+        ]
 
         if len(servers) < original:
             with open(_MCP_FILE, "w", encoding="utf-8") as f:
@@ -1267,10 +1488,10 @@ class AionHandCLI:
             await self._dynamic_execute(task, complexity)
         else:
             self._print_colored(
-                f"  {Colors.DIM}Usage: aion-hand dynamic \"task\" [--complexity N]{Colors.RESET}\n"
+                f'  {Colors.DIM}Usage: aion-hand dynamic "task" [--complexity N]{Colors.RESET}\n'
             )
             self._print_colored(
-                f"  {Colors.DIM}       aion-hand dynamic --plan \"task\"{Colors.RESET}\n"
+                f'  {Colors.DIM}       aion-hand dynamic --plan "task"{Colors.RESET}\n'
             )
             self._print_colored(
                 f"  {Colors.DIM}       aion-hand dynamic --stats{Colors.RESET}\n"
@@ -1281,18 +1502,25 @@ class AionHandCLI:
         self._print_colored(
             f"\n  {Colors.BOLD}Dynamic Agent Execution{Colors.RESET}\n", Colors.CYAN
         )
-        self._print_colored(f"  Task:       {Colors.BRIGHT_WHITE}{task}{Colors.RESET}\n")
-        self._print_colored(f"  Complexity: {Colors.BRIGHT_CYAN}{complexity}/10{Colors.RESET}\n\n")
+        self._print_colored(
+            f"  Task:       {Colors.BRIGHT_WHITE}{task}{Colors.RESET}\n"
+        )
+        self._print_colored(
+            f"  Complexity: {Colors.BRIGHT_CYAN}{complexity}/10{Colors.RESET}\n\n"
+        )
 
         spinner = StreamSpinner("Dynamic agents working")
         spinner.start()
 
         try:
             from aion_core.dynamic.manager import DynamicAgentManager
+
             manager = DynamicAgentManager()
             result = await manager.execute(task, complexity=complexity)
             spinner.stop()
-            self._print_colored(f"  {Colors.GREEN}✔{Colors.RESET} Dynamic execution complete.\n")
+            self._print_colored(
+                f"  {Colors.GREEN}✔{Colors.RESET} Dynamic execution complete.\n"
+            )
             self._print_colored(f"  {Colors.BRIGHT_WHITE}{result}{Colors.RESET}\n")
         except ImportError:
             spinner.stop()
@@ -1310,11 +1538,16 @@ class AionHandCLI:
         self._print_colored(
             f"\n  {Colors.BOLD}Dynamic Execution Plan{Colors.RESET}\n", Colors.CYAN
         )
-        self._print_colored(f"  Task:       {Colors.BRIGHT_WHITE}{task}{Colors.RESET}\n")
-        self._print_colored(f"  Complexity: {Colors.BRIGHT_CYAN}{complexity}/10{Colors.RESET}\n\n")
+        self._print_colored(
+            f"  Task:       {Colors.BRIGHT_WHITE}{task}{Colors.RESET}\n"
+        )
+        self._print_colored(
+            f"  Complexity: {Colors.BRIGHT_CYAN}{complexity}/10{Colors.RESET}\n\n"
+        )
 
         try:
             from aion_core.dynamic.manager import DynamicAgentManager
+
             manager = DynamicAgentManager()
             plan = await manager.plan(task, complexity=complexity)
             if isinstance(plan, dict):
@@ -1322,9 +1555,7 @@ class AionHandCLI:
                     self._print_colored(
                         f"  {Colors.BRIGHT_GREEN}▸{Colors.RESET} {Colors.BOLD}{step_name}{Colors.RESET}\n"
                     )
-                    self._print_colored(
-                        f"    {Colors.DIM}{step_info}{Colors.RESET}\n"
-                    )
+                    self._print_colored(f"    {Colors.DIM}{step_info}{Colors.RESET}\n")
             elif isinstance(plan, list):
                 for step in plan:
                     self._print_colored(
@@ -1348,6 +1579,7 @@ class AionHandCLI:
 
         try:
             from aion_core.dynamic.manager import DynamicAgentManager
+
             manager = DynamicAgentManager()
             stats = await manager.get_stats()
             for key, value in stats.items():
@@ -1386,7 +1618,11 @@ class AionHandCLI:
 
             for p in platforms:
                 token = gw_config.get(f"{p}_token", "")
-                status = f"{Colors.GREEN}configured{Colors.RESET}" if token else f"{Colors.DIM}not set{Colors.RESET}"
+                status = (
+                    f"{Colors.GREEN}configured{Colors.RESET}"
+                    if token
+                    else f"{Colors.DIM}not set{Colors.RESET}"
+                )
                 self._print_colored(f"  {p.capitalize():<12} {status}\n")
 
             self._print_colored(
@@ -1399,12 +1635,14 @@ class AionHandCLI:
     async def _gateway_start_platform(self, platform: str, port: int):
         """Start a specific platform gateway."""
         self._print_colored(
-            f"\n  {Colors.BOLD}Starting {platform.upper()} Gateway{Colors.RESET}\n", Colors.CYAN
+            f"\n  {Colors.BOLD}Starting {platform.upper()} Gateway{Colors.RESET}\n",
+            Colors.CYAN,
         )
         self._print_colored(f"  {Colors.DIM}Press Ctrl+C to stop{Colors.RESET}\n\n")
 
         try:
             from aion_core.messaging.gateway import Gateway
+
             gw = Gateway(port=port)
             await gw.start(platform=platform)
         except ImportError:
@@ -1440,13 +1678,12 @@ class AionHandCLI:
         self._print_colored(
             f"\n  {Colors.BOLD}Starting All Gateways{Colors.RESET}\n", Colors.CYAN
         )
-        self._print_colored(
-            f"  Platforms: {', '.join(configured)}\n"
-        )
+        self._print_colored(f"  Platforms: {', '.join(configured)}\n")
         self._print_colored(f"  {Colors.DIM}Press Ctrl+C to stop{Colors.RESET}\n\n")
 
         try:
             from aion_core.messaging.gateway import Gateway
+
             gw = Gateway(port=port)
             await gw.start_all(platforms=configured)
         except ImportError:
@@ -1486,6 +1723,7 @@ class AionHandCLI:
 
         try:
             from aion_core.memory.manager import MemoryManager
+
             mgr = MemoryManager()
             results = await mgr.search(query, limit=10)
             if results:
@@ -1507,12 +1745,18 @@ class AionHandCLI:
                 found = False
                 for line in content.splitlines():
                     if q_lower in line.lower() and line.strip():
-                        self._print_colored(f"  {Colors.DIM}{line.strip()}{Colors.RESET}\n")
+                        self._print_colored(
+                            f"  {Colors.DIM}{line.strip()}{Colors.RESET}\n"
+                        )
                         found = True
                 if not found:
-                    self._print_colored(f"  {Colors.DIM}No matches in MEMORY.md.{Colors.RESET}\n")
+                    self._print_colored(
+                        f"  {Colors.DIM}No matches in MEMORY.md.{Colors.RESET}\n"
+                    )
             else:
-                self._print_colored(f"  {Colors.DIM}No memory data found.{Colors.RESET}\n")
+                self._print_colored(
+                    f"  {Colors.DIM}No memory data found.{Colors.RESET}\n"
+                )
         self._print_colored("")
 
     async def _memory_stats(self):
@@ -1524,6 +1768,7 @@ class AionHandCLI:
 
         try:
             from aion_core.memory.manager import MemoryManager
+
             mgr = MemoryManager()
             stats = await mgr.stats()
             for key, value in stats.items():
@@ -1536,12 +1781,22 @@ class AionHandCLI:
                 with open(_MEMORY_FILE, encoding="utf-8") as f:
                     content = f.read()
                 lines = [line for line in content.splitlines() if line.strip()]
-                self._print_colored(f"  {Colors.BRIGHT_WHITE}{'File':<20}{Colors.RESET} {_MEMORY_FILE}\n")
-                self._print_colored(f"  {Colors.BRIGHT_WHITE}{'Size':<20}{Colors.RESET} {stat.st_size:,} bytes\n")
-                self._print_colored(f"  {Colors.BRIGHT_WHITE}{'Lines':<20}{Colors.RESET} {len(lines)}\n")
-                self._print_colored(f"  {Colors.BRIGHT_WHITE}{'Words':<20}{Colors.RESET} {len(content.split()):,}\n")
+                self._print_colored(
+                    f"  {Colors.BRIGHT_WHITE}{'File':<20}{Colors.RESET} {_MEMORY_FILE}\n"
+                )
+                self._print_colored(
+                    f"  {Colors.BRIGHT_WHITE}{'Size':<20}{Colors.RESET} {stat.st_size:,} bytes\n"
+                )
+                self._print_colored(
+                    f"  {Colors.BRIGHT_WHITE}{'Lines':<20}{Colors.RESET} {len(lines)}\n"
+                )
+                self._print_colored(
+                    f"  {Colors.BRIGHT_WHITE}{'Words':<20}{Colors.RESET} {len(content.split()):,}\n"
+                )
             else:
-                self._print_colored(f"  {Colors.DIM}No memory data found.{Colors.RESET}\n")
+                self._print_colored(
+                    f"  {Colors.DIM}No memory data found.{Colors.RESET}\n"
+                )
         self._print_colored("")
 
     async def _memory_export(self):
@@ -1551,6 +1806,7 @@ class AionHandCLI:
 
         try:
             from aion_core.memory.manager import MemoryManager
+
             mgr = MemoryManager()
             content = await mgr.export_markdown()
             with open(output_path, "w", encoding="utf-8") as f:
@@ -1562,7 +1818,9 @@ class AionHandCLI:
                 )
             else:
                 with open(output_path, "w", encoding="utf-8") as f:
-                    f.write(f"# Aion Hand Memory\n\nExported: {datetime.now().isoformat()}\n\n")
+                    f.write(
+                        f"# Aion Hand Memory\n\nExported: {datetime.now().isoformat()}\n\n"
+                    )
 
         self._print_colored(
             f"  {Colors.GREEN}✔{Colors.RESET} Memory exported to {Colors.BRIGHT_CYAN}{output_path}{Colors.RESET}\n"
@@ -1573,10 +1831,13 @@ class AionHandCLI:
         self._print_colored(
             f"\n  {Colors.BOLD}Memory Nudge{Colors.RESET}\n", Colors.CYAN
         )
-        self._print_colored(f"  {Colors.DIM}Consolidating memories...{Colors.RESET}\n\n")
+        self._print_colored(
+            f"  {Colors.DIM}Consolidating memories...{Colors.RESET}\n\n"
+        )
 
         try:
             from aion_core.memory.manager import MemoryManager
+
             mgr = MemoryManager()
             result = await mgr.nudge()
             self._print_colored(
@@ -1623,7 +1884,9 @@ class AionHandCLI:
             )
 
         if custom_skills:
-            self._print_colored(f"\n  {Colors.BOLD}Custom:{Colors.RESET}\n", Colors.WHITE)
+            self._print_colored(
+                f"\n  {Colors.BOLD}Custom:{Colors.RESET}\n", Colors.WHITE
+            )
             for name, info in custom_skills.items():
                 desc = info.get("description", "")
                 self._print_colored(
@@ -1665,6 +1928,7 @@ class AionHandCLI:
 
         try:
             from aion_core.agent.core import AionHandAgent
+
             config = _load_config()
             agent = AionHandAgent(model=config.get("default_model"))
             results = await agent.evaluate_skills()
@@ -1672,7 +1936,11 @@ class AionHandCLI:
                 bar_len = 20
                 filled = int(score * bar_len)
                 bar = "█" * filled + "░" * (bar_len - filled)
-                color = Colors.GREEN if score >= 0.7 else Colors.YELLOW if score >= 0.4 else Colors.RED
+                color = (
+                    Colors.GREEN
+                    if score >= 0.7
+                    else Colors.YELLOW if score >= 0.4 else Colors.RED
+                )
                 self._print_colored(
                     f"  {skill_name:<20} {color}{bar}{Colors.RESET} {score:.1%}\n"
                 )
@@ -1708,9 +1976,11 @@ class AionHandCLI:
         self._print_colored("  " + "─" * 62 + "\n", Colors.DIM)
 
         if not jobs:
-            self._print_colored(f"  {Colors.DIM}No cron jobs scheduled.{Colors.RESET}\n")
             self._print_colored(
-                f"  {Colors.DIM}Use {Colors.CYAN}aion-hand cron --add \"*/5 * * * *\" \"command\"{Colors.RESET}\n"
+                f"  {Colors.DIM}No cron jobs scheduled.{Colors.RESET}\n"
+            )
+            self._print_colored(
+                f'  {Colors.DIM}Use {Colors.CYAN}aion-hand cron --add "*/5 * * * *" "command"{Colors.RESET}\n'
             )
         else:
             for job in jobs:
@@ -1718,12 +1988,18 @@ class AionHandCLI:
                 expr = job.get("cron", "")
                 cmd = job.get("command", "")
                 enabled = job.get("enabled", True)
-                status = f"{Colors.GREEN}ON{Colors.RESET}" if enabled else f"{Colors.RED}OFF{Colors.RESET}"
+                status = (
+                    f"{Colors.GREEN}ON{Colors.RESET}"
+                    if enabled
+                    else f"{Colors.RED}OFF{Colors.RESET}"
+                )
                 self._print_colored(
                     f"  {status} {Colors.DIM}[{jid}]{Colors.RESET} "
                     f"{Colors.CYAN}{expr}{Colors.RESET}\n"
                 )
-                self._print_colored(f"       {Colors.BRIGHT_WHITE}{cmd}{Colors.RESET}\n")
+                self._print_colored(
+                    f"       {Colors.BRIGHT_WHITE}{cmd}{Colors.RESET}\n"
+                )
         self._print_colored(f"\n  Total: {len(jobs)} jobs\n\n")
 
     async def _cron_add(self, expr: str, command: str):
@@ -1739,9 +2015,7 @@ class AionHandCLI:
         jobs.append(new_job)
         _save_cron_jobs(jobs)
 
-        self._print_colored(
-            f"  {Colors.GREEN}✔{Colors.RESET} Cron job added:\n"
-        )
+        self._print_colored(f"  {Colors.GREEN}✔{Colors.RESET} Cron job added:\n")
         self._print_colored(f"    {Colors.DIM}ID:      {new_job['id']}{Colors.RESET}\n")
         self._print_colored(f"    {Colors.DIM}Schedule: {expr}{Colors.RESET}\n")
         self._print_colored(f"    {Colors.DIM}Command:  {command}{Colors.RESET}\n\n")
@@ -1815,26 +2089,62 @@ class AionHandCLI:
 
         # Check security module
         checks.append(
-            ("Sandbox module",
-             "available" if importlib.util.find_spec("aion_core.security.sandbox") else "not available",
-             "ok" if importlib.util.find_spec("aion_core.security.sandbox") else "warn")
+            (
+                "Sandbox module",
+                (
+                    "available"
+                    if importlib.util.find_spec("aion_core.security.sandbox")
+                    else "not available"
+                ),
+                (
+                    "ok"
+                    if importlib.util.find_spec("aion_core.security.sandbox")
+                    else "warn"
+                ),
+            )
         )
 
         checks.append(
-            ("Secret redaction",
-             "available" if importlib.util.find_spec("aion_core.security.redact") else "not available",
-             "ok" if importlib.util.find_spec("aion_core.security.redact") else "warn")
+            (
+                "Secret redaction",
+                (
+                    "available"
+                    if importlib.util.find_spec("aion_core.security.redact")
+                    else "not available"
+                ),
+                (
+                    "ok"
+                    if importlib.util.find_spec("aion_core.security.redact")
+                    else "warn"
+                ),
+            )
         )
 
         checks.append(
-            ("File safety checker",
-             "available" if importlib.util.find_spec("aion_core.security.filesafety") else "not available",
-             "ok" if importlib.util.find_spec("aion_core.security.filesafety") else "warn")
+            (
+                "File safety checker",
+                (
+                    "available"
+                    if importlib.util.find_spec("aion_core.security.filesafety")
+                    else "not available"
+                ),
+                (
+                    "ok"
+                    if importlib.util.find_spec("aion_core.security.filesafety")
+                    else "warn"
+                ),
+            )
         )
 
         for name, value, status in checks:
-            icon = f"{Colors.GREEN}✔{Colors.RESET}" if status == "ok" else f"{Colors.YELLOW}⚠{Colors.RESET}"
-            self._print_colored(f"  {icon} {name:<36} {Colors.DIM}{value}{Colors.RESET}\n")
+            icon = (
+                f"{Colors.GREEN}✔{Colors.RESET}"
+                if status == "ok"
+                else f"{Colors.YELLOW}⚠{Colors.RESET}"
+            )
+            self._print_colored(
+                f"  {icon} {name:<36} {Colors.DIM}{value}{Colors.RESET}\n"
+            )
 
         warnings = sum(1 for _, _, s in checks if s == "warn")
         if warnings == 0:
@@ -1861,6 +2171,7 @@ class AionHandCLI:
 
         try:
             from aion_core.security.redact import SecretRedactor
+
             redactor = SecretRedactor()
             with open(filepath, encoding="utf-8") as f:
                 content = f.read()
@@ -1883,10 +2194,11 @@ class AionHandCLI:
         except ImportError:
             # Simple regex-based fallback
             import re
+
             patterns = [
-                (r'(?:sk|pk|api)[_-]?[a-zA-Z0-9]{20,}', "API Key"),
-                (r'-----BEGIN (?:RSA |EC |DSA )?PRIVATE KEY-----', "Private Key"),
-                (r'eyJ[A-Za-z0-9_-]{20,}\.eyJ[A-Za-z0-9_-]{20,}', "JWT Token"),
+                (r"(?:sk|pk|api)[_-]?[a-zA-Z0-9]{20,}", "API Key"),
+                (r"-----BEGIN (?:RSA |EC |DSA )?PRIVATE KEY-----", "Private Key"),
+                (r"eyJ[A-Za-z0-9_-]{20,}\.eyJ[A-Za-z0-9_-]{20,}", "JWT Token"),
             ]
             with open(filepath, encoding="utf-8") as f:
                 lines = f.readlines()
@@ -1914,6 +2226,7 @@ class AionHandCLI:
 
         try:
             from aion_core.security.filesafety import FileSafetyChecker
+
             checker = FileSafetyChecker()
             result = await checker.check(filepath)
 
@@ -1972,7 +2285,11 @@ class AionHandCLI:
             if toolset_filter and toolset != toolset_filter:
                 continue
             enabled = name not in disabled_tools
-            status = f"{Colors.GREEN}ON {Colors.RESET}" if enabled else f"{Colors.RED}OFF{Colors.RESET}"
+            status = (
+                f"{Colors.GREEN}ON {Colors.RESET}"
+                if enabled
+                else f"{Colors.RED}OFF{Colors.RESET}"
+            )
 
             if toolset != current_set:
                 current_set = toolset
@@ -2004,9 +2321,7 @@ class AionHandCLI:
                     f"{Colors.BRIGHT_WHITE}{name}{Colors.RESET} "
                     f"({Colors.DIM}{toolset}{Colors.RESET})\n"
                 )
-                self._print_colored(
-                    f"    {Colors.DIM}{desc}{Colors.RESET}\n\n"
-                )
+                self._print_colored(f"    {Colors.DIM}{desc}{Colors.RESET}\n\n")
 
     async def _tools_stats(self):
         """Show tool usage statistics."""
@@ -2017,6 +2332,7 @@ class AionHandCLI:
 
         try:
             from aion_core.tools.registry import ToolRegistry
+
             registry = ToolRegistry()
             stats = registry.get_usage_stats()
             for name, count in stats.items():
@@ -2074,7 +2390,9 @@ class AionHandCLI:
             color = Colors.GREEN if available else Colors.DIM
             full_id = f"{provider}:{model}"
             is_default = full_id == default_model
-            default_tag = f" {Colors.GREEN}(default){Colors.RESET}" if is_default else ""
+            default_tag = (
+                f" {Colors.GREEN}(default){Colors.RESET}" if is_default else ""
+            )
             self._print_colored(
                 f"    {color}{marker}{Colors.RESET}  {model:40s}{default_tag}\n"
             )
@@ -2086,7 +2404,8 @@ class AionHandCLI:
     async def _providers_test(self, provider_name: str):
         """Test a provider connection."""
         self._print_colored(
-            f"\n  {Colors.BOLD}Testing Provider: {provider_name}{Colors.RESET}\n", Colors.CYAN
+            f"\n  {Colors.BOLD}Testing Provider: {provider_name}{Colors.RESET}\n",
+            Colors.CYAN,
         )
         self._print_colored(f"  {Colors.DIM}Connecting...{Colors.RESET}\n")
 
@@ -2095,6 +2414,7 @@ class AionHandCLI:
 
         try:
             from aion_core.providers.factory import ProviderFactory
+
             factory = ProviderFactory()
             result = await factory.test_provider(provider_name)
             spinner.stop()
@@ -2143,7 +2463,9 @@ class AionHandCLI:
 
     async def _cmd_doctor(self, args: argparse.Namespace):
         """Diagnose Aion installation health."""
-        self._print_colored(f"\n  {Colors.BOLD}Aion Hand Doctor{Colors.RESET}\n", Colors.CYAN)
+        self._print_colored(
+            f"\n  {Colors.BOLD}Aion Hand Doctor{Colors.RESET}\n", Colors.CYAN
+        )
         self._print_colored("  " + "─" * 62 + "\n", Colors.DIM)
 
         checks_passed = 0
@@ -2152,18 +2474,31 @@ class AionHandCLI:
 
         # Check 1: Python version
         import sys as _sys
+
         py_ok = _sys.version_info >= (3, 11)
-        status = f"{Colors.GREEN}✔{Colors.RESET}" if py_ok else f"{Colors.RED}✘{Colors.RESET}"
-        self._print_colored(f"  {status} Python {_sys.version.split()[0]} (>= 3.11 required)\n")
-        checks_passed += int(py_ok); checks_failed += int(not py_ok)
+        status = (
+            f"{Colors.GREEN}✔{Colors.RESET}"
+            if py_ok
+            else f"{Colors.RED}✘{Colors.RESET}"
+        )
+        self._print_colored(
+            f"  {status} Python {_sys.version.split()[0]} (>= 3.11 required)\n"
+        )
+        checks_passed += int(py_ok)
+        checks_failed += int(not py_ok)
 
         # Check 2: Aion importable
         try:
             import aion_core  # noqa: F401
-            self._print_colored(f"  {Colors.GREEN}✔{Colors.RESET} aion_core importable\n")
+
+            self._print_colored(
+                f"  {Colors.GREEN}✔{Colors.RESET} aion_core importable\n"
+            )
             checks_passed += 1
         except ImportError as exc:
-            self._print_colored(f"  {Colors.RED}✘{Colors.RESET} aion_core not importable: {exc}\n")
+            self._print_colored(
+                f"  {Colors.RED}✘{Colors.RESET} aion_core not importable: {exc}\n"
+            )
             checks_failed += 1
 
         # Check 3: Optional deps
@@ -2175,22 +2510,32 @@ class AionHandCLI:
         ]:
             try:
                 __import__(dep_module)
-                self._print_colored(f"  {Colors.GREEN}✔{Colors.RESET} optional dep: {dep_name}\n")
+                self._print_colored(
+                    f"  {Colors.GREEN}✔{Colors.RESET} optional dep: {dep_name}\n"
+                )
                 checks_passed += 1
             except ImportError:
-                self._print_colored(f"  {Colors.YELLOW}⚠{Colors.RESET} optional dep missing: {dep_name}\n")
+                self._print_colored(
+                    f"  {Colors.YELLOW}⚠{Colors.RESET} optional dep missing: {dep_name}\n"
+                )
                 warnings += 1
 
         # Check 4: Config dir
         home_dir = Path.home() / ".aion-hand"
         if home_dir.is_dir():
-            self._print_colored(f"  {Colors.GREEN}✔{Colors.RESET} config dir: {home_dir}\n")
+            self._print_colored(
+                f"  {Colors.GREEN}✔{Colors.RESET} config dir: {home_dir}\n"
+            )
             checks_passed += 1
         else:
-            self._print_colored(f"  {Colors.YELLOW}⚠{Colors.RESET} config dir not created yet: {home_dir}\n")
+            self._print_colored(
+                f"  {Colors.YELLOW}⚠{Colors.RESET} config dir not created yet: {home_dir}\n"
+            )
             if getattr(args, "fix", False):
                 home_dir.mkdir(parents=True, exist_ok=True)
-                self._print_colored(f"  {Colors.GREEN}✔{Colors.RESET} created config dir\n")
+                self._print_colored(
+                    f"  {Colors.GREEN}✔{Colors.RESET} created config dir\n"
+                )
                 checks_passed += 1
             else:
                 warnings += 1
@@ -2199,30 +2544,46 @@ class AionHandCLI:
         skills_dir = home_dir / "skills"
         n_skills = len(list(skills_dir.glob("*.md"))) if skills_dir.is_dir() else 0
         if n_skills > 0:
-            self._print_colored(f"  {Colors.GREEN}✔{Colors.RESET} {n_skills} skills in {skills_dir}\n")
+            self._print_colored(
+                f"  {Colors.GREEN}✔{Colors.RESET} {n_skills} skills in {skills_dir}\n"
+            )
             checks_passed += 1
         else:
-            self._print_colored(f"  {Colors.YELLOW}⚠{Colors.RESET} no user skills installed (use 'aion-hand skills --list')\n")
+            self._print_colored(
+                f"  {Colors.YELLOW}⚠{Colors.RESET} no user skills installed (use 'aion-hand skills --list')\n"
+            )
             warnings += 1
 
         # Check 6: Personas
         try:
             from aion_core.persona import PersonaManager
+
             mgr = PersonaManager()
             n_personas = len(mgr.list_personas())
-            self._print_colored(f"  {Colors.GREEN}✔{Colors.RESET} {n_personas} personas available (active: {mgr.get_active_name()})\n")
+            self._print_colored(
+                f"  {Colors.GREEN}✔{Colors.RESET} {n_personas} personas available (active: {mgr.get_active_name()})\n"
+            )
             checks_passed += 1
         except Exception as exc:  # noqa: BLE001
-            self._print_colored(f"  {Colors.RED}✘{Colors.RESET} persona system error: {exc}\n")
+            self._print_colored(
+                f"  {Colors.RED}✘{Colors.RESET} persona system error: {exc}\n"
+            )
             checks_failed += 1
 
         # Check 7: API key (any provider)
-        has_key = any(os.environ.get(k) for k in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GROQ_API_KEY"))
+        has_key = any(
+            os.environ.get(k)
+            for k in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GROQ_API_KEY")
+        )
         if has_key:
-            self._print_colored(f"  {Colors.GREEN}✔{Colors.RESET} LLM API key found in env\n")
+            self._print_colored(
+                f"  {Colors.GREEN}✔{Colors.RESET} LLM API key found in env\n"
+            )
             checks_passed += 1
         else:
-            self._print_colored(f"  {Colors.YELLOW}⚠{Colors.RESET} no LLM API key in env (set OPENAI_API_KEY etc.)\n")
+            self._print_colored(
+                f"  {Colors.YELLOW}⚠{Colors.RESET} no LLM API key in env (set OPENAI_API_KEY etc.)\n"
+            )
             warnings += 1
 
         # Summary
@@ -2245,13 +2606,17 @@ class AionHandCLI:
         try:
             from aion_core.backup import BackupManager
         except ImportError as exc:
-            self._print_colored(f"  {Colors.RED}✘{Colors.RESET} backup module not available: {exc}\n")
+            self._print_colored(
+                f"  {Colors.RED}✘{Colors.RESET} backup module not available: {exc}\n"
+            )
             return
 
         bm = BackupManager()
 
         if args.create:
-            self._print_colored(f"\n  {Colors.BOLD}Creating backup…{Colors.RESET}\n", Colors.CYAN)
+            self._print_colored(
+                f"\n  {Colors.BOLD}Creating backup…{Colors.RESET}\n", Colors.CYAN
+            )
             archive = await bm.backup(label=args.label)
             self._print_colored(
                 f"  {Colors.GREEN}✔{Colors.RESET} Backup created: {archive}\n"
@@ -2261,7 +2626,10 @@ class AionHandCLI:
             return
 
         if args.restore:
-            self._print_colored(f"\n  {Colors.BOLD}Restoring from {args.restore}…{Colors.RESET}\n", Colors.CYAN)
+            self._print_colored(
+                f"\n  {Colors.BOLD}Restoring from {args.restore}…{Colors.RESET}\n",
+                Colors.CYAN,
+            )
             result = await bm.restore(args.restore, overwrite=True)
             self._print_colored(
                 f"  {Colors.GREEN}✔{Colors.RESET} Restored {len(result['extracted'])} items, "
@@ -2279,7 +2647,9 @@ class AionHandCLI:
         # Default: list
         entries = bm.list_backups()
         if not entries:
-            self._print_colored(f"\n  {Colors.DIM}No backups found. Use 'aion-hand backup --create' to create one.\n\n")
+            self._print_colored(
+                f"\n  {Colors.DIM}No backups found. Use 'aion-hand backup --create' to create one.\n\n"
+            )
             return
         self._print_colored(f"\n  {Colors.BOLD}Backups{Colors.RESET}\n", Colors.CYAN)
         self._print_colored("  " + "─" * 62 + "\n", Colors.DIM)
@@ -2296,7 +2666,9 @@ class AionHandCLI:
         try:
             from aion_core.api.server import APIServer, APIConfig
         except ImportError as exc:
-            self._print_colored(f"  {Colors.RED}✘{Colors.RESET} API module not available: {exc}\n")
+            self._print_colored(
+                f"  {Colors.RED}✘{Colors.RESET} API module not available: {exc}\n"
+            )
             self._print_colored(
                 f"  {Colors.DIM}Install with: pip install aiohttp{Colors.RESET}\n"
             )
@@ -2314,10 +2686,13 @@ class AionHandCLI:
         )
 
         from aion_core.agent.core import AionHand
+
         agent = AionHand()
         await agent.start()
         try:
-            server = APIServer(agent=agent, config=APIConfig(host=args.host, port=args.port))
+            server = APIServer(
+                agent=agent, config=APIConfig(host=args.host, port=args.port)
+            )
             await server.serve()
         finally:
             await agent.shutdown()
@@ -2339,6 +2714,7 @@ class AionHandCLI:
 
         try:
             from aion_core.agent.core import AionHandAgent
+
             agent = AionHandAgent(model=model)
             self._print_colored(
                 f"  {Colors.GREEN}✔{Colors.RESET} Agent initialized"
@@ -2449,9 +2825,7 @@ class AionHandCLI:
                 f"Connect an agent for full functionality. "
                 f"Type /help for commands.{Colors.RESET}\n\n"
             )
-            conversation.append(
-                {"role": "assistant", "content": "(standalone mode)"}
-            )
+            conversation.append({"role": "assistant", "content": "(standalone mode)"})
 
     async def _handle_slash_command(
         self, command: str, agent, conversation: list
@@ -2506,7 +2880,7 @@ class AionHandCLI:
                 )
             else:
                 self._print_colored(
-                    f"  {Colors.DIM}Usage: /pipeline \"mission text\"{Colors.RESET}\n"
+                    f'  {Colors.DIM}Usage: /pipeline "mission text"{Colors.RESET}\n'
                 )
 
         # ── /benchmark ──────────────────────────────────────────────────
@@ -2528,7 +2902,7 @@ class AionHandCLI:
                 await self._dynamic_execute(arg, complexity=5)
             else:
                 self._print_colored(
-                    f"  {Colors.DIM}Usage: /dynamic \"task\"{Colors.RESET}\n"
+                    f'  {Colors.DIM}Usage: /dynamic "task"{Colors.RESET}\n'
                 )
 
         # ── /tools ───────────────────────────────────────────────────────
@@ -2607,7 +2981,10 @@ class AionHandCLI:
                     f"  {Colors.DIM}Nothing to export — conversation is empty.{Colors.RESET}\n"
                 )
             else:
-                export_path = os.path.join(_CONFIG_DIR, f"conversation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+                export_path = os.path.join(
+                    _CONFIG_DIR,
+                    f"conversation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                )
                 _ensure_config_dir()
                 with open(export_path, "w", encoding="utf-8") as f:
                     json.dump(conversation, f, indent=2, ensure_ascii=False)
@@ -2649,9 +3026,7 @@ class AionHandCLI:
                         f"  {Colors.GREEN}✔{Colors.RESET} Context compressed.\n\n"
                     )
                 except Exception as exc:
-                    self._print_colored(
-                        f"  {Colors.RED}Error: {exc}{Colors.RESET}\n\n"
-                    )
+                    self._print_colored(f"  {Colors.RED}Error: {exc}{Colors.RESET}\n\n")
             else:
                 self._print_colored(
                     f"  {Colors.YELLOW}⚠{Colors.RESET} Context compression requires an agent.\n\n"
@@ -2776,6 +3151,7 @@ class AionHandCLI:
 #  CRON JOB HELPERS
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 def _load_cron_jobs() -> list:
     """Load cron jobs from config file."""
     _ensure_config_dir()
@@ -2798,6 +3174,7 @@ def _save_cron_jobs(jobs: list):
 # ═══════════════════════════════════════════════════════════════════════════════
 #  ENTRY POINT
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 def main():
     """Main entry point for the aion-hand CLI."""

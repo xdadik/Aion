@@ -9,7 +9,6 @@ import pytest
 from aion_core.skills.engine import SkillEngine
 from aion_core.skills.marketplace import CatalogEntry, SkillMarketplace
 
-
 SAMPLE_SKILL_MD = """---
 name: test-marketplace-skill
 description: A test skill for marketplace testing
@@ -43,11 +42,20 @@ class TestInstallFromText:
     async def test_install_from_url_with_mock(self, tmp_path, monkeypatch):
         # Mock urllib.request.urlopen to return our sample skill
         from io import BytesIO
+
         class _MockResp:
-            def __enter__(self): return self
-            def __exit__(self, *a): pass
-            def read(self): return SAMPLE_SKILL_MD.encode("utf-8")
-        def _mock_urlopen(*a, **kw): return _MockResp()
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                pass
+
+            def read(self):
+                return SAMPLE_SKILL_MD.encode("utf-8")
+
+        def _mock_urlopen(*a, **kw):
+            return _MockResp()
+
         monkeypatch.setattr("urllib.request.urlopen", _mock_urlopen)
 
         mp = SkillMarketplace(skills_dir=tmp_path / "skills")
@@ -67,9 +75,13 @@ class TestInstallFromDirectory:
         src = tmp_path / "src"
         src.mkdir()
         (src / "skill1").mkdir()
-        (src / "skill1" / "SKILL.md").write_text("---\nname: dir-skill-1\ndescription: a\n---\nbody1")
+        (src / "skill1" / "SKILL.md").write_text(
+            "---\nname: dir-skill-1\ndescription: a\n---\nbody1"
+        )
         (src / "skill2").mkdir()
-        (src / "skill2" / "SKILL.md").write_text("---\nname: dir-skill-2\ndescription: b\n---\nbody2")
+        (src / "skill2" / "SKILL.md").write_text(
+            "---\nname: dir-skill-2\ndescription: b\n---\nbody2"
+        )
 
         mp = SkillMarketplace(skills_dir=tmp_path / "skills")
         installed = await mp.install_from_directory(src)

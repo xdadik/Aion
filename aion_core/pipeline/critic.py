@@ -15,6 +15,7 @@ logger = logging.getLogger("aion_hand.pipeline")
 @dataclass
 class CritiqueResult:
     """Result of critiquing an execution output."""
+
     score: float = 0.5  # 0.0-1.0 quality score
     issues: list[str] = field(default_factory=list)
     improvements: list[str] = field(default_factory=list)
@@ -99,7 +100,9 @@ Return ONLY the JSON. No markdown, no explanation."""
         if llm_result:
             # Blend heuristic and LLM results
             blended = self._blend_results(heuristic, llm_result)
-            logger.info(f"LLM critique: score={blended.score:.2f}, should_repair={blended.should_repair}")
+            logger.info(
+                f"LLM critique: score={blended.score:.2f}, should_repair={blended.should_repair}"
+            )
             return blended
 
         logger.info(f"Falling back to heuristic: score={heuristic.score:.2f}")
@@ -143,7 +146,14 @@ Return ONLY the JSON. No markdown, no explanation."""
             improvements.append("Consider making the response more concise")
 
         # Check if result appears to be an error message
-        error_indicators = ["error:", "exception:", "traceback", "failed to", "cannot", "unauthorized"]
+        error_indicators = [
+            "error:",
+            "exception:",
+            "traceback",
+            "failed to",
+            "cannot",
+            "unauthorized",
+        ]
         if any(ind in result_str.lower() for ind in error_indicators):
             issues.append("Result appears to contain error messages")
             score_factors.append(-0.4)
@@ -152,10 +162,14 @@ Return ONLY the JSON. No markdown, no explanation."""
         task_keywords = set(re.findall(r"\b[a-zA-Z]{4,}\b", task.lower()))
         if task_keywords:
             result_lower = result_str.lower()
-            keyword_coverage = sum(1 for kw in task_keywords if kw in result_lower) / len(task_keywords)
+            keyword_coverage = sum(
+                1 for kw in task_keywords if kw in result_lower
+            ) / len(task_keywords)
             score_factors.append(keyword_coverage * 0.3)
             if keyword_coverage < 0.3:
-                issues.append(f"Low keyword coverage ({keyword_coverage:.0%}) - result may not address the task")
+                issues.append(
+                    f"Low keyword coverage ({keyword_coverage:.0%}) - result may not address the task"
+                )
 
         # Calculate aggregate score
         if score_factors:
@@ -188,7 +202,9 @@ Return ONLY the JSON. No markdown, no explanation."""
         verif_parts = []
         for v in verifications:
             status = "PASSED" if v.passed else "FAILED"
-            verif_parts.append(f"- [{v.checked_by}] {status} (confidence: {v.confidence:.2f})")
+            verif_parts.append(
+                f"- [{v.checked_by}] {status} (confidence: {v.confidence:.2f})"
+            )
             if v.issues:
                 for issue in v.issues[:3]:
                     verif_parts.append(f"    Issue: {issue}")
@@ -207,7 +223,11 @@ Return ONLY the JSON. No markdown, no explanation."""
 
         try:
             response = await self._agent.chat(message=user_message)
-            content = response.get("content", "") if isinstance(response, dict) else str(response)
+            content = (
+                response.get("content", "")
+                if isinstance(response, dict)
+                else str(response)
+            )
         except Exception as e:
             logger.warning(f"LLM critique failed: {e}")
             return None
@@ -217,14 +237,16 @@ Return ONLY the JSON. No markdown, no explanation."""
     def _parse_llm_critique(self, raw_content: str) -> CritiqueResult | None:
         """Parse the LLM's critique JSON response."""
         json_str = None
-        code_block_match = re.search(r"```(?:json)?\s*\n?(\{.*?\})\s*\n?```", raw_content, re.DOTALL)
+        code_block_match = re.search(
+            r"```(?:json)?\s*\n?(\{.*?\})\s*\n?```", raw_content, re.DOTALL
+        )
         if code_block_match:
             json_str = code_block_match.group(1)
         else:
             brace_start = raw_content.find("{")
             brace_end = raw_content.rfind("}")
             if brace_start != -1 and brace_end > brace_start:
-                json_str = raw_content[brace_start:brace_end + 1]
+                json_str = raw_content[brace_start : brace_end + 1]
 
         if not json_str:
             return None
@@ -254,11 +276,12 @@ Return ONLY the JSON. No markdown, no explanation."""
         blended_score = alpha * llm.score + (1 - alpha) * heuristic.score
 
         all_issues = list(dict.fromkeys(heuristic.issues + llm.issues))
-        all_improvements = list(dict.fromkeys(heuristic.improvements + llm.improvements))
+        all_improvements = list(
+            dict.fromkeys(heuristic.improvements + llm.improvements)
+        )
 
         should_repair = (
-            blended_score < self._repair_threshold
-            and len(all_improvements) > 0
+            blended_score < self._repair_threshold and len(all_improvements) > 0
         )
 
         return CritiqueResult(

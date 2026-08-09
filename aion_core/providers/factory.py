@@ -163,7 +163,7 @@ class RetryHandler:
 
     def _compute_delay(self, attempt: int) -> float:
         """Compute delay for a given retry attempt."""
-        delay = self.base_delay * (self.exponential_base ** attempt)
+        delay = self.base_delay * (self.exponential_base**attempt)
         # Add jitter: 0.5x to 1.5x the computed delay
         import random
 
@@ -459,7 +459,9 @@ class BaseProvider(ABC):
                 raise TypeError(f"Unsupported message type: {type(m)}")
         return result
 
-    async def _with_retry(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+    async def _with_retry(
+        self, func: Callable[..., Any], *args: Any, **kwargs: Any
+    ) -> Any:
         """Execute a callable with rate limiting and retry logic."""
         await self.rate_limiter.acquire()
         return await self.retry_handler.execute(func, *args, **kwargs)
@@ -654,9 +656,7 @@ class AnthropicProvider(BaseProvider):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         if not self.api_key:
-            raise ValueError(
-                "Anthropic provider requires an 'api_key' configuration."
-            )
+            raise ValueError("Anthropic provider requires an 'api_key' configuration.")
 
     def get_default_model(self) -> str:
         return "claude-3-5-sonnet-20241022"
@@ -753,8 +753,7 @@ class AnthropicProvider(BaseProvider):
         model = model or self.default_model
 
         payload = self._build_payload(
-            normalized, model, temperature, max_tokens, tools,
-            stream=True, **kwargs
+            normalized, model, temperature, max_tokens, tools, stream=True, **kwargs
         )
 
         url = f"{self.base_url}/messages"
@@ -777,11 +776,13 @@ class AnthropicProvider(BaseProvider):
                 content_block = chunk.get("content_block", {})
                 if content_block.get("type") == "tool_use":
                     # Emit tool call info as JSON string.
-                    yield json.dumps({
-                        "__tool_call_start__": True,
-                        "id": content_block.get("id", ""),
-                        "name": content_block.get("name", ""),
-                    })
+                    yield json.dumps(
+                        {
+                            "__tool_call_start__": True,
+                            "id": content_block.get("id", ""),
+                            "name": content_block.get("name", ""),
+                        }
+                    )
 
             elif event_type == "content_block_stop":
                 pass
@@ -801,22 +802,23 @@ class AnthropicProvider(BaseProvider):
             if block.get("type") == "text":
                 content_text += block.get("text", "")
             elif block.get("type") == "tool_use":
-                tool_calls.append({
-                    "id": block.get("id", ""),
-                    "type": "function",
-                    "function": {
-                        "name": block.get("name", ""),
-                        "arguments": json.dumps(block.get("input", {})),
-                    },
-                })
+                tool_calls.append(
+                    {
+                        "id": block.get("id", ""),
+                        "type": "function",
+                        "function": {
+                            "name": block.get("name", ""),
+                            "arguments": json.dumps(block.get("input", {})),
+                        },
+                    }
+                )
 
         usage_data = raw.get("usage", {})
         usage = UsageInfo(
             prompt_tokens=usage_data.get("input_tokens", 0),
             completion_tokens=usage_data.get("output_tokens", 0),
             total_tokens=(
-                usage_data.get("input_tokens", 0)
-                + usage_data.get("output_tokens", 0)
+                usage_data.get("input_tokens", 0) + usage_data.get("output_tokens", 0)
             ),
         )
 
@@ -866,19 +868,14 @@ class GoogleProvider(BaseProvider):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         if not self.api_key:
-            raise ValueError(
-                "Google provider requires an 'api_key' configuration."
-            )
+            raise ValueError("Google provider requires an 'api_key' configuration.")
 
     def get_default_model(self) -> str:
         return "gemini-2.0-flash"
 
     def _build_url(self, model: str, stream: bool = False) -> str:
         action = "streamGenerateContent" if stream else "generateContent"
-        return (
-            f"{self.base_url}/models/{model}:{action}"
-            f"?key={self.api_key}"
-        )
+        return f"{self.base_url}/models/{model}:{action}" f"?key={self.api_key}"
 
     def _build_payload(
         self,
@@ -918,11 +915,13 @@ class GoogleProvider(BaseProvider):
             function_decls = []
             for tool in tools:
                 func = tool.get("function", tool)
-                function_decls.append({
-                    "name": func["name"],
-                    "description": func.get("description", ""),
-                    "parameters": func.get("parameters", {}),
-                })
+                function_decls.append(
+                    {
+                        "name": func["name"],
+                        "description": func.get("description", ""),
+                        "parameters": func.get("parameters", {}),
+                    }
+                )
             payload["tools"] = [{"functionDeclarations": function_decls}]
 
         payload.update(kwargs)
@@ -946,9 +945,7 @@ class GoogleProvider(BaseProvider):
 
         async def _do_request() -> ProviderResponse:
             url = self._build_url(model)
-            raw = await _http_post_json(
-                url, {}, payload, timeout=self.timeout
-            )
+            raw = await _http_post_json(url, {}, payload, timeout=self.timeout)
             return self._parse_response(raw, model)
 
         return await self._with_retry(_do_request)
@@ -972,9 +969,7 @@ class GoogleProvider(BaseProvider):
         url = self._build_url(model, stream=True)
         await self.rate_limiter.acquire()
 
-        async for chunk in _http_post_stream(
-            url, {}, payload, timeout=self.timeout
-        ):
+        async for chunk in _http_post_stream(url, {}, payload, timeout=self.timeout):
             candidates = chunk.get("candidates", [])
             if candidates:
                 parts = candidates[0].get("content", {}).get("parts", [])
@@ -1023,14 +1018,16 @@ class GoogleProvider(BaseProvider):
                     if tool_calls is None:
                         tool_calls = []
                     fc = part["functionCall"]
-                    tool_calls.append({
-                        "id": str(uuid.uuid4()),
-                        "type": "function",
-                        "function": {
-                            "name": fc.get("name", ""),
-                            "arguments": json.dumps(fc.get("args", {})),
-                        },
-                    })
+                    tool_calls.append(
+                        {
+                            "id": str(uuid.uuid4()),
+                            "type": "function",
+                            "function": {
+                                "name": fc.get("name", ""),
+                                "arguments": json.dumps(fc.get("args", {})),
+                            },
+                        }
+                    )
 
             reason = candidate.get("finishReason", "")
             reason_map = {
@@ -1075,9 +1072,7 @@ class OpenRouterProvider(BaseProvider):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         if not self.api_key:
-            raise ValueError(
-                "OpenRouter provider requires an 'api_key' configuration."
-            )
+            raise ValueError("OpenRouter provider requires an 'api_key' configuration.")
 
     def get_default_model(self) -> str:
         return "openai/gpt-4o"
@@ -1086,12 +1081,8 @@ class OpenRouterProvider(BaseProvider):
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
-            "HTTP-Referer": self._extra_config.get(
-                "site_url", "https://aion-hand.dev"
-            ),
-            "X-Title": self._extra_config.get(
-                "app_name", "Aion Hand"
-            ),
+            "HTTP-Referer": self._extra_config.get("site_url", "https://aion-hand.dev"),
+            "X-Title": self._extra_config.get("app_name", "Aion Hand"),
         }
         return headers
 
@@ -1386,9 +1377,7 @@ class CustomProvider(BaseProvider):
         super().__init__(**kwargs)
 
     def get_default_model(self) -> str:
-        return self._extra_config.get(
-            "default_model", "default"
-        )
+        return self._extra_config.get("default_model", "default")
 
     def _build_headers(self) -> dict[str, str]:
         headers = {"Content-Type": "application/json"}
@@ -1584,8 +1573,12 @@ class ProviderFactory:
 
         # Standard config keys.
         standard_keys = {
-            "api_key", "base_url", "max_retries", "rate_limit_rpm",
-            "timeout", "default_model",
+            "api_key",
+            "base_url",
+            "max_retries",
+            "rate_limit_rpm",
+            "timeout",
+            "default_model",
         }
         for key in standard_keys:
             if key in config:
@@ -1671,7 +1664,9 @@ class ProviderFactory:
         Raises:
             TypeError: If ``provider_cls`` is not a ``BaseProvider`` subclass.
         """
-        if not (isinstance(provider_cls, type) and issubclass(provider_cls, BaseProvider)):
+        if not (
+            isinstance(provider_cls, type) and issubclass(provider_cls, BaseProvider)
+        ):
             raise TypeError(
                 f"provider_cls must be a BaseProvider subclass, "
                 f"got {provider_cls!r}"

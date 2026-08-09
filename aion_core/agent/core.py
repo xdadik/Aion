@@ -1,32 +1,46 @@
 # Aion Hand - Core Agent Framework
 
-import sys
-import json
-import time
-import signal
-import logging
 import asyncio
-from pathlib import Path
-from typing import Any
+import json
+import logging
+import pathlib
+import signal
+import sys
+import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from enum import Enum
 from datetime import datetime
+from enum import Enum
+from pathlib import Path
+from typing import Any
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler("aion_hand.log"),
-    ],
-)
+
+# Configure logging — stream to stdout; file handler added lazily
+# to avoid writing to unwritable cwd on import. The agent's start()
+# will attach a FileHandler under logs_dir if needed.
+def _configure_logging() -> None:
+    handlers: list[logging.Handler] = [logging.StreamHandler(sys.stdout)]
+    try:
+        log_file = pathlib.Path.home() / ".aion-hand" / "logs" / "aion_hand.log"
+        log_file.parent.mkdir(parents=True, exist_ok=True)
+        handlers.append(logging.FileHandler(str(log_file)))
+    except Exception:
+        pass
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        handlers=handlers,
+        force=True,
+    )
+
+
+_configure_logging()
 logger = logging.getLogger("aion_hand")
 
 
 class AgentState(Enum):
     """Agent lifecycle states - inspired by Hermes Agent and OpenClaw state machines."""
+
     UNINITIALIZED = "uninitialized"
     INITIALIZING = "initializing"
     IDLE = "idle"
@@ -41,21 +55,29 @@ class AgentState(Enum):
 
 @dataclass
 class AgentConfig:
-    """Central configuration for Aion Hand - combines OpenClaw's config structure 
+    """Central configuration for Aion Hand - combines OpenClaw's config structure
     with NullClaw's provider agnosticism and Hermes's portal system."""
 
     # Identity
     name: str = "Aion Hand"
-    version: str = "0.3.0"
+    version: str = "0.4.0"
 
     # Paths
     home_dir: Path = field(default_factory=lambda: Path.home() / ".aion-hand")
     data_dir: Path = field(default_factory=lambda: Path.home() / ".aion-hand" / "data")
-    memory_dir: Path = field(default_factory=lambda: Path.home() / ".aion-hand" / "memory")
-    skills_dir: Path = field(default_factory=lambda: Path.home() / ".aion-hand" / "skills")
-    tools_dir: Path = field(default_factory=lambda: Path.home() / ".aion-hand" / "tools")
+    memory_dir: Path = field(
+        default_factory=lambda: Path.home() / ".aion-hand" / "memory"
+    )
+    skills_dir: Path = field(
+        default_factory=lambda: Path.home() / ".aion-hand" / "skills"
+    )
+    tools_dir: Path = field(
+        default_factory=lambda: Path.home() / ".aion-hand" / "tools"
+    )
     logs_dir: Path = field(default_factory=lambda: Path.home() / ".aion-hand" / "logs")
-    config_file: Path = field(default_factory=lambda: Path.home() / ".aion-hand" / "config.json")
+    config_file: Path = field(
+        default_factory=lambda: Path.home() / ".aion-hand" / "config.json"
+    )
 
     # Provider Settings (OpenClaw compatible snake_case)
     default_provider: str = "openai"
@@ -118,8 +140,7 @@ class AgentConfig:
         """Save configuration to disk."""
         self.config_file.parent.mkdir(parents=True, exist_ok=True)
         config_dict = {
-            k: str(v) if isinstance(v, Path) else v
-            for k, v in self.__dict__.items()
+            k: str(v) if isinstance(v, Path) else v for k, v in self.__dict__.items()
         }
         with open(self.config_file, "w") as f:
             json.dump(config_dict, f, indent=2, default=str)
@@ -147,8 +168,8 @@ class AgentConfig:
 DEFAULT_PERSONALITY = """
 # Aion Hand - AI Assistant Personality
 
-You are Aion Hand, a highly capable autonomous AI assistant. You combine 
-the intelligence of Hermes with the speed of NullClaw and the versatility 
+You are Aion Hand, a highly capable autonomous AI assistant. You combine
+the intelligence of Hermes with the speed of NullClaw and the versatility
 of OpenClaw.
 
 ## Core Traits
@@ -179,13 +200,13 @@ of OpenClaw.
 class AionHand:
     """
     The core Aion Hand agent - the central orchestrator.
-    
+
     Combines the best of:
     - OpenClaw's personal assistant architecture
     - NullClaw's lightweight execution model
     - Hermes's self-improving learning loop
     - CrewAI's multi-agent orchestration
-    
+
     Usage:
         agent = AionHand()
         agent.start()
@@ -249,7 +270,21 @@ class AionHand:
     def _signal_handler(self, signum, frame):
         """Graceful shutdown on signal (OpenClaw-inspired)."""
         logger.info(f"Received signal {signum}, initiating graceful shutdown...")
-        asyncio.create_task(self.shutdown())
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # No running loop (sync context or before start) — defer.
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                logger.warning("No event loop available for shutdown; exiting")
+                sys.exit(0)
+                return
+        if loop.is_running():
+            loop.create_task(self.shutdown())
+        else:
+            # Loop exists but not running — schedule via call_soon
+            loop.call_soon(lambda: asyncio.ensure_future(self.shutdown()))
 
     async def start(self) -> None:
         """
@@ -265,9 +300,12 @@ class AionHand:
 
         # Ensure directories exist
         for dir_path in [
-            self.config.home_dir, self.config.data_dir,
-            self.config.memory_dir, self.config.skills_dir,
-            self.config.tools_dir, self.config.logs_dir,
+            self.config.home_dir,
+            self.config.data_dir,
+            self.config.memory_dir,
+            self.config.skills_dir,
+            self.config.tools_dir,
+            self.config.logs_dir,
         ]:
             dir_path.mkdir(parents=True, exist_ok=True)
 
@@ -276,6 +314,7 @@ class AionHand:
         try:
             # 1. Initialize Provider (NullClaw-inspired provider agnosticism)
             from aion_core.providers.factory import ProviderFactory
+
             self._provider = ProviderFactory.create(
                 self.config.default_provider,
                 self.config.providers.get(self.config.default_provider, {}),
@@ -286,6 +325,7 @@ class AionHand:
             # 2. Initialize Memory System (Hermes FTS5 + OpenClaw MEMORY.md)
             if self.config.memory_enabled:
                 from aion_core.memory.manager import MemoryManager
+
                 self._memory = MemoryManager(
                     memory_dir=self.config.memory_dir,
                     persist=self.config.memory_persist,
@@ -298,6 +338,7 @@ class AionHand:
             # 3. Initialize Tool Registry (MCP compatible)
             if self.config.tools_enabled:
                 from aion_core.tools.registry import ToolRegistry
+
                 self._tools = ToolRegistry(
                     config=self.config,
                     approval_mode=self.config.tool_approval_mode,
@@ -308,13 +349,17 @@ class AionHand:
             # 4. Initialize Skills Engine (Hermes-compatible agentskills.io)
             if self.config.skills_enabled:
                 from aion_core.skills.engine import SkillEngine
+
                 self._skills = SkillEngine(
                     storage_dir=self.config.skills_dir,
                 )
-                logger.info(f"Skills engine initialized ({self._skills.skill_count} skills)")
+                logger.info(
+                    f"Skills engine initialized ({self._skills.skill_count} skills)"
+                )
 
             # 5. Initialize Agent Loop (Hermes-inspired control loop)
             from aion_core.agent.loop import AgentLoop
+
             self._loop = AgentLoop(
                 provider=self._provider,
                 memory=self._memory,
@@ -329,6 +374,7 @@ class AionHand:
             # 6. Initialize Orchestration (NullBoiler + Hermes subagents)
             if self.config.workflow_enabled:
                 from aion_core.orchestration.engine import OrchestrationEngine
+
                 self._orchestrator = OrchestrationEngine(
                     agent=self,
                     max_subagents=self.config.max_subagents,
@@ -340,6 +386,7 @@ class AionHand:
             # 7. Initialize Cron Scheduler (Hermes-inspired)
             if self.config.cron_enabled:
                 from aion_core.cron.scheduler import CronScheduler
+
                 self._scheduler = CronScheduler(
                     agent=self,
                     timezone=self.config.cron_timezone,
@@ -350,6 +397,7 @@ class AionHand:
             # 8. Initialize Messaging Gateway (OpenClaw gateway)
             if self.config.messaging_enabled and self.config.platforms:
                 from aion_core.messaging.gateway import MessagingGateway
+
                 self._messenger = MessagingGateway(
                     platforms=self.config.platforms,
                     agent=self,
@@ -358,8 +406,9 @@ class AionHand:
                 logger.info("Messaging gateway initialized")
 
             # 9. Initialize Pipeline Engine
-            if getattr(self.config, 'pipeline_enabled', True):
+            if getattr(self.config, "pipeline_enabled", True):
                 from aion_core.pipeline.engine import PipelineEngine
+
                 self._pipeline = PipelineEngine(
                     agent=self,
                     config=self.config,
@@ -367,15 +416,17 @@ class AionHand:
                 logger.info("Pipeline engine initialized")
 
             # 10. Initialize MCP Client & Bridge (if not already via tools)
-            if getattr(self.config, 'mcp_enabled', True) and not self._tools:
+            if getattr(self.config, "mcp_enabled", True) and not self._tools:
                 from aion_core.mcp.client import MCPClient
+
                 self._mcp_client = MCPClient()
                 logger.info("MCP client initialized")
 
             # 11. Initialize Knowledge Manager
             try:
-                if getattr(self.config, 'knowledge_enabled', True):
+                if getattr(self.config, "knowledge_enabled", True):
                     from aion_core.knowledge import KnowledgeManager
+
                     self._knowledge = KnowledgeManager(
                         storage_dir=self.config.data_dir / "knowledge",
                     )
@@ -388,8 +439,9 @@ class AionHand:
                 logger.warning(f"Knowledge manager init skipped: {e}")
 
             # 12. Initialize Benchmark Runner
-            if getattr(self.config, 'benchmark_enabled', True):
+            if getattr(self.config, "benchmark_enabled", True):
                 from aion_core.benchmark import BenchmarkRunner
+
                 self._benchmark = BenchmarkRunner(
                     agent=self,
                     output_dir=str(self.config.data_dir / "benchmarks"),
@@ -399,8 +451,9 @@ class AionHand:
 
             # 13. Initialize Dynamic Manager
             try:
-                if getattr(self.config, 'dynamic_enabled', True):
+                if getattr(self.config, "dynamic_enabled", True):
                     from aion_core.dynamic.manager import DynamicManager
+
                     self._dynamic = DynamicManager(
                         base_agent=self,
                         storage_dir=self.config.data_dir / "dynamic",
@@ -414,8 +467,9 @@ class AionHand:
                 logger.warning(f"Dynamic manager init skipped: {e}")
 
             # 14. Initialize Router Manager
-            if getattr(self.config, 'routing_enabled', True):
+            if getattr(self.config, "routing_enabled", True):
                 from aion_core.router import RouterManager
+
                 self._router = RouterManager(config={})
                 logger.info("Router manager initialized")
 
@@ -434,11 +488,11 @@ class AionHand:
         """
         Send a message to the agent and receive a response.
         Core chat interface - inspired by Hermes Agent's conversation loop.
-        
+
         Args:
             message: User message
             session_id: Optional session identifier
-            
+
         Returns:
             Response dictionary with content, tools used, timing, etc.
         """
@@ -557,15 +611,17 @@ class AionHand:
 
     async def execute_pipeline(self, task: str) -> dict[str, Any]:
         """Execute a task through the full pipeline engine.
-        
+
         Args:
             task: The task description or structured task dict to execute.
-            
+
         Returns:
             Pipeline execution result including stages, timing, and output.
         """
         if not self._pipeline:
-            raise RuntimeError("Pipeline engine not initialized. Enable pipeline_enabled in config.")
+            raise RuntimeError(
+                "Pipeline engine not initialized. Enable pipeline_enabled in config."
+            )
 
         if isinstance(task, str):
             task = {"description": task}
@@ -574,44 +630,50 @@ class AionHand:
 
     async def query_knowledge(self, query: str, top_k: int = 5) -> dict[str, Any]:
         """Query the knowledge base for relevant information.
-        
+
         Args:
             query: The search query.
             top_k: Maximum number of results to return.
-            
+
         Returns:
             Knowledge query results with relevance scores and sources.
         """
         if not self._knowledge:
-            raise RuntimeError("Knowledge manager not initialized. Enable knowledge_enabled in config.")
+            raise RuntimeError(
+                "Knowledge manager not initialized. Enable knowledge_enabled in config."
+            )
 
         return await self._knowledge.query(query, top_k=top_k)
 
     async def run_benchmark(self, suite: str | None = None) -> dict[str, Any]:
         """Run benchmarks to evaluate agent capabilities.
-        
+
         Args:
             suite: Optional benchmark suite name. Runs all if None.
-            
+
         Returns:
             Benchmark results including scores, timings, and comparisons.
         """
         if not self._benchmark:
-            raise RuntimeError("Benchmark runner not initialized. Enable benchmark_enabled in config.")
+            raise RuntimeError(
+                "Benchmark runner not initialized. Enable benchmark_enabled in config."
+            )
 
         return await self._benchmark.run(suite=suite)
 
     async def route_model(self, task: dict[str, Any]) -> dict[str, Any]:
         """Route a task to the best available model using the router.
-        
+
         Args:
             task: Task description with context for model selection.
-            
+
         Returns:
             Routing decision including selected model, confidence, and reasoning.
         """
         if not self._router:
-            raise RuntimeError("Router manager not initialized. Enable routing_enabled in config.")
+            raise RuntimeError(
+                "Router manager not initialized. Enable routing_enabled in config."
+            )
 
         return await self._router.route(task)
 
@@ -653,15 +715,15 @@ class AionHand:
 
         # Shutdown subsystems (reverse order, skip those without shutdown)
         shutdown_tasks = []
-        if self._dynamic and hasattr(self._dynamic, 'shutdown'):
+        if self._dynamic and hasattr(self._dynamic, "shutdown"):
             shutdown_tasks.append(self._dynamic.shutdown())
-        if self._knowledge and hasattr(self._knowledge, 'shutdown'):
+        if self._knowledge and hasattr(self._knowledge, "shutdown"):
             shutdown_tasks.append(self._knowledge.shutdown())
-        if self._mcp_bridge and hasattr(self._mcp_bridge, 'shutdown'):
+        if self._mcp_bridge and hasattr(self._mcp_bridge, "shutdown"):
             shutdown_tasks.append(self._mcp_bridge.shutdown())
-        if self._mcp_client and hasattr(self._mcp_client, 'shutdown'):
+        if self._mcp_client and hasattr(self._mcp_client, "shutdown"):
             shutdown_tasks.append(self._mcp_client.shutdown())
-        if self._pipeline and hasattr(self._pipeline, 'shutdown'):
+        if self._pipeline and hasattr(self._pipeline, "shutdown"):
             shutdown_tasks.append(self._pipeline.shutdown())
         if self._messenger:
             shutdown_tasks.append(self._messenger.shutdown())
@@ -671,12 +733,12 @@ class AionHand:
             shutdown_tasks.append(self._orchestrator.shutdown())
         if self._loop:
             shutdown_tasks.append(self._loop.shutdown())
-        if self._skills:
-            if hasattr(self._skills, "shutdown"): shutdown_tasks.append(self._skills.shutdown())
-        if self._tools:
-            if hasattr(self._tools, "shutdown"): shutdown_tasks.append(self._tools.shutdown())
-        if self._memory:
-            if hasattr(self._memory, "shutdown"): shutdown_tasks.append(self._memory.shutdown())
+        if self._skills and hasattr(self._skills, "shutdown"):
+            shutdown_tasks.append(self._skills.shutdown())
+        if self._tools and hasattr(self._tools, "shutdown"):
+            shutdown_tasks.append(self._tools.shutdown())
+        if self._memory and hasattr(self._memory, "shutdown"):
+            shutdown_tasks.append(self._memory.shutdown())
 
         await asyncio.gather(*shutdown_tasks, return_exceptions=True)
 

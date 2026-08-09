@@ -52,9 +52,9 @@ logger = logging.getLogger("aion_hand.tools.registry")
 class ApprovalMode(str, Enum):
     """How the registry handles tools that require user approval."""
 
-    AUTO = "auto"   # Execute immediately, no gate
-    ASK = "ask"     # Pause and invoke the approval callback
-    DENY = "deny"   # Block all approval-required tools
+    AUTO = "auto"  # Execute immediately, no gate
+    ASK = "ask"  # Pause and invoke the approval callback
+    DENY = "deny"  # Block all approval-required tools
 
 
 # ======================================================================
@@ -74,7 +74,7 @@ class ToolParameter:
     def __init__(
         self,
         name: str,
-        type: str,              # noqa: A002  (shadowing builtin is intentional)
+        type: str,  # noqa: A002  (shadowing builtin is intentional)
         description: str = "",
         required: bool = True,
         default: Any = None,
@@ -371,9 +371,7 @@ async def _handle_code_execute(
     timeout: int = 30,
 ) -> dict[str, Any]:
     """Execute code in a sandboxed environment."""
-    logger.info(
-        f"code_execute: language={language!r}, code_len={len(code)}"
-    )
+    logger.info(f"code_execute: language={language!r}, code_len={len(code)}")
     if language not in ("python", "bash", "javascript"):
         return {
             "success": False,
@@ -386,7 +384,9 @@ async def _handle_code_execute(
         try:
             proc = await asyncio.wait_for(
                 asyncio.create_subprocess_exec(
-                    sys.executable, "-c", code,
+                    sys.executable,
+                    "-c",
+                    code,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 ),
@@ -542,19 +542,19 @@ async def _handle_file_list(
     recursive: bool = False,
 ) -> dict[str, Any]:
     """List files and directories."""
-    logger.info(
-        f"file_list: path={path!r}, pattern={pattern!r}, recursive={recursive}"
-    )
+    logger.info(f"file_list: path={path!r}, pattern={pattern!r}, recursive={recursive}")
     try:
         p = Path(path).expanduser().resolve()
         if not p.exists():
             return {"success": False, "error": f"Path not found: {path}", "entries": []}
         if not p.is_dir():
-            return {"success": False, "error": f"Not a directory: {path}", "entries": []}
+            return {
+                "success": False,
+                "error": f"Not a directory: {path}",
+                "entries": [],
+            }
         if recursive:
-            entries = [
-                str(e.relative_to(p)) for e in sorted(p.rglob(pattern))
-            ]
+            entries = [str(e.relative_to(p)) for e in sorted(p.rglob(pattern))]
         else:
             entries = [str(e.name) for e in sorted(p.glob(pattern))]
         return {
@@ -609,9 +609,7 @@ async def _handle_calculator(expression: str) -> dict[str, Any]:
         for name in sorted(allowed_names, key=len, reverse=True):
             sanitized = sanitized.replace(name, "")
         if any(c not in "0123456789+-*/().,%\t" for c in sanitized):
-            raise ValueError(
-                f"Disallowed characters in expression: {expression}"
-            )
+            raise ValueError(f"Disallowed characters in expression: {expression}")
         result = eval(expression, {"__builtins__": {}}, allowed_names)  # noqa: S307
         return {
             "success": True,
@@ -782,9 +780,7 @@ async def _handle_text_summarize(
     In production this would call an LLM for summarization; the built-in
     handler performs simple truncation as a safe default.
     """
-    logger.info(
-        f"[stub] text_summarize: text_len={len(text)}, style={style!r}"
-    )
+    logger.info(f"[stub] text_summarize: text_len={len(text)}, style={style!r}")
     summary = text[:max_length]
     if len(text) > max_length:
         summary = summary[: max_length - 3] + "..."
@@ -1061,9 +1057,11 @@ def _build_builtin_tools() -> list[Tool]:
             parameters=[
                 ToolParameter("query", "string", "The search query string"),
                 ToolParameter(
-                    "num_results", "integer",
+                    "num_results",
+                    "integer",
                     "Number of results to return (1-20)",
-                    required=False, default=5,
+                    required=False,
+                    default=5,
                 ),
             ],
             handler=_handle_web_search,
@@ -1079,9 +1077,11 @@ def _build_builtin_tools() -> list[Tool]:
             parameters=[
                 ToolParameter("url", "string", "The URL of the web page to read"),
                 ToolParameter(
-                    "extract_text", "boolean",
+                    "extract_text",
+                    "boolean",
                     "Whether to extract plain text from HTML",
-                    required=False, default=True,
+                    required=False,
+                    default=True,
                 ),
             ],
             handler=_handle_web_reader,
@@ -1098,15 +1098,19 @@ def _build_builtin_tools() -> list[Tool]:
             parameters=[
                 ToolParameter("code", "string", "The code to execute"),
                 ToolParameter(
-                    "language", "string",
+                    "language",
+                    "string",
                     "Programming language",
-                    required=False, default="python",
+                    required=False,
+                    default="python",
                     enum=["python", "bash", "javascript"],
                 ),
                 ToolParameter(
-                    "timeout", "integer",
+                    "timeout",
+                    "integer",
                     "Execution timeout in seconds",
-                    required=False, default=30,
+                    required=False,
+                    default=30,
                 ),
             ],
             handler=_handle_code_execute,
@@ -1124,14 +1128,18 @@ def _build_builtin_tools() -> list[Tool]:
             parameters=[
                 ToolParameter("command", "string", "The shell command to execute"),
                 ToolParameter(
-                    "working_dir", "string",
+                    "working_dir",
+                    "string",
                     "Working directory for the command",
-                    required=False, default="",
+                    required=False,
+                    default="",
                 ),
                 ToolParameter(
-                    "timeout", "integer",
+                    "timeout",
+                    "integer",
                     "Timeout in seconds",
-                    required=False, default=30,
+                    required=False,
+                    default=30,
                 ),
             ],
             handler=_handle_shell_command,
@@ -1147,8 +1155,11 @@ def _build_builtin_tools() -> list[Tool]:
             parameters=[
                 ToolParameter("path", "string", "Path to the file to read"),
                 ToolParameter(
-                    "encoding", "string", "File encoding",
-                    required=False, default="utf-8",
+                    "encoding",
+                    "string",
+                    "File encoding",
+                    required=False,
+                    default="utf-8",
                 ),
             ],
             handler=_handle_file_read,
@@ -1165,13 +1176,18 @@ def _build_builtin_tools() -> list[Tool]:
                 ToolParameter("path", "string", "Path to the file to write"),
                 ToolParameter("content", "string", "The content to write to the file"),
                 ToolParameter(
-                    "encoding", "string", "File encoding",
-                    required=False, default="utf-8",
+                    "encoding",
+                    "string",
+                    "File encoding",
+                    required=False,
+                    default="utf-8",
                 ),
                 ToolParameter(
-                    "create_dirs", "boolean",
+                    "create_dirs",
+                    "boolean",
                     "Create parent directories if they do not exist",
-                    required=False, default=False,
+                    required=False,
+                    default=False,
                 ),
             ],
             handler=_handle_file_write,
@@ -1188,18 +1204,25 @@ def _build_builtin_tools() -> list[Tool]:
             ),
             parameters=[
                 ToolParameter(
-                    "path", "string", "Directory path to list",
-                    required=False, default=".",
+                    "path",
+                    "string",
+                    "Directory path to list",
+                    required=False,
+                    default=".",
                 ),
                 ToolParameter(
-                    "pattern", "string",
+                    "pattern",
+                    "string",
                     "Glob pattern to filter entries (e.g. '*.py')",
-                    required=False, default="*",
+                    required=False,
+                    default="*",
                 ),
                 ToolParameter(
-                    "recursive", "boolean",
+                    "recursive",
+                    "boolean",
                     "List entries recursively",
-                    required=False, default=False,
+                    required=False,
+                    default=False,
                 ),
             ],
             handler=_handle_file_list,
@@ -1215,7 +1238,8 @@ def _build_builtin_tools() -> list[Tool]:
             ),
             parameters=[
                 ToolParameter(
-                    "expression", "string",
+                    "expression",
+                    "string",
                     "The mathematical expression to evaluate (e.g. '2 ** 10 + sqrt(16)')",
                 ),
             ],
@@ -1228,14 +1252,18 @@ def _build_builtin_tools() -> list[Tool]:
             description="Get the current date and time in a specified timezone and format.",
             parameters=[
                 ToolParameter(
-                    "timezone_str", "string",
+                    "timezone_str",
+                    "string",
                     "IANA timezone name (e.g. 'America/New_York', 'UTC')",
-                    required=False, default="UTC",
+                    required=False,
+                    default="UTC",
                 ),
                 ToolParameter(
-                    "format_str", "string",
+                    "format_str",
+                    "string",
                     "strftime format string",
-                    required=False, default="%Y-%m-%d %H:%M:%S %Z",
+                    required=False,
+                    default="%Y-%m-%d %H:%M:%S %Z",
                 ),
             ],
             handler=_handle_date_time,
@@ -1262,24 +1290,33 @@ def _build_builtin_tools() -> list[Tool]:
             parameters=[
                 ToolParameter("url", "string", "The URL to send the request to"),
                 ToolParameter(
-                    "method", "string", "HTTP method",
-                    required=False, default="GET",
+                    "method",
+                    "string",
+                    "HTTP method",
+                    required=False,
+                    default="GET",
                     enum=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"],
                 ),
                 ToolParameter(
-                    "headers", "string",
+                    "headers",
+                    "string",
                     "JSON string of HTTP headers",
-                    required=False, default="{}",
+                    required=False,
+                    default="{}",
                 ),
                 ToolParameter(
-                    "body", "string",
+                    "body",
+                    "string",
                     "Request body (for POST/PUT/PATCH)",
-                    required=False, default="",
+                    required=False,
+                    default="",
                 ),
                 ToolParameter(
-                    "timeout", "integer",
+                    "timeout",
+                    "integer",
                     "Request timeout in seconds",
-                    required=False, default=30,
+                    required=False,
+                    default=30,
                 ),
             ],
             handler=_handle_http_request,
@@ -1303,14 +1340,18 @@ def _build_builtin_tools() -> list[Tool]:
             parameters=[
                 ToolParameter("data", "string", "The JSON string to format"),
                 ToolParameter(
-                    "indent", "integer",
+                    "indent",
+                    "integer",
                     "Number of spaces for indentation",
-                    required=False, default=2,
+                    required=False,
+                    default=2,
                 ),
                 ToolParameter(
-                    "sort_keys", "boolean",
+                    "sort_keys",
+                    "boolean",
                     "Sort object keys alphabetically",
-                    required=False, default=False,
+                    required=False,
+                    default=False,
                 ),
             ],
             handler=_handle_json_format,
@@ -1323,13 +1364,18 @@ def _build_builtin_tools() -> list[Tool]:
             parameters=[
                 ToolParameter("text", "string", "The text to summarize"),
                 ToolParameter(
-                    "max_length", "integer",
+                    "max_length",
+                    "integer",
                     "Maximum length of the summary in characters",
-                    required=False, default=200,
+                    required=False,
+                    default=200,
                 ),
                 ToolParameter(
-                    "style", "string", "Summarization style",
-                    required=False, default="concise",
+                    "style",
+                    "string",
+                    "Summarization style",
+                    required=False,
+                    default="concise",
                     enum=["concise", "detailed", "bullet_points"],
                 ),
             ],
@@ -1343,23 +1389,31 @@ def _build_builtin_tools() -> list[Tool]:
             description="Manage a todo list. Actions: add, list, complete, delete, clear.",
             parameters=[
                 ToolParameter(
-                    "action", "string", "The action to perform",
+                    "action",
+                    "string",
+                    "The action to perform",
                     enum=["add", "list", "complete", "delete", "clear"],
                 ),
                 ToolParameter(
-                    "text", "string",
+                    "text",
+                    "string",
                     "The todo item text (required for 'add')",
-                    required=False, default="",
+                    required=False,
+                    default="",
                 ),
                 ToolParameter(
-                    "todo_id", "string",
+                    "todo_id",
+                    "string",
                     "The todo item ID (required for 'complete' or 'delete')",
-                    required=False, default="",
+                    required=False,
+                    default="",
                 ),
                 ToolParameter(
-                    "status", "string",
+                    "status",
+                    "string",
                     "Status value (for updates)",
-                    required=False, default="",
+                    required=False,
+                    default="",
                 ),
             ],
             handler=_handle_todo_manage,
@@ -1373,9 +1427,11 @@ def _build_builtin_tools() -> list[Tool]:
                 ToolParameter("title", "string", "Note title"),
                 ToolParameter("content", "string", "Note content"),
                 ToolParameter(
-                    "tags", "string",
+                    "tags",
+                    "string",
                     "Comma-separated tags",
-                    required=False, default="",
+                    required=False,
+                    default="",
                 ),
             ],
             handler=_handle_note_create,
@@ -1388,14 +1444,18 @@ def _build_builtin_tools() -> list[Tool]:
             parameters=[
                 ToolParameter("query", "string", "Search query"),
                 ToolParameter(
-                    "tags", "string",
+                    "tags",
+                    "string",
                     "Comma-separated tags to filter by",
-                    required=False, default="",
+                    required=False,
+                    default="",
                 ),
                 ToolParameter(
-                    "limit", "integer",
+                    "limit",
+                    "integer",
                     "Maximum number of results",
-                    required=False, default=10,
+                    required=False,
+                    default=10,
                 ),
             ],
             handler=_handle_note_search,
@@ -1407,29 +1467,45 @@ def _build_builtin_tools() -> list[Tool]:
             description="Manage calendar events. Actions: add, list, delete, update.",
             parameters=[
                 ToolParameter(
-                    "action", "string", "The action to perform",
+                    "action",
+                    "string",
+                    "The action to perform",
                     enum=["add", "list", "delete", "update"],
                 ),
                 ToolParameter(
-                    "title", "string", "Event title",
-                    required=False, default="",
+                    "title",
+                    "string",
+                    "Event title",
+                    required=False,
+                    default="",
                 ),
                 ToolParameter(
-                    "start_time", "string", "ISO 8601 start time",
-                    required=False, default="",
+                    "start_time",
+                    "string",
+                    "ISO 8601 start time",
+                    required=False,
+                    default="",
                 ),
                 ToolParameter(
-                    "end_time", "string", "ISO 8601 end time",
-                    required=False, default="",
+                    "end_time",
+                    "string",
+                    "ISO 8601 end time",
+                    required=False,
+                    default="",
                 ),
                 ToolParameter(
-                    "description", "string", "Event description",
-                    required=False, default="",
+                    "description",
+                    "string",
+                    "Event description",
+                    required=False,
+                    default="",
                 ),
                 ToolParameter(
-                    "event_id", "string",
+                    "event_id",
+                    "string",
                     "Event ID (for delete/update)",
-                    required=False, default="",
+                    required=False,
+                    default="",
                 ),
             ],
             handler=_handle_calendar_manage,
@@ -1440,17 +1516,24 @@ def _build_builtin_tools() -> list[Tool]:
             name="email_send",
             description="Send an email to one or more recipients.",
             parameters=[
-                ToolParameter("to", "string", "Comma-separated recipient email addresses"),
+                ToolParameter(
+                    "to", "string", "Comma-separated recipient email addresses"
+                ),
                 ToolParameter("subject", "string", "Email subject line"),
                 ToolParameter("body", "string", "Email body text"),
                 ToolParameter(
-                    "cc", "string", "Comma-separated CC addresses",
-                    required=False, default="",
+                    "cc",
+                    "string",
+                    "Comma-separated CC addresses",
+                    required=False,
+                    default="",
                 ),
                 ToolParameter(
-                    "html", "boolean",
+                    "html",
+                    "boolean",
                     "Whether the body is HTML formatted",
-                    required=False, default=False,
+                    required=False,
+                    default=False,
                 ),
             ],
             handler=_handle_email_send,
@@ -1464,15 +1547,23 @@ def _build_builtin_tools() -> list[Tool]:
             name="image_generate",
             description="Generate an image from a text prompt using AI.",
             parameters=[
-                ToolParameter("prompt", "string", "Text description of the image to generate"),
                 ToolParameter(
-                    "size", "string", "Image size",
-                    required=False, default="1024x1024",
+                    "prompt", "string", "Text description of the image to generate"
+                ),
+                ToolParameter(
+                    "size",
+                    "string",
+                    "Image size",
+                    required=False,
+                    default="1024x1024",
                     enum=["256x256", "512x512", "1024x1024", "1792x1024", "1024x1792"],
                 ),
                 ToolParameter(
-                    "style", "string", "Image style",
-                    required=False, default="natural",
+                    "style",
+                    "string",
+                    "Image style",
+                    required=False,
+                    default="natural",
                     enum=["natural", "vivid"],
                 ),
             ],
@@ -1486,14 +1577,19 @@ def _build_builtin_tools() -> list[Tool]:
             parameters=[
                 ToolParameter("text", "string", "The text to convert to speech"),
                 ToolParameter(
-                    "voice", "string", "Voice name",
-                    required=False, default="alloy",
+                    "voice",
+                    "string",
+                    "Voice name",
+                    required=False,
+                    default="alloy",
                     enum=["alloy", "echo", "fable", "onyx", "nova", "shimmer"],
                 ),
                 ToolParameter(
-                    "speed", "number",
+                    "speed",
+                    "number",
                     "Speech speed multiplier (0.25 to 4.0)",
-                    required=False, default=1.0,
+                    required=False,
+                    default=1.0,
                 ),
             ],
             handler=_handle_text_to_speech,
@@ -1505,9 +1601,11 @@ def _build_builtin_tools() -> list[Tool]:
             description="Convert speech/audio to text (transcription).",
             parameters=[
                 ToolParameter(
-                    "audio_data", "string",
+                    "audio_data",
+                    "string",
                     "Base64-encoded audio data or file path",
-                    required=False, default="",
+                    required=False,
+                    default="",
                 ),
             ],
             handler=_handle_speech_to_text,
@@ -1521,8 +1619,11 @@ def _build_builtin_tools() -> list[Tool]:
             parameters=[
                 ToolParameter("location", "string", "City name or location string"),
                 ToolParameter(
-                    "units", "string", "Temperature units",
-                    required=False, default="metric",
+                    "units",
+                    "string",
+                    "Temperature units",
+                    required=False,
+                    default="metric",
                     enum=["metric", "imperial"],
                 ),
             ],
@@ -1642,6 +1743,16 @@ class ToolRegistry:
         """Internal registration without validation logging overhead."""
         if tool.name in self._tools:
             logger.warning(f"Overwriting existing tool: {tool.name}")
+            # Remove old entry from toolset index to avoid duplicates
+            old_tool = self._tools[tool.name]
+            old_list = self._toolsets.get(old_tool.toolset)
+            if old_list is not None:
+                try:
+                    old_list.remove(tool.name)
+                    if not old_list:
+                        del self._toolsets[old_tool.toolset]
+                except ValueError:
+                    pass
         self._tools[tool.name] = tool
         self._toolsets.setdefault(tool.toolset, []).append(tool.name)
 
@@ -1745,9 +1856,7 @@ class ToolRegistry:
         if self._approval_mode == ApprovalMode.AUTO:
             return True
         if self._approval_mode == ApprovalMode.DENY:
-            logger.warning(
-                f"Tool '{tool.name}' denied by approval policy (mode=deny)"
-            )
+            logger.warning(f"Tool '{tool.name}' denied by approval policy (mode=deny)")
             return False
         # ASK mode
         if self._approval_callback is not None:
@@ -1955,9 +2064,7 @@ class ToolRegistry:
             tool._error_count += 1
             tool._total_time += elapsed
 
-            logger.error(
-                f"Tool '{tool_name}' execution failed: {exc}", exc_info=True
-            )
+            logger.error(f"Tool '{tool_name}' execution failed: {exc}", exc_info=True)
             result = ToolResult(
                 tool_name=tool_name,
                 success=False,
@@ -1974,7 +2081,7 @@ class ToolRegistry:
         entry = result.to_dict()
         self._execution_log.append(entry)
         if len(self._execution_log) > self._max_log_size:
-            self._execution_log = self._execution_log[-self._max_log_size:]
+            self._execution_log = self._execution_log[-self._max_log_size :]
 
     # ------------------------------------------------------------------
     # Schema Export

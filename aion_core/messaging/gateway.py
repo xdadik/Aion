@@ -31,10 +31,10 @@ from __future__ import annotations
 import asyncio
 import logging
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from datetime import datetime, UTC
-from typing import Any
 from collections.abc import AsyncIterator
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +42,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Message data model
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class Message:
@@ -65,6 +66,7 @@ class Message:
 # ---------------------------------------------------------------------------
 # PlatformAdapter ABC
 # ---------------------------------------------------------------------------
+
 
 class PlatformAdapter(ABC):
     """Abstract base class for messaging platform integrations.
@@ -116,6 +118,7 @@ class PlatformAdapter(ABC):
 # TelegramAdapter (realistic stub)
 # ---------------------------------------------------------------------------
 
+
 class TelegramAdapter(PlatformAdapter):
     """Telegram Bot API adapter.
 
@@ -159,9 +162,7 @@ class TelegramAdapter(PlatformAdapter):
         self._connected = True
 
         # Start background polling
-        self._poll_task = asyncio.create_task(
-            self._poll_loop(), name="telegram-poll"
-        )
+        self._poll_task = asyncio.create_task(self._poll_loop(), name="telegram-poll")
         logger.info("[%s] Connected and polling for updates", self.platform_name())
 
     async def disconnect(self) -> None:
@@ -179,7 +180,9 @@ class TelegramAdapter(PlatformAdapter):
 
     async def send(self, user_id: str, content: str) -> bool:
         if not self._connected:
-            logger.warning("[%s] send() called while disconnected", self.platform_name())
+            logger.warning(
+                "[%s] send() called while disconnected", self.platform_name()
+            )
             return False
 
         logger.info(
@@ -217,7 +220,9 @@ class TelegramAdapter(PlatformAdapter):
         try:
             while self._connected:
                 await asyncio.sleep(5)
-                logger.debug("[%s] getUpdates → [] (no new updates)", self.platform_name())
+                logger.debug(
+                    "[%s] getUpdates → [] (no new updates)", self.platform_name()
+                )
         except asyncio.CancelledError:
             pass
         logger.info("[%s] Polling stopped", self.platform_name())
@@ -238,6 +243,7 @@ class TelegramAdapter(PlatformAdapter):
 # ---------------------------------------------------------------------------
 # DiscordAdapter (realistic stub)
 # ---------------------------------------------------------------------------
+
 
 class DiscordAdapter(PlatformAdapter):
     """Discord Bot adapter.
@@ -280,9 +286,7 @@ class DiscordAdapter(PlatformAdapter):
         await asyncio.sleep(0.15)  # simulate WS handshake
         self._connected = True
 
-        self._ws_task = asyncio.create_task(
-            self._ws_loop(), name="discord-ws"
-        )
+        self._ws_task = asyncio.create_task(self._ws_loop(), name="discord-ws")
         logger.info(
             "[%s] Connected to Discord Gateway (heartbeat OK)",
             self.platform_name(),
@@ -299,13 +303,13 @@ class DiscordAdapter(PlatformAdapter):
                 await self._ws_task
             except asyncio.CancelledError:
                 pass
-        logger.info(
-            "[%s] Sent WS close, gateway disconnected", self.platform_name()
-        )
+        logger.info("[%s] Sent WS close, gateway disconnected", self.platform_name())
 
     async def send(self, user_id: str, content: str) -> bool:
         if not self._connected:
-            logger.warning("[%s] send() called while disconnected", self.platform_name())
+            logger.warning(
+                "[%s] send() called while disconnected", self.platform_name()
+            )
             return False
 
         logger.info(
@@ -365,6 +369,7 @@ class DiscordAdapter(PlatformAdapter):
 # SlackAdapter (realistic stub)
 # ---------------------------------------------------------------------------
 
+
 class SlackAdapter(PlatformAdapter):
     """Slack Bot adapter.
 
@@ -407,9 +412,7 @@ class SlackAdapter(PlatformAdapter):
         await asyncio.sleep(0.12)
         self._connected = True
 
-        self._ws_task = asyncio.create_task(
-            self._ws_loop(), name="slack-ws"
-        )
+        self._ws_task = asyncio.create_task(self._ws_loop(), name="slack-ws")
         logger.info("[%s] Socket Mode connected", self.platform_name())
 
     async def disconnect(self) -> None:
@@ -427,7 +430,9 @@ class SlackAdapter(PlatformAdapter):
 
     async def send(self, user_id: str, content: str) -> bool:
         if not self._connected:
-            logger.warning("[%s] send() called while disconnected", self.platform_name())
+            logger.warning(
+                "[%s] send() called while disconnected", self.platform_name()
+            )
             return False
 
         logger.info(
@@ -506,6 +511,7 @@ def register_adapter(name: str, cls: type[PlatformAdapter]) -> None:
 # MessagingGateway
 # ---------------------------------------------------------------------------
 
+
 class MessagingGateway:
     """Unified messaging interface over one or more platform adapters.
 
@@ -577,9 +583,7 @@ class MessagingGateway:
         connect_coros = {
             name: adapter.connect() for name, adapter in self._adapters.items()
         }
-        results = await asyncio.gather(
-            *connect_coros.values(), return_exceptions=True
-        )
+        results = await asyncio.gather(*connect_coros.values(), return_exceptions=True)
 
         for name, result in zip(connect_coros.keys(), results):
             if isinstance(result, Exception):
@@ -613,9 +617,7 @@ class MessagingGateway:
         self._receive_tasks.clear()
 
         # Disconnect adapters concurrently
-        disconnect_coros = [
-            adapter.disconnect() for adapter in self._adapters.values()
-        ]
+        disconnect_coros = [adapter.disconnect() for adapter in self._adapters.values()]
         await asyncio.gather(*disconnect_coros, return_exceptions=True)
 
         logger.info("MessagingGateway shut down")
@@ -624,9 +626,7 @@ class MessagingGateway:
     # Send / Broadcast
     # ------------------------------------------------------------------
 
-    async def send_message(
-        self, platform: str, user_id: str, content: str
-    ) -> bool:
+    async def send_message(self, platform: str, user_id: str, content: str) -> bool:
         """Send a message on a specific platform.
 
         Args:
@@ -644,22 +644,16 @@ class MessagingGateway:
 
         success = await adapter.send(user_id, content)
         if not success:
-            logger.warning(
-                "[%s] send failed for user_id=%s", platform, user_id
-            )
+            logger.warning("[%s] send failed for user_id=%s", platform, user_id)
         return success
 
-    async def broadcast(
-        self, platforms: list[str], content: str
-    ) -> dict[str, bool]:
+    async def broadcast(self, platforms: list[str], content: str) -> dict[str, bool]:
         """Send the same content to multiple platforms concurrently.
 
         Returns:
             A mapping of ``platform_name → success``.
         """
-        coros = {
-            name: self.send_message(name, "", content) for name in platforms
-        }
+        coros = {name: self.send_message(name, "", content) for name in platforms}
         results = await asyncio.gather(*coros.values(), return_exceptions=True)
 
         outcome: dict[str, bool] = {}
@@ -691,7 +685,11 @@ class MessagingGateway:
                     "[%s] Incoming message from %s: %s",
                     message.platform,
                     message.user_id,
-                    message.content[:100] + "…" if len(message.content) > 100 else message.content,
+                    (
+                        message.content[:100] + "…"
+                        if len(message.content) > 100
+                        else message.content
+                    ),
                 )
                 # Route to agent
                 try:

@@ -1,4 +1,4 @@
-""""
+""" "
 Aion Hand Benchmark Evaluator
 
 Evaluates agent outputs against task criteria using heuristic checks.
@@ -174,7 +174,9 @@ class BenchmarkEvaluator:
         try:
             return handler(params, output, metadata)
         except Exception as exc:
-            logger.error("Criterion '%s' raised %s: %s", criterion, type(exc).__name__, exc)
+            logger.error(
+                "Criterion '%s' raised %s: %s", criterion, type(exc).__name__, exc
+            )
             return False
 
     # -- Check Implementations ----------------------------------------------
@@ -238,7 +240,9 @@ class BenchmarkEvaluator:
         return False
 
     @staticmethod
-    def _check_pattern_match(params: str, output: str, metadata: dict[str, Any]) -> bool:
+    def _check_pattern_match(
+        params: str, output: str, metadata: dict[str, Any]
+    ) -> bool:
         """
         A regex pattern must match somewhere in the output.
 

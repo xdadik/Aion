@@ -38,6 +38,7 @@ from aion_core.config.manager import (
 # Helper: isolated env-var patching
 # ---------------------------------------------------------------------------
 
+
 class _EnvPatcher:
     """Context manager that saves/restores os.environ for specific keys."""
 
@@ -88,8 +89,9 @@ class TestGetAionHome(unittest.TestCase):
         with _EnvPatcher(AION_HOME=None, AION_PROFILE="testprofile"):
             home = get_aion_home()
             self.assertIn("testprofile", str(home))
-            self.assertTrue(str(home).replace('\\', '/').endswith("profiles/testprofile"))
-
+            self.assertTrue(
+                str(home).replace("\\", "/").endswith("profiles/testprofile")
+            )
 
 
 class TestEnvHelpers(unittest.TestCase):
@@ -216,7 +218,7 @@ class TestAionConfigDefaults(unittest.TestCase):
     def test_default_name_and_version(self):
         cfg = AionConfig()
         self.assertEqual(cfg.name, "Aion Hand")
-        self.assertEqual(cfg.version, "0.3.0")
+        self.assertEqual(cfg.version, "0.4.0")
 
     def test_default_log_level(self):
         cfg = AionConfig()
@@ -362,8 +364,14 @@ class TestNormalizeProxyEnvVars(unittest.TestCase):
         self.assertIsInstance(result, dict)
 
     def test_no_proxy_set_returns_empty(self):
-        keys_to_remove = ["HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY",
-                         "http_proxy", "https_proxy", "no_proxy"]
+        keys_to_remove = [
+            "HTTP_PROXY",
+            "HTTPS_PROXY",
+            "NO_PROXY",
+            "http_proxy",
+            "https_proxy",
+            "no_proxy",
+        ]
         saved = {}
         for k in keys_to_remove:
             saved[k] = os.environ.pop(k, None)

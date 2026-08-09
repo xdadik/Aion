@@ -17,8 +17,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-from dataclasses import dataclass, field
-from datetime import datetime, UTC
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -29,9 +29,11 @@ logger = logging.getLogger("aion_hand.memory.consolidator")
 # Config
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ConsolidatorConfig:
     """Background consolidation configuration."""
+
     enabled: bool = True
     interval_seconds: float = 300.0  # 5 minutes
     max_memory_entries: int = 500
@@ -43,6 +45,7 @@ class ConsolidatorConfig:
 # ---------------------------------------------------------------------------
 # Consolidator
 # ---------------------------------------------------------------------------
+
 
 class MemoryConsolidator:
     """Periodic background task that consolidates working memory into long-term.
@@ -57,7 +60,9 @@ class MemoryConsolidator:
         re.compile(r"\bI (?:live|am based) in ([\w\s,]+)", re.IGNORECASE),
         re.compile(r"\bI work (?:at|for|as) ([\w\s]+)", re.IGNORECASE),
         re.compile(r"\bI (?:prefer|like|use) ([\w\s,]+)", re.IGNORECASE),
-        re.compile(r"\bI (?:don't|do not|cannot) (?:like|use|want) ([\w\s,]+)", re.IGNORECASE),
+        re.compile(
+            r"\bI (?:don't|do not|cannot) (?:like|use|want) ([\w\s,]+)", re.IGNORECASE
+        ),
         re.compile(r"\bmy (?:timezone|tz) is ([\w/]+)", re.IGNORECASE),
     ]
 
@@ -91,8 +96,12 @@ class MemoryConsolidator:
             logger.warning("Memory consolidator already running")
             return
         self._stop_event.clear()
-        self._task = asyncio.create_task(self._run_loop(), name="aion-memory-consolidator")
-        logger.info(f"Memory consolidator started (interval={self.config.interval_seconds}s)")
+        self._task = asyncio.create_task(
+            self._run_loop(), name="aion-memory-consolidator"
+        )
+        logger.info(
+            f"Memory consolidator started (interval={self.config.interval_seconds}s)"
+        )
 
     async def stop(self) -> None:
         """Stop the background task gracefully."""
@@ -123,8 +132,10 @@ class MemoryConsolidator:
             except Exception as exc:  # noqa: BLE001
                 logger.exception(f"Consolidation cycle failed: {exc}")
             try:
-                await asyncio.wait_for(self._stop_event.wait(), timeout=self.config.interval_seconds)
-            except asyncio.TimeoutError:
+                await asyncio.wait_for(
+                    self._stop_event.wait(), timeout=self.config.interval_seconds
+                )
+            except TimeoutError:
                 pass  # interval elapsed, loop again
             except asyncio.CancelledError:
                 break
@@ -165,7 +176,12 @@ class MemoryConsolidator:
             return []
         try:
             # Try various API names — memory_manager shape varies
-            for method in ("recent_working", "get_working", "working_items", "get_recent_working"):
+            for method in (
+                "recent_working",
+                "get_working",
+                "working_items",
+                "get_recent_working",
+            ):
                 fn = getattr(self.memory_manager, method, None)
                 if callable(fn):
                     items = fn(limit=20)
@@ -185,7 +201,18 @@ class MemoryConsolidator:
             if not content or len(content) < 10:
                 continue
             # Heuristic: items containing "is", "=", "always", "never", dates
-            if any(kw in content.lower() for kw in (" is ", " are ", " always ", " never ", " = ", " located ", " works at ")):
+            if any(
+                kw in content.lower()
+                for kw in (
+                    " is ",
+                    " are ",
+                    " always ",
+                    " never ",
+                    " = ",
+                    " located ",
+                    " works at ",
+                )
+            ):
                 try:
                     # Promote to semantic layer (L4)
                     if hasattr(self.memory_manager, "store"):
@@ -205,7 +232,13 @@ class MemoryConsolidator:
             for pat in self._USER_FACT_PATTERNS:
                 m = pat.search(content)
                 if m:
-                    attr_name = pat.pattern.split("(")[0].replace("\\b", "").replace("my ", "").replace("i ", "").strip()
+                    attr_name = (
+                        pat.pattern.split("(")[0]
+                        .replace("\\b", "")
+                        .replace("my ", "")
+                        .replace("i ", "")
+                        .strip()
+                    )
                     attr_value = m.group(1).strip()
                     if attr_value and len(attr_value) < 80:
                         attrs.append((attr_name, attr_value))
@@ -239,8 +272,14 @@ class MemoryConsolidator:
                 new_entries.append(f"- [{timestamp}] {content[:200]}")
             if not new_entries:
                 return
-            new_block = f"\n## {datetime.now(UTC).strftime('%Y-%m-%d %H:%M')} UTC\n" + "\n".join(new_entries) + "\n"
-            self.config.memory_md_path.write_text(existing + new_block, encoding="utf-8")
+            new_block = (
+                f"\n## {datetime.now(UTC).strftime('%Y-%m-%d %H:%M')} UTC\n"
+                + "\n".join(new_entries)
+                + "\n"
+            )
+            self.config.memory_md_path.write_text(
+                existing + new_block, encoding="utf-8"
+            )
         except Exception as exc:  # noqa: BLE001
             logger.warning(f"Could not update MEMORY.md: {exc}")
 
@@ -254,7 +293,9 @@ class MemoryConsolidator:
                 fn = getattr(self.memory_manager, method, None)
                 if callable(fn):
                     try:
-                        result = fn() if method == "get_user_profile" else fn("user_profile")
+                        result = (
+                            fn() if method == "get_user_profile" else fn("user_profile")
+                        )
                         if isinstance(result, list):
                             entries = result
                             break
@@ -264,10 +305,12 @@ class MemoryConsolidator:
                 return
             self.config.user_md_path.parent.mkdir(parents=True, exist_ok=True)
             lines = ["# User Profile", ""]
-            for e in entries[:self.config.max_user_attributes]:
+            for e in entries[: self.config.max_user_attributes]:
                 content = getattr(e, "content", str(e))
                 lines.append(f"- {content}")
-            self.config.user_md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            self.config.user_md_path.write_text(
+                "\n".join(lines) + "\n", encoding="utf-8"
+            )
         except Exception as exc:  # noqa: BLE001
             logger.warning(f"Could not update USER.md: {exc}")
 

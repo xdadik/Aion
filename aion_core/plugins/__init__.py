@@ -35,7 +35,8 @@ import logging
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 logger = logging.getLogger("aion_hand.plugins")
 
@@ -44,9 +45,11 @@ logger = logging.getLogger("aion_hand.plugins")
 # Registry
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class PluginRegistry:
     """Collects contributions from one or more plugins."""
+
     tools: list[Any] = field(default_factory=list)
     skill_paths: list[Path] = field(default_factory=list)
     personas: list[Any] = field(default_factory=list)
@@ -87,6 +90,7 @@ class PluginRegistry:
 # Loader
 # ---------------------------------------------------------------------------
 
+
 class PluginLoader:
     """Discovers and loads plugins from a directory.
 
@@ -99,7 +103,9 @@ class PluginLoader:
     """
 
     def __init__(self, plugins_dir: Path | str | None = None) -> None:
-        self.plugins_dir = Path(plugins_dir) if plugins_dir else Path.home() / ".aion-hand" / "plugins"
+        self.plugins_dir = (
+            Path(plugins_dir) if plugins_dir else Path.home() / ".aion-hand" / "plugins"
+        )
         self.registry = PluginRegistry()
         self._loaded: list[str] = []
         self._failed: list[tuple[str, str]] = []
@@ -190,7 +196,14 @@ class PluginLoader:
 
         Returns a dict of how many of each contribution type were applied.
         """
-        applied = {"tools": 0, "skills": 0, "personas": 0, "providers": 0, "cron_tasks": 0, "prompt_extensions": 0}
+        applied = {
+            "tools": 0,
+            "skills": 0,
+            "personas": 0,
+            "providers": 0,
+            "cron_tasks": 0,
+            "prompt_extensions": 0,
+        }
 
         # Tools
         tr = getattr(agent, "tool_registry", None)
@@ -218,6 +231,7 @@ class PluginLoader:
                         # Fallback: read + create
                         text = path.read_text(encoding="utf-8")
                         from aion_core.skills.engine import Skill
+
                         skill = Skill.from_markdown(text)
                         se._skills[skill.skill_id] = skill
                     applied["skills"] += 1
@@ -228,6 +242,7 @@ class PluginLoader:
         if self.registry.personas:
             try:
                 from aion_core.persona import PersonaManager
+
                 mgr = PersonaManager()
                 for p in self.registry.personas:
                     mgr.save(p)
@@ -240,7 +255,11 @@ class PluginLoader:
         if pf is not None:
             for prov_cls in self.registry.providers:
                 try:
-                    name = getattr(prov_cls, "name", prov_cls.__name__.lower().replace("provider", ""))
+                    name = getattr(
+                        prov_cls,
+                        "name",
+                        prov_cls.__name__.lower().replace("provider", ""),
+                    )
                     if hasattr(pf, "register"):
                         pf.register(name, prov_cls)
                     applied["providers"] += 1
@@ -265,8 +284,14 @@ class PluginLoader:
             cfg = getattr(agent, "config", None)
             if cfg is not None:
                 existing = getattr(cfg, "system_prompt", "") or ""
-                cfg.system_prompt = existing + "\n\n" + "\n\n".join(self.registry.system_prompt_extensions)
-                applied["prompt_extensions"] = len(self.registry.system_prompt_extensions)
+                cfg.system_prompt = (
+                    existing
+                    + "\n\n"
+                    + "\n\n".join(self.registry.system_prompt_extensions)
+                )
+                applied["prompt_extensions"] = len(
+                    self.registry.system_prompt_extensions
+                )
 
         return applied
 

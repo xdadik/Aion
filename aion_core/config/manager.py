@@ -124,7 +124,9 @@ def env_int(
     try:
         return int(val)
     except (ValueError, TypeError):
-        logger.warning("Invalid int for %s%s=%r, using default %d", prefix, name, val, default)
+        logger.warning(
+            "Invalid int for %s%s=%r, using default %d", prefix, name, val, default
+        )
         return default
 
 
@@ -143,7 +145,9 @@ def env_float(
     try:
         return float(val)
     except (ValueError, TypeError):
-        logger.warning("Invalid float for %s%s=%r, using default %f", prefix, name, val, default)
+        logger.warning(
+            "Invalid float for %s%s=%r, using default %f", prefix, name, val, default
+        )
         return default
 
 
@@ -275,8 +279,12 @@ class ModelConfig:
             temperature=float(data.get("temperature", cls().temperature)),
             max_tokens=int(data.get("max_tokens", cls().max_tokens)),
             top_p=float(data.get("top_p", cls().top_p)),
-            frequency_penalty=float(data.get("frequency_penalty", cls().frequency_penalty)),
-            presence_penalty=float(data.get("presence_penalty", cls().presence_penalty)),
+            frequency_penalty=float(
+                data.get("frequency_penalty", cls().frequency_penalty)
+            ),
+            presence_penalty=float(
+                data.get("presence_penalty", cls().presence_penalty)
+            ),
             timeout=int(data.get("timeout", cls().timeout)),
             retry_count=int(data.get("retry_count", cls().retry_count)),
             retry_delay=float(data.get("retry_delay", cls().retry_delay)),
@@ -294,9 +302,13 @@ class SecurityConfig:
     max_tool_calls_per_turn: int = 20
     max_code_length: int = 50000
     allowed_dirs: list[str] = field(default_factory=lambda: ["~/.aion-hand"])
-    blocked_commands: list[str] = field(default_factory=lambda: [
-        "rm -rf /", "dd if=/dev/zero", ":(){ :|:& };:",
-    ])
+    blocked_commands: list[str] = field(
+        default_factory=lambda: [
+            "rm -rf /",
+            "dd if=/dev/zero",
+            ":(){ :|:& };:",
+        ]
+    )
     require_approval: bool = False
     audit_log: bool = True
     extra: dict[str, Any] = field(default_factory=dict)
@@ -323,7 +335,9 @@ class SecurityConfig:
             enabled=bool(data.get("enabled", cls().enabled)),
             sandbox_enabled=bool(data.get("sandbox_enabled", cls().sandbox_enabled)),
             sandbox_timeout=int(data.get("sandbox_timeout", cls().sandbox_timeout)),
-            max_tool_calls_per_turn=int(data.get("max_tool_calls_per_turn", cls().max_tool_calls_per_turn)),
+            max_tool_calls_per_turn=int(
+                data.get("max_tool_calls_per_turn", cls().max_tool_calls_per_turn)
+            ),
             max_code_length=int(data.get("max_code_length", cls().max_code_length)),
             allowed_dirs=data.get("allowed_dirs", cls().allowed_dirs),
             blocked_commands=data.get("blocked_commands", cls().blocked_commands),
@@ -382,9 +396,13 @@ class MemoryConfig:
             user_profile_max=int(data.get("user_profile_max", cls().user_profile_max)),
             nudge_interval=int(data.get("nudge_interval", cls().nudge_interval)),
             export_markdown=bool(data.get("export_markdown", cls().export_markdown)),
-            persistence_backend=data.get("persistence_backend", cls().persistence_backend),
+            persistence_backend=data.get(
+                "persistence_backend", cls().persistence_backend
+            ),
             fts_enabled=bool(data.get("fts_enabled", cls().fts_enabled)),
-            search_default_limit=int(data.get("search_default_limit", cls().search_default_limit)),
+            search_default_limit=int(
+                data.get("search_default_limit", cls().search_default_limit)
+            ),
             extra=data.get("extra", {}),
         )
 
@@ -426,10 +444,16 @@ class PipelineConfig:
             enabled=bool(data.get("enabled", cls().enabled)),
             max_iterations=int(data.get("max_iterations", cls().max_iterations)),
             learning_rate=float(data.get("learning_rate", cls().learning_rate)),
-            confidence_threshold=float(data.get("confidence_threshold", cls().confidence_threshold)),
-            verification_enabled=bool(data.get("verification_enabled", cls().verification_enabled)),
+            confidence_threshold=float(
+                data.get("confidence_threshold", cls().confidence_threshold)
+            ),
+            verification_enabled=bool(
+                data.get("verification_enabled", cls().verification_enabled)
+            ),
             auto_repair=bool(data.get("auto_repair", cls().auto_repair)),
-            max_repair_attempts=int(data.get("max_repair_attempts", cls().max_repair_attempts)),
+            max_repair_attempts=int(
+                data.get("max_repair_attempts", cls().max_repair_attempts)
+            ),
             planner_model=data.get("planner_model", ""),
             critic_model=data.get("critic_model", ""),
             extra=data.get("extra", {}),
@@ -484,7 +508,9 @@ class GatewayConfig:
             webhook_url=data.get("webhook_url", ""),
             webhook_secret=data.get("webhook_secret", ""),
             rate_limit=int(data.get("rate_limit", cls().rate_limit)),
-            max_message_length=int(data.get("max_message_length", cls().max_message_length)),
+            max_message_length=int(
+                data.get("max_message_length", cls().max_message_length)
+            ),
             extra=data.get("extra", {}),
         )
 
@@ -585,7 +611,7 @@ class AionConfig:
 
     # Identity
     name: str = "Aion Hand"
-    version: str = "0.3.0"
+    version: str = "0.4.0"
 
     # Paths (resolved at load time)
     home_dir: str = ""
@@ -680,10 +706,14 @@ class AionConfig:
             mcp=MCPConfig.from_dict(data.get("mcp", {})),
             dynamic_enabled=bool(data.get("dynamic_enabled", cls().dynamic_enabled)),
             dynamic_storage_dir=data.get("dynamic_storage_dir", ""),
-            knowledge_enabled=bool(data.get("knowledge_enabled", cls().knowledge_enabled)),
+            knowledge_enabled=bool(
+                data.get("knowledge_enabled", cls().knowledge_enabled)
+            ),
             knowledge_dir=data.get("knowledge_dir", ""),
             router_enabled=bool(data.get("router_enabled", cls().router_enabled)),
-            benchmark_enabled=bool(data.get("benchmark_enabled", cls().benchmark_enabled)),
+            benchmark_enabled=bool(
+                data.get("benchmark_enabled", cls().benchmark_enabled)
+            ),
         )
 
 
@@ -1080,7 +1110,15 @@ def validate_config(config: AionConfig) -> list[str]:
         )
 
     # API key for cloud providers
-    if config.model.provider in ("openai", "anthropic", "google", "azure", "mistral", "groq", "cohere"):
+    if config.model.provider in (
+        "openai",
+        "anthropic",
+        "google",
+        "azure",
+        "mistral",
+        "groq",
+        "cohere",
+    ):
         if not config.model.api_key:
             warnings.append(
                 f"Provider '{config.model.provider}' typically requires an API key. "
@@ -1105,7 +1143,9 @@ def validate_config(config: AionConfig) -> list[str]:
     if config.gateway.enabled and config.gateway.platforms:
         for platform in config.gateway.platforms:
             if platform == "telegram" and not config.gateway.telegram_bot_token:
-                warnings.append("Gateway: Telegram enabled but no bot_token configured.")
+                warnings.append(
+                    "Gateway: Telegram enabled but no bot_token configured."
+                )
             elif platform == "discord" and not config.gateway.discord_bot_token:
                 warnings.append("Gateway: Discord enabled but no bot_token configured.")
             elif platform == "slack" and not config.gateway.slack_bot_token:
@@ -1142,12 +1182,24 @@ def config_diff(a: AionConfig, b: AionConfig) -> dict[str, tuple[Any, Any]]:
             diff[path] = (va, vb)
 
     top_level = [
-        "name", "version", "home_dir", "data_dir", "memory_dir",
-        "skills_dir", "tools_dir", "logs_dir", "config_dir",
-        "log_level", "debug", "profile",
-        "dynamic_enabled", "dynamic_storage_dir",
-        "knowledge_enabled", "knowledge_dir",
-        "router_enabled", "benchmark_enabled",
+        "name",
+        "version",
+        "home_dir",
+        "data_dir",
+        "memory_dir",
+        "skills_dir",
+        "tools_dir",
+        "logs_dir",
+        "config_dir",
+        "log_level",
+        "debug",
+        "profile",
+        "dynamic_enabled",
+        "dynamic_storage_dir",
+        "knowledge_enabled",
+        "knowledge_dir",
+        "router_enabled",
+        "benchmark_enabled",
     ]
     for attr in top_level:
         _compare(attr, getattr(a, attr), getattr(b, attr))
@@ -1183,7 +1235,10 @@ def merge_configs(base: AionConfig, overlay: AionConfig) -> AionConfig:
             base_section = getattr(result, key)
             overlay_section = getattr(overlay, key)
             if hasattr(base_section, "from_dict"):
-                merged_section_data = {**base_section.to_dict(), **overlay_section.to_dict()}
+                merged_section_data = {
+                    **base_section.to_dict(),
+                    **overlay_section.to_dict(),
+                }
                 setattr(result, key, type(base_section).from_dict(merged_section_data))
         else:
             current = getattr(result, key, None)

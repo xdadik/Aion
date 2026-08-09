@@ -52,6 +52,7 @@ class TestConsolidatorInit:
             c.start()
             assert c._task is not None
             await c.stop()
+
         asyncio.run(_go())
 
 
@@ -76,9 +77,14 @@ class TestUserFactExtraction:
     async def test_extract_user_name(self, tmp_path):
         # Set up a fake memory_manager that returns items
         mock_mm = MagicMock()
-        mock_mm.recent_working = MagicMock(return_value=[
-            {"content": "Hi, my name is Alice", "timestamp": "2026-01-01T00:00:00Z"},
-        ])
+        mock_mm.recent_working = MagicMock(
+            return_value=[
+                {
+                    "content": "Hi, my name is Alice",
+                    "timestamp": "2026-01-01T00:00:00Z",
+                },
+            ]
+        )
         # Make store() not crash
         mock_mm.store = MagicMock()
 
@@ -97,9 +103,11 @@ class TestUserFactExtraction:
     @pytest.mark.asyncio
     async def test_extract_user_location(self, tmp_path):
         mock_mm = MagicMock()
-        mock_mm.recent_working = MagicMock(return_value=[
-            {"content": "I live in Berlin and I work as a designer"},
-        ])
+        mock_mm.recent_working = MagicMock(
+            return_value=[
+                {"content": "I live in Berlin and I work as a designer"},
+            ]
+        )
         mock_mm.store = MagicMock()
 
         cfg = ConsolidatorConfig(
@@ -114,13 +122,20 @@ class TestUserFactExtraction:
     @pytest.mark.asyncio
     async def test_update_memory_md_writes_file(self, tmp_path):
         mock_mm = MagicMock()
-        mock_mm.recent_working = MagicMock(return_value=[
-            {"content": "This is a long enough memory content to be saved.", "timestamp": "2026-01-01T00:00:00Z"},
-        ])
+        mock_mm.recent_working = MagicMock(
+            return_value=[
+                {
+                    "content": "This is a long enough memory content to be saved.",
+                    "timestamp": "2026-01-01T00:00:00Z",
+                },
+            ]
+        )
         mock_mm.store = MagicMock()
 
         mem_path = tmp_path / "M.md"
-        cfg = ConsolidatorConfig(memory_md_path=mem_path, user_md_path=tmp_path / "U.md")
+        cfg = ConsolidatorConfig(
+            memory_md_path=mem_path, user_md_path=tmp_path / "U.md"
+        )
         c = MemoryConsolidator(memory_manager=mock_mm, config=cfg)
         await c._consolidate_once()
         assert mem_path.is_file()
@@ -131,7 +146,9 @@ class TestUserFactExtraction:
     async def test_no_items_skips_silently(self, tmp_path):
         mock_mm = MagicMock()
         mock_mm.recent_working = MagicMock(return_value=[])
-        cfg = ConsolidatorConfig(memory_md_path=tmp_path / "M.md", user_md_path=tmp_path / "U.md")
+        cfg = ConsolidatorConfig(
+            memory_md_path=tmp_path / "M.md", user_md_path=tmp_path / "U.md"
+        )
         c = MemoryConsolidator(memory_manager=mock_mm, config=cfg)
         # Should not raise
         await c._consolidate_once()

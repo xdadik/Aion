@@ -25,7 +25,7 @@ import logging
 import os
 import re
 import uuid
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -37,26 +37,26 @@ logger = logging.getLogger("aion_hand.security.sandbox")
 # ======================================================================
 
 _DEFAULT_BLACKLIST_PATTERNS: list[str] = [
-    r"rm\s+-rf\s+/",          # Dangerous recursive removal
-    r"rm\s+-rf\s+\.",         # Remove current directory tree
-    r"mkfs",                   # Format filesystem
-    r"dd\s+if=",               # Low-level disk clone/write
-    r">\s*/dev/",              # Direct block-device writes
-    r"chmod\s+777",            # World-writable permissions
-    r"chown\s+-R",             # Recursive ownership change
-    r"curl.*\|\s*bash",        # Remote code execution via curl
-    r"curl.*\|\s*sh",          # Remote code execution via curl (sh)
-    r"wget.*\|\s*sh",          # Remote code execution via wget
-    r"wget.*\|\s*bash",        # Remote code execution via wget (bash)
-    r":\(\)\s*\{\s*:\|:",     # Fork bomb pattern
-    r"shutdown",               # System shutdown
-    r"reboot",                 # System reboot
-    r"init\s+0",               # Halt system
-    r"passwd",                 # Password change
-    r"kill\s+-9\s+1",          # Kill init
-    r">\s*/etc/",              # Write to critical system config
-    r"mv\s+/etc/",             # Move system config files
-    r"crontab",                # Cron job manipulation
+    r"rm\s+-rf\s+/",  # Dangerous recursive removal
+    r"rm\s+-rf\s+\.",  # Remove current directory tree
+    r"mkfs",  # Format filesystem
+    r"dd\s+if=",  # Low-level disk clone/write
+    r">\s*/dev/",  # Direct block-device writes
+    r"chmod\s+777",  # World-writable permissions
+    r"chown\s+-R",  # Recursive ownership change
+    r"curl.*\|\s*bash",  # Remote code execution via curl
+    r"curl.*\|\s*sh",  # Remote code execution via curl (sh)
+    r"wget.*\|\s*sh",  # Remote code execution via wget
+    r"wget.*\|\s*bash",  # Remote code execution via wget (bash)
+    r":\(\)\s*\{\s*:\|:",  # Fork bomb pattern
+    r"shutdown",  # System shutdown
+    r"reboot",  # System reboot
+    r"init\s+0",  # Halt system
+    r"passwd",  # Password change
+    r"kill\s+-9\s+1",  # Kill init
+    r">\s*/etc/",  # Write to critical system config
+    r"mv\s+/etc/",  # Move system config files
+    r"crontab",  # Cron job manipulation
     r"systemctl\s+(stop|disable|mask)",  # Disable critical services
 ]
 
@@ -91,9 +91,9 @@ _DEFAULT_TIMEOUT: int = 30
 class ApprovalMode(str, Enum):
     """How the approval manager handles incoming tool/command requests."""
 
-    AUTO = "auto"   # Automatically approve – no gate
-    ASK = "ask"     # Pause and wait for explicit human approval
-    DENY = "deny"   # Block everything that requires approval
+    AUTO = "auto"  # Automatically approve – no gate
+    ASK = "ask"  # Pause and wait for explicit human approval
+    DENY = "deny"  # Block everything that requires approval
 
 
 # ======================================================================
@@ -129,7 +129,8 @@ class CommandValidator:
             re.compile(p, re.IGNORECASE) for p in (whitelist or [])
         ]
         self._blacklist_patterns: list[re.Pattern[str]] = [
-            re.compile(p, re.IGNORECASE) for p in (blacklist or _DEFAULT_BLACKLIST_PATTERNS)
+            re.compile(p, re.IGNORECASE)
+            for p in (blacklist or _DEFAULT_BLACKLIST_PATTERNS)
         ]
         logger.debug(
             "CommandValidator initialised with %d whitelist and %d blacklist patterns",
@@ -171,9 +172,7 @@ class CommandValidator:
                     matched = True
                     break
             if not matched:
-                reason = (
-                    f"Command does not match any whitelisted pattern: {command!r}"
-                )
+                reason = f"Command does not match any whitelisted pattern: {command!r}"
                 logger.warning("Command blocked: %s", reason)
                 return False, reason
 
@@ -514,7 +513,9 @@ class Sandbox:
         allowed_modules: list[str] | None = None,
         timeout: int = _DEFAULT_TIMEOUT,
     ) -> None:
-        self._allowed_modules: list[str] = allowed_modules or list(_DEFAULT_ALLOWED_MODULES)
+        self._allowed_modules: list[str] = allowed_modules or list(
+            _DEFAULT_ALLOWED_MODULES
+        )
         self._timeout: int = timeout
         self._validator = CommandValidator()
         self._execution_count: int = 0
@@ -599,9 +600,7 @@ class Sandbox:
                     stderr_str[:500],
                 )
             else:
-                logger.debug(
-                    "Sandbox Python execution OK (duration=%.3fs)", duration
-                )
+                logger.debug("Sandbox Python execution OK (duration=%.3fs)", duration)
 
             return result
 
@@ -716,9 +715,7 @@ class Sandbox:
                     stderr_str[:500],
                 )
             else:
-                logger.debug(
-                    "Sandbox shell command OK (duration=%.3fs)", duration
-                )
+                logger.debug("Sandbox shell command OK (duration=%.3fs)", duration)
 
             return result
 
@@ -876,36 +873,42 @@ def _build_sandbox_runner(allowed_modules_str: str, user_code: str) -> str:
         "    if top.startswith(" + repr("_") + "):",
         "        return _original_import(name, *args, **kwargs)",
         "    # Allow encoding-related modules (needed by print/stdout)",
-        "    if top in (" + repr("encodings") + ", " + repr("codecs") + ", " + repr("locale") + "):",
+        "    if top in ("
+        + repr("encodings")
+        + ", "
+        + repr("codecs")
+        + ", "
+        + repr("locale")
+        + "):",
         "        return _original_import(name, *args, **kwargs)",
         "    # Block dangerous modules",
         "    if top in _BLOCKED:",
         "        raise ImportError(",
-        "            \"Sandbox restriction: importing \" + repr(name) + \" is blocked.\"",
+        '            "Sandbox restriction: importing " + repr(name) + " is blocked."',
         "        )",
         "    return _original_import(name, *args, **kwargs)",
         "",
         "if isinstance(__builtins__, dict):",
-        "    __builtins__[\"__import__\"] = _restricted_import",
+        '    __builtins__["__import__"] = _restricted_import',
         "else:",
         "    __builtins__.__import__ = _restricted_import",
         "",
         "# -- Restricted builtins --",
         "_safe_builtins = dict(vars(__builtins__)) if isinstance(__builtins__, dict) else dict(vars(__builtins__))",
-        "_rm = [\"open\", \"exec\", \"eval\", \"compile\",",
-        "         \"breakpoint\", \"exit\", \"quit\"]",
+        '_rm = ["open", "exec", "eval", "compile",',
+        '         "breakpoint", "exit", "quit"]',
         "for _k in list(_safe_builtins):",
         "    if _k in _rm:",
         "        del _safe_builtins[_k]",
         "# Keep the restricted __import__ in builtins so 'import' works",
-        "_safe_builtins[\"__import__\"] = _restricted_import",
+        '_safe_builtins["__import__"] = _restricted_import',
         "",
         "# -- Pre-import allowed extra modules --",
         "_ALLOWED_EXTRA = set(" + allowed_repr + ".split(" + comma_repr + "))",
         "",
         "# -- User code --",
         "try:",
-        "    _exec_globals = {\"__builtins__\": _safe_builtins}",
+        '    _exec_globals = {"__builtins__": _safe_builtins}',
         "    for _mod_name in _ALLOWED_EXTRA:",
         "        try:",
         "            _exec_globals[_mod_name] = _original_import(_mod_name)",
@@ -982,7 +985,9 @@ class SecurityManager:
         log.
         """
         is_safe, reason = self._validator.validate(command)
-        self._audit("command_check", {"command": command, "is_safe": is_safe, "reason": reason})
+        self._audit(
+            "command_check", {"command": command, "is_safe": is_safe, "reason": reason}
+        )
         return is_safe, reason
 
     async def request_tool_approval(
@@ -997,13 +1002,16 @@ class SecurityManager:
         are recorded in the audit log.
         """
         approved = await self._approval.request_approval(tool_name, params, reason)
-        self._audit("tool_approval", {
-            "tool_name": tool_name,
-            "params": params,
-            "reason": reason,
-            "approved": approved,
-            "mode": self._approval._mode.value,
-        })
+        self._audit(
+            "tool_approval",
+            {
+                "tool_name": tool_name,
+                "params": params,
+                "reason": reason,
+                "approved": approved,
+                "mode": self._approval._mode.value,
+            },
+        )
         return approved
 
     async def execute_sandboxed(
@@ -1022,10 +1030,13 @@ class SecurityManager:
         Returns:
             The result dict from the underlying sandbox executor.
         """
-        self._audit("sandbox_execute", {
-            "exec_type": exec_type,
-            "code_preview": code_or_cmd[:200],
-        })
+        self._audit(
+            "sandbox_execute",
+            {
+                "exec_type": exec_type,
+                "code_preview": code_or_cmd[:200],
+            },
+        )
 
         if exec_type == "python":
             result = await self._sandbox.execute_python(code_or_cmd, timeout=timeout)
@@ -1096,7 +1107,7 @@ class SecurityManager:
         self._audit_log.append(entry)
         # Trim to ring-buffer size
         if len(self._audit_log) > self._max_audit_entries:
-            self._audit_log = self._audit_log[-self._max_audit_entries:]
+            self._audit_log = self._audit_log[-self._max_audit_entries :]
 
 
 # ======================================================================
@@ -1107,6 +1118,7 @@ class SecurityManager:
 def sys_executable() -> str:
     """Return the current Python executable path."""
     import sys as _sys
+
     return _sys.executable
 
 

@@ -35,12 +35,12 @@ Usage:
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, UTC
-from typing import Any, Callable, Awaitable
+from datetime import UTC, datetime
+from typing import Any
+from collections.abc import Awaitable, Callable
 
 logger = logging.getLogger("aion_hand.health")
 
@@ -49,9 +49,11 @@ logger = logging.getLogger("aion_hand.health")
 # Check result
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class CheckResult:
     """Result of a single health check."""
+
     name: str
     passed: bool
     duration_seconds: float
@@ -71,6 +73,7 @@ class CheckResult:
 @dataclass
 class HealthReport:
     """Aggregate health report."""
+
     status: str  # "pass" | "fail"
     checks: list[CheckResult]
     timestamp: str
@@ -104,6 +107,7 @@ CheckFn = Callable[[], Awaitable[bool | tuple[bool, str]]]
 # Health registry
 # ---------------------------------------------------------------------------
 
+
 class HealthRegistry:
     """Registry of health checks for liveness + readiness probes."""
 
@@ -119,25 +123,31 @@ class HealthRegistry:
 
     def liveness(self, name: str) -> Callable[[CheckFn], CheckFn]:
         """Decorator: register a liveness check."""
+
         def decorator(fn: CheckFn) -> CheckFn:
             self._liveness_checks[name] = fn
             return fn
+
         return decorator
 
     def readiness(self, name: str) -> Callable[[CheckFn], CheckFn]:
         """Decorator: register a readiness check."""
+
         def decorator(fn: CheckFn) -> CheckFn:
             self._readiness_checks[name] = fn
             return fn
+
         return decorator
 
     # Convenience: register for both
     def check(self, name: str) -> Callable[[CheckFn], CheckFn]:
         """Decorator: register for BOTH liveness and readiness."""
+
         def decorator(fn: CheckFn) -> CheckFn:
             self._liveness_checks[name] = fn
             self._readiness_checks[name] = fn
             return fn
+
         return decorator
 
     # ------------------------------------------------------------------
@@ -163,17 +173,23 @@ class HealthRegistry:
                     passed, error = result
                 else:
                     passed, error = bool(result), None
-                results.append(CheckResult(
-                    name=name, passed=passed,
-                    duration_seconds=time.time() - t0,
-                    error=error,
-                ))
+                results.append(
+                    CheckResult(
+                        name=name,
+                        passed=passed,
+                        duration_seconds=time.time() - t0,
+                        error=error,
+                    )
+                )
             except Exception as exc:  # noqa: BLE001
-                results.append(CheckResult(
-                    name=name, passed=False,
-                    duration_seconds=time.time() - t0,
-                    error=f"{type(exc).__name__}: {exc}",
-                ))
+                results.append(
+                    CheckResult(
+                        name=name,
+                        passed=False,
+                        duration_seconds=time.time() - t0,
+                        error=f"{type(exc).__name__}: {exc}",
+                    )
+                )
         status = "pass" if all(c.passed for c in results) else "fail"
         report = HealthReport(
             status=status,
@@ -198,7 +214,9 @@ class HealthRegistry:
         try:
             from aiohttp import web
         except ImportError as exc:
-            raise RuntimeError("aiohttp is required for serve(). Install: pip install aiohttp") from exc
+            raise RuntimeError(
+                "aiohttp is required for serve(). Install: pip install aiohttp"
+            ) from exc
 
         async def live_handler(_request: Any) -> Any:
             report = await self.run_liveness()
@@ -213,10 +231,12 @@ class HealthRegistry:
         async def full_handler(_request: Any) -> Any:
             live = await self.run_liveness()
             ready = await self.run_readiness()
-            return web.json_response({
-                "liveness": live.body,
-                "readiness": ready.body,
-            })
+            return web.json_response(
+                {
+                    "liveness": live.body,
+                    "readiness": ready.body,
+                }
+            )
 
         app = web.Application()
         app.router.add_get("/health/live", live_handler)
@@ -254,6 +274,7 @@ def get_health_registry() -> HealthRegistry:
 #  Default checks
 # ---------------------------------------------------------------------------
 
+
 def register_default_checks(agent: Any | None = None) -> HealthRegistry:
     """Register a sensible set of default health checks for an Aion agent."""
     health = get_health_registry()
@@ -273,29 +294,38 @@ def register_default_checks(agent: Any | None = None) -> HealthRegistry:
             return False
 
     if agent is not None:
+
         @health.readiness("agent_state")
         async def _agent_ready() -> bool:
             state = getattr(agent, "state", None)
             # If agent has a state enum, IDLE means ready
             state_name = state.name if hasattr(state, "name") else str(state)
-            return state_name in ("IDLE", "INITIALIZING") or state_name == "AgentState.IDLE"
+            return (
+                state_name in ("IDLE", "INITIALIZING")
+                or state_name == "AgentState.IDLE"
+            )
 
-        memory = getattr(agent, "_memory", None) or getattr(agent, "memory_manager", None)
+        memory = getattr(agent, "_memory", None) or getattr(
+            agent, "memory_manager", None
+        )
         if memory is not None:
+
             @health.readiness("memory")
-            async def _memory_ready() -> bool:
+            async def _memory_ready(_memory=memory) -> bool:  # type: ignore[no-untyped-def]
                 try:
-                    # Just check the object responds
-                    return memory is not None
+                    return _memory is not None
                 except Exception:  # noqa: BLE001
                     return False
 
         tools = getattr(agent, "_tools", None) or getattr(agent, "tool_registry", None)
         if tools is not None:
+
             @health.readiness("tools")
-            async def _tools_ready() -> bool:
+            async def _tools_ready(_tools=tools) -> bool:  # type: ignore[no-untyped-def]
                 try:
-                    tools_list = tools.list_tools() if hasattr(tools, "list_tools") else []
+                    tools_list = (
+                        _tools.list_tools() if hasattr(_tools, "list_tools") else []
+                    )
                     return len(tools_list) > 0
                 except Exception:  # noqa: BLE001
                     return False

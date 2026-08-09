@@ -18,6 +18,7 @@ logger = logging.getLogger("aion_hand.pipeline")
 @dataclass
 class RepairResult:
     """Result of a repair attempt."""
+
     success: bool = False
     repaired_output: Any = None
     repairs_made: list[str] = field(default_factory=list)
@@ -118,19 +119,28 @@ Return ONLY the JSON. No markdown, no explanation."""
         repairs_made.extend(heuristic_repairs)
 
         heuristic_only_issues = {
-            "SECURITY:", "Syntax error", "TODO", "incomplete",
-            "No code issues", "No factual issues", "No security",
-            "No logical issues", "All goals appear to be addressed",
+            "SECURITY:",
+            "Syntax error",
+            "TODO",
+            "incomplete",
+            "No code issues",
+            "No factual issues",
+            "No security",
+            "No logical issues",
+            "All goals appear to be addressed",
             "No applicable verifiers",
         }
         non_heuristic_issues = [
-            i for i in all_issues
+            i
+            for i in all_issues
             if not any(marker in i for marker in heuristic_only_issues)
         ]
 
         if not non_heuristic_issues and critique.score >= 0.7:
             elapsed = time.monotonic() - start_time
-            logger.info(f"Heuristic repairs sufficient: {len(repairs_made)} repairs made")
+            logger.info(
+                f"Heuristic repairs sufficient: {len(repairs_made)} repairs made"
+            )
             return RepairResult(
                 success=True,
                 repaired_output=repaired_output,
@@ -158,7 +168,9 @@ Return ONLY the JSON. No markdown, no explanation."""
                 repairs_made.extend(llm_result.repairs_made)
                 repaired_output = llm_result.repaired_output
                 elapsed = time.monotonic() - start_time
-                logger.info(f"LLM repair succeeded on attempt {attempt}: {len(llm_result.repairs_made)} repairs")
+                logger.info(
+                    f"LLM repair succeeded on attempt {attempt}: {len(llm_result.repairs_made)} repairs"
+                )
                 return RepairResult(
                     success=True,
                     repaired_output=repaired_output,
@@ -175,7 +187,9 @@ Return ONLY the JSON. No markdown, no explanation."""
             logger.warning(f"LLM repair attempt {attempt} did not fully succeed")
 
         elapsed = time.monotonic() - start_time
-        logger.warning(f"All repair attempts exhausted. Repairs made: {len(repairs_made)}")
+        logger.warning(
+            f"All repair attempts exhausted. Repairs made: {len(repairs_made)}"
+        )
 
         return RepairResult(
             success=len(repairs_made) > 0,
@@ -194,8 +208,13 @@ Return ONLY the JSON. No markdown, no explanation."""
     ) -> list[str]:
         issues = []
         noise_prefixes = [
-            "No ", "No code", "No factual", "No security", "No logical",
-            "All goals", "No applicable",
+            "No ",
+            "No code",
+            "No factual",
+            "No security",
+            "No logical",
+            "All goals",
+            "No applicable",
         ]
 
         for v in verifications:
@@ -240,10 +259,14 @@ Return ONLY the JSON. No markdown, no explanation."""
         repairs = []
 
         dangerous_replacements = [
-            (r"(?m)^(\s*)eval\s*\(",
-             r"\1# REMOVED: eval() - security risk\n\1# Use ast.literal_eval() instead\n\1"),
-            (r"(?m)^(\s*)exec\s*\(",
-             r"\1# REMOVED: exec() - security risk\n\1# Use subprocess or direct calls instead\n\1"),
+            (
+                r"(?m)^(\s*)eval\s*\(",
+                r"\1# REMOVED: eval() - security risk\n\1# Use ast.literal_eval() instead\n\1",
+            ),
+            (
+                r"(?m)^(\s*)exec\s*\(",
+                r"\1# REMOVED: exec() - security risk\n\1# Use subprocess or direct calls instead\n\1",
+            ),
         ]
         for pattern, replacement in dangerous_replacements:
             new_text, count = re.subn(pattern, replacement, repaired)
@@ -252,8 +275,10 @@ Return ONLY the JSON. No markdown, no explanation."""
                 repairs.append(f"Removed {count} dangerous code pattern(s)")
 
         secret_patterns = [
-            (r"(?i)(password|api_key|secret)\s*=\s*[\"'][^\"]{8,}[\"']",
-             lambda m: f"{m.group(1)} = '***REDACTED***'"),
+            (
+                r"(?i)(password|api_key|secret)\s*=\s*[\"'][^\"]{8,}[\"']",
+                lambda m: f"{m.group(1)} = '***REDACTED***'",
+            ),
         ]
         for pattern, replacement in secret_patterns:
             new_text, count = re.subn(pattern, replacement, repaired)
@@ -301,17 +326,33 @@ Return ONLY the JSON. No markdown, no explanation."""
 
         result_str = str(result)[:6000] if result else "(empty result)"
 
-        issues_text = "\n".join(f"- {issue}" for issue in all_issues) if all_issues else "- See suggestions below"
-        suggestions_text = "\n".join(f"- {sug}" for sug in suggestions) if suggestions else "- General quality improvement needed"
-        previous_text = "\n".join(f"- {r}" for r in previous_repairs) if previous_repairs else "(none)"
+        issues_text = (
+            "\n".join(f"- {issue}" for issue in all_issues)
+            if all_issues
+            else "- See suggestions below"
+        )
+        suggestions_text = (
+            "\n".join(f"- {sug}" for sug in suggestions)
+            if suggestions
+            else "- General quality improvement needed"
+        )
+        previous_text = (
+            "\n".join(f"- {r}" for r in previous_repairs)
+            if previous_repairs
+            else "(none)"
+        )
 
         constraints_text = ""
         if mission and mission.constraints:
-            constraints_text = "\nConstraints to respect:\n" + "\n".join(f"- {c}" for c in mission.constraints)
+            constraints_text = "\nConstraints to respect:\n" + "\n".join(
+                f"- {c}" for c in mission.constraints
+            )
 
         goals_text = ""
         if mission and mission.goals:
-            goals_text = "\nGoals that must be met:\n" + "\n".join(f"- {g}" for g in mission.goals)
+            goals_text = "\nGoals that must be met:\n" + "\n".join(
+                f"- {g}" for g in mission.goals
+            )
 
         user_message = (
             f"Task: {task}\n\n"
@@ -325,8 +366,16 @@ Return ONLY the JSON. No markdown, no explanation."""
 
         try:
             response = await self._agent.chat(message=user_message)
-            content = response.get("content", "") if isinstance(response, dict) else str(response)
-            tokens = response.get("metadata", {}).get("tokens_used", 0) if isinstance(response, dict) else 0
+            content = (
+                response.get("content", "")
+                if isinstance(response, dict)
+                else str(response)
+            )
+            tokens = (
+                response.get("metadata", {}).get("tokens_used", 0)
+                if isinstance(response, dict)
+                else 0
+            )
             if not tokens:
                 tokens = response.get("metadata", {}).get("total_tokens", 0)
         except Exception as e:
@@ -349,17 +398,21 @@ Return ONLY the JSON. No markdown, no explanation."""
 
         return parsed
 
-    def _parse_repair_response(self, raw_content: str, original_result: Any) -> RepairResult:
+    def _parse_repair_response(
+        self, raw_content: str, original_result: Any
+    ) -> RepairResult:
         json_str = None
 
-        code_block_match = re.search(r"```(?:json)?\s*\n?(\{.*?\})\s*\n?```", raw_content, re.DOTALL)
+        code_block_match = re.search(
+            r"```(?:json)?\s*\n?(\{.*?\})\s*\n?```", raw_content, re.DOTALL
+        )
         if code_block_match:
             json_str = code_block_match.group(1)
         else:
             brace_start = raw_content.find("{")
             brace_end = raw_content.rfind("}")
             if brace_start != -1 and brace_end > brace_start:
-                json_str = raw_content[brace_start:brace_end + 1]
+                json_str = raw_content[brace_start : brace_end + 1]
 
         if json_str:
             try:
@@ -372,7 +425,9 @@ Return ONLY the JSON. No markdown, no explanation."""
                     return RepairResult(
                         success=success,
                         repaired_output=repaired_output,
-                        repairs_made=repairs_made if repairs_made else ["LLM repair applied"],
+                        repairs_made=(
+                            repairs_made if repairs_made else ["LLM repair applied"]
+                        ),
                     )
             except (json.JSONDecodeError, TypeError, ValueError) as e:
                 logger.warning(f"Failed to parse repair JSON: {e}")

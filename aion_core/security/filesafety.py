@@ -343,7 +343,11 @@ class FileSafetyChecker:
             if resolved == resolved_pattern:
                 return pattern, ops
             # Glob match (fnmatch works on the whole path)
-            if "*" in resolved_pattern or "?" in resolved_pattern or "[" in resolved_pattern:
+            if (
+                "*" in resolved_pattern
+                or "?" in resolved_pattern
+                or "[" in resolved_pattern
+            ):
                 if fnmatch.fnmatch(resolved, resolved_pattern):
                     return pattern, ops
         return None
@@ -437,9 +441,7 @@ class FileSafetyChecker:
         if operation == "write" and self._is_dot_env(resolved):
             return FileSafetyResult(
                 allowed=False,
-                reason=(
-                    f"Refusing to write to environment / secrets file: {path}"
-                ),
+                reason=(f"Refusing to write to environment / secrets file: {path}"),
                 risk_level=RiskLevel.HIGH,
             )
 
@@ -471,9 +473,7 @@ class FileSafetyChecker:
             if resolved.startswith("/etc/") or resolved.startswith("/var/"):
                 return FileSafetyResult(
                     allowed=False,
-                    reason=(
-                        f"Write to system configuration directory blocked: {path}"
-                    ),
+                    reason=(f"Write to system configuration directory blocked: {path}"),
                     risk_level=RiskLevel.HIGH,
                 )
 

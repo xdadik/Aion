@@ -1,4 +1,4 @@
-"""""
+""" ""
 Aion Hand Benchmark Tasks
 
 20+ benchmark tasks across 6 categories that stress-test every dimension of agent capability.
@@ -51,7 +51,9 @@ class BenchmarkTask:
         if not self.task_prompt:
             raise ValueError(f"Task {self.id} must have a non-empty task_prompt")
         if not self.evaluation_criteria:
-            raise ValueError(f"Task {self.id} must have at least one evaluation criterion")
+            raise ValueError(
+                f"Task {self.id} must have at least one evaluation criterion"
+            )
 
 
 # ─── Planning Tasks ──────────────────────────────────────────────────────────
@@ -72,7 +74,7 @@ PLANNING_TASKS = [
         ),
         evaluation_criteria=[
             "min_length:200",
-            'keywords:Tokio,goroutine,scheduler',
+            "keywords:Tokio,goroutine,scheduler",
             "has_code:false",
             "min_length:400",
         ],
@@ -98,8 +100,8 @@ PLANNING_TASKS = [
         ),
         evaluation_criteria=[
             "min_length:300",
-            'keywords:Tokyo,Kyoto,Osaka',
-            'keywords:budget,itinerary',
+            "keywords:Tokyo,Kyoto,Osaka",
+            "keywords:budget,itinerary",
             r"pattern_match:\$\d{3,4}",
         ],
         expected_tools=[],
@@ -124,8 +126,8 @@ PLANNING_TASKS = [
         ),
         evaluation_criteria=[
             "min_length:500",
-            'keywords:CRDT,OT,WebSocket,real-time',
-            'keywords:scalability,concurrent',
+            "keywords:CRDT,OT,WebSocket,real-time",
+            "keywords:scalability,concurrent",
             "min_length:300",
         ],
         expected_tools=[],
@@ -182,7 +184,7 @@ TOOL_USE_TASKS = [
         evaluation_criteria=[
             "tool_used:web_search",
             "min_length:200",
-            'keywords:Python,feature',
+            "keywords:Python,feature",
             r"pattern_match:\d+\.\d+",
         ],
         expected_tools=["web_search"],
@@ -234,7 +236,7 @@ TOOL_USE_TASKS = [
             "tool_used:file_write",
             "tool_used:file_read",
             "min_length:200",
-            'keywords:Python,Java,C',
+            "keywords:Python,Java,C",
         ],
         expected_tools=["web_search", "file_write", "file_read"],
         expected_steps=4,
@@ -262,9 +264,9 @@ CODE_GENERATION_TASKS = [
         ),
         evaluation_criteria=[
             "has_code:true",
-            'keywords:def,fibonacci',
-            'keywords:type hints,->',
-            'pattern_match:assert.*fib',
+            "keywords:def,fibonacci",
+            "keywords:type hints,->",
+            "pattern_match:assert.*fib",
             "min_length:150",
         ],
         expected_tools=[],
@@ -292,8 +294,8 @@ CODE_GENERATION_TASKS = [
         ),
         evaluation_criteria=[
             "has_code:true",
-            'keywords:FastAPI,POST,GET,PUT,DELETE',
-            'keywords:Pydantic,BaseModel',
+            "keywords:FastAPI,POST,GET,PUT,DELETE",
+            "keywords:Pydantic,BaseModel",
             "pattern_match:/tasks",
             "min_length:400",
         ],
@@ -319,9 +321,9 @@ CODE_GENERATION_TASKS = [
         ),
         evaluation_criteria=[
             "has_code:true",
-            'keywords:quicksort,mergesort,heapsort',
+            "keywords:quicksort,mergesort,heapsort",
             r"keywords:O\(n log n\)",
-            'pattern_match:assert.*sort',
+            "pattern_match:assert.*sort",
             "min_length:300",
         ],
         expected_tools=[],
@@ -361,8 +363,8 @@ CODE_GENERATION_TASKS = [
         ),
         evaluation_criteria=[
             "has_code:true",
-            'keywords:pytest,test_,fixture',
-            'keywords:ValueError,Insufficient',
+            "keywords:pytest,test_,fixture",
+            "keywords:ValueError,Insufficient",
             "pattern_match:@pytest",
             "min_length:300",
         ],
@@ -394,7 +396,7 @@ RECOVERY_TASKS = [
         evaluation_criteria=[
             "tool_used:file_read",
             "tool_used:file_write",
-            'keywords:error,created,recovery',
+            "keywords:error,created,recovery",
             "min_length:100",
         ],
         expected_tools=["file_read", "file_write"],
@@ -428,7 +430,7 @@ RECOVERY_TASKS = [
         ),
         evaluation_criteria=[
             "has_code:true",
-            'keywords:bug,fix,correct',
+            "keywords:bug,fix,correct",
             "pattern_match:n - 1|n//2",
             "min_length:150",
         ],
@@ -452,7 +454,7 @@ RECOVERY_TASKS = [
             "about: what's broken, the tech stack, the expected behavior, and error messages."
         ),
         evaluation_criteria=[
-            'keywords:question,clarif',
+            "keywords:question,clarif",
             "pattern_match:\\?",
             "min_length:100",
         ],
@@ -490,11 +492,11 @@ MEMORY_TASKS = [
             "5) What are the three languages in the tech stack?"
         ),
         evaluation_criteria=[
-            'keywords:Sarah Chen',
-            'keywords:Sprint 14',
-            'keywords:March 15',
-            'keywords:Python,Rust,TypeScript',
-            'keywords:Benchmark Engine',
+            "keywords:Sarah Chen",
+            "keywords:Sprint 14",
+            "keywords:March 15",
+            "keywords:Python,Rust,TypeScript",
+            "keywords:Benchmark Engine",
         ],
         expected_tools=[],
         expected_steps=1,
@@ -521,8 +523,8 @@ MEMORY_TASKS = [
             "How old was Luna when adopted?"
         ),
         evaluation_criteria=[
-            'keywords:Luna,Milo,Nala',
-            'keywords:sibling,oldest,youngest',
+            "keywords:Luna,Milo,Nala",
+            "keywords:sibling,oldest,youngest",
             "min_length:150",
         ],
         expected_tools=[],
@@ -552,7 +554,7 @@ MEMORY_TASKS = [
             "has_code:true",
             r"pattern_match:\->\s*(list|List)",
             "min_length:100",
-            'keywords:def,return',
+            "keywords:def,return",
         ],
         expected_tools=[],
         expected_steps=2,
@@ -583,9 +585,9 @@ MULTI_STEP_TASKS = [
         ),
         evaluation_criteria=[
             "min_length:400",
-            'keywords:RAG,summarization',
-            'keywords:context,window,token',
-            'pattern_match:##|###',
+            "keywords:RAG,summarization",
+            "keywords:context,window,token",
+            "pattern_match:##|###",
         ],
         expected_tools=[],
         expected_steps=4,
@@ -609,8 +611,8 @@ MULTI_STEP_TASKS = [
         ),
         evaluation_criteria=[
             "has_code:true",
-            'keywords:Faker,filter,group',
-            'keywords:CSV,normalize,average',
+            "keywords:Faker,filter,group",
+            "keywords:CSV,normalize,average",
             "pattern_match:import.*csv|to_csv",
             "min_length:300",
         ],
@@ -645,8 +647,8 @@ MULTI_STEP_TASKS = [
         ),
         evaluation_criteria=[
             "has_code:true",
-            'keywords:review,issue,improve',
-            'keywords:comprehension|list comp',
+            "keywords:review,issue,improve",
+            "keywords:comprehension|list comp",
             "min_length:250",
         ],
         expected_tools=[],
@@ -685,8 +687,8 @@ MULTI_STEP_TASKS = [
         ),
         evaluation_criteria=[
             "has_code:true",
-            'keywords:bug,punctuation,sorted,reverse',
-            'keywords:tokenize,fix,strip',
+            "keywords:bug,punctuation,sorted,reverse",
+            "keywords:tokenize,fix,strip",
             "min_length:200",
         ],
         expected_tools=[],

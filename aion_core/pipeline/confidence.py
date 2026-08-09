@@ -84,7 +84,9 @@ class ConfidenceEstimator:
 
         # Weighted combination
         if total_weight == 0:
-            logger.warning("No signals available for confidence estimation, returning 0.5")
+            logger.warning(
+                "No signals available for confidence estimation, returning 0.5"
+            )
             return 0.5
 
         confidence = 0.0
@@ -99,17 +101,17 @@ class ConfidenceEstimator:
         )
         return confidence
 
-    def _verification_signal(
-        self, verifications: list[VerificationResult]
-    ) -> tuple:
+    def _verification_signal(self, verifications: list[VerificationResult]) -> tuple:
         """Compute verification signal: pass rate * average confidence."""
         if not verifications:
             return (0.7, 0.0)  # No verifiers ran, no weight
 
         real_verifiers = [
-            v for v in verifications
-            if v.checked_by and v.checked_by != "none"
-               and "No applicable" not in " ".join(v.issues)
+            v
+            for v in verifications
+            if v.checked_by
+            and v.checked_by != "none"
+            and "No applicable" not in " ".join(v.issues)
         ]
 
         if not real_verifiers:
@@ -122,8 +124,7 @@ class ConfidenceEstimator:
 
         # Security verifier is a hard gate
         security_failed = any(
-            not v.passed and v.checked_by == "security_verifier"
-            for v in real_verifiers
+            not v.passed and v.checked_by == "security_verifier" for v in real_verifiers
         )
         if security_failed:
             logger.warning("Security verifier failed, capping verification signal")
@@ -145,10 +146,7 @@ class ConfidenceEstimator:
         if total == 0:
             return (0.8, 0.0)
 
-        successful = sum(
-            1 for r in execution_results.values()
-            if r.status == "success"
-        )
+        successful = sum(1 for r in execution_results.values() if r.status == "success")
         success_rate = successful / total
 
         # Penalize if the final/verify node failed
@@ -186,16 +184,23 @@ class ConfidenceEstimator:
 
         # Error indicators
         error_patterns = [
-            r'(?i)error[:"]', r'(?i)exception[:"]', r'(?i)traceback',
-            r"(?i)failed to", r"(?i)cannot ", r"(?i)unauthorized",
-            r"(?i)access denied", r"(?i)not found",
+            r'(?i)error[:"]',
+            r'(?i)exception[:"]',
+            r"(?i)traceback",
+            r"(?i)failed to",
+            r"(?i)cannot ",
+            r"(?i)unauthorized",
+            r"(?i)access denied",
+            r"(?i)not found",
         ]
         error_count = sum(1 for p in error_patterns if re.search(p, result_str))
         if error_count > 0:
             score -= min(error_count * 0.15, 0.4)
 
         # Quality indicators
-        if any(marker in result_str for marker in ["#", "**", "- ", "1.", "First", "Step"]):
+        if any(
+            marker in result_str for marker in ["#", "**", "- ", "1.", "First", "Step"]
+        ):
             score += 0.1  # Has structure
 
         if any(marker in result_str for marker in ["```", "code", "function", "class"]):

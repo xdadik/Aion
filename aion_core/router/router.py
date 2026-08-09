@@ -24,6 +24,7 @@ class ModelProfile:
 
     All pricing is in **USD per 1 000 tokens**.
     """
+
     name: str
     provider: str
     tier: str  # "budget" | "standard" | "premium"
@@ -41,6 +42,7 @@ class ModelProfile:
 @dataclass
 class RoutingDecision:
     """Result of a routing call."""
+
     model: str
     provider: str
     tier: str
@@ -107,7 +109,11 @@ _DEFAULT_PROFILES: list[dict[str, Any]] = [
         "cost_per_1k_output": 10.000,
         "max_context": 128000,
         "capabilities": [
-            "chat", "json", "function_calling", "vision", "code_interpreter"
+            "chat",
+            "json",
+            "function_calling",
+            "vision",
+            "code_interpreter",
         ],
         "avg_latency_ms": 600.0,
     },
@@ -119,7 +125,11 @@ _DEFAULT_PROFILES: list[dict[str, Any]] = [
         "cost_per_1k_output": 15.000,
         "max_context": 200000,
         "capabilities": [
-            "chat", "json", "function_calling", "vision", "extended_thinking"
+            "chat",
+            "json",
+            "function_calling",
+            "vision",
+            "extended_thinking",
         ],
         "avg_latency_ms": 700.0,
     },
@@ -131,7 +141,12 @@ _DEFAULT_PROFILES: list[dict[str, Any]] = [
         "cost_per_1k_output": 5.000,
         "max_context": 2000000,
         "capabilities": [
-            "chat", "json", "function_calling", "vision", "audio", "video"
+            "chat",
+            "json",
+            "function_calling",
+            "vision",
+            "audio",
+            "video",
         ],
         "avg_latency_ms": 550.0,
     },
@@ -144,7 +159,11 @@ _DEFAULT_PROFILES: list[dict[str, Any]] = [
         "cost_per_1k_output": 30.000,
         "max_context": 128000,
         "capabilities": [
-            "chat", "json", "function_calling", "vision", "code_interpreter",
+            "chat",
+            "json",
+            "function_calling",
+            "vision",
+            "code_interpreter",
             "knowledge_cutoff_2024_04",
         ],
         "avg_latency_ms": 900.0,
@@ -157,7 +176,11 @@ _DEFAULT_PROFILES: list[dict[str, Any]] = [
         "cost_per_1k_output": 75.000,
         "max_context": 200000,
         "capabilities": [
-            "chat", "json", "vision", "extended_thinking", "nuanced_reasoning"
+            "chat",
+            "json",
+            "vision",
+            "extended_thinking",
+            "nuanced_reasoning",
         ],
         "avg_latency_ms": 1200.0,
     },
@@ -169,8 +192,13 @@ _DEFAULT_PROFILES: list[dict[str, Any]] = [
         "cost_per_1k_output": 21.000,
         "max_context": 32000,
         "capabilities": [
-            "chat", "json", "function_calling", "vision", "audio",
-            "video", "multimodal_reasoning",
+            "chat",
+            "json",
+            "function_calling",
+            "vision",
+            "audio",
+            "video",
+            "multimodal_reasoning",
         ],
         "avg_latency_ms": 1000.0,
     },
@@ -234,10 +262,9 @@ class ModelRouter:
         # Rough cost estimate (assume ~200 tokens in, ~300 out per turn)
         est_input = max(len(task + "\n" + (context or "")) // 4, 200)
         est_output = 300 * complexity.estimated_turns
-        estimated_cost = (
-            model.cost_per_1k_input * (est_input / 1000)
-            + model.cost_per_1k_output * (est_output / 1000)
-        )
+        estimated_cost = model.cost_per_1k_input * (
+            est_input / 1000
+        ) + model.cost_per_1k_output * (est_output / 1000)
 
         # Reasoning string
         if force_tier:
@@ -281,16 +308,18 @@ class ModelRouter:
         result: list[dict[str, Any]] = []
         for tier_profiles in self._models.values():
             for p in tier_profiles:
-                result.append({
-                    "name": p.name,
-                    "provider": p.provider,
-                    "tier": p.tier,
-                    "cost_per_1k_input": p.cost_per_1k_input,
-                    "cost_per_1k_output": p.cost_per_1k_output,
-                    "max_context": p.max_context,
-                    "capabilities": p.capabilities,
-                    "avg_latency_ms": p.avg_latency_ms,
-                })
+                result.append(
+                    {
+                        "name": p.name,
+                        "provider": p.provider,
+                        "tier": p.tier,
+                        "cost_per_1k_input": p.cost_per_1k_input,
+                        "cost_per_1k_output": p.cost_per_1k_output,
+                        "max_context": p.max_context,
+                        "capabilities": p.capabilities,
+                        "avg_latency_ms": p.avg_latency_ms,
+                    }
+                )
         return result
 
     def add_model(self, profile: ModelProfile) -> None:
@@ -299,11 +328,11 @@ class ModelRouter:
         if tier not in self._models:
             self._models[tier] = []
         # Remove previous version if present
-        self._models[tier] = [
-            m for m in self._models[tier] if m.name != profile.name
-        ]
+        self._models[tier] = [m for m in self._models[tier] if m.name != profile.name]
         self._models[tier].append(profile)
-        logger.info("Registered model %s (%s, %s)", profile.name, profile.provider, tier)
+        logger.info(
+            "Registered model %s (%s, %s)", profile.name, profile.provider, tier
+        )
 
     def remove_model(self, name: str) -> bool:
         """Remove a model by name.  Returns ``True`` if found and removed."""
@@ -324,9 +353,7 @@ class ModelRouter:
                 t: round(c / max(self._total_routed, 1) * 100, 1)
                 for t, c in self._stats.items()
             },
-            "models_available": {
-                t: len(profs) for t, profs in self._models.items()
-            },
+            "models_available": {t: len(profs) for t, profs in self._models.items()},
         }
 
     def reset_stats(self) -> None:

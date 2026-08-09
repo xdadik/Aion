@@ -23,11 +23,13 @@ def _make_mock_agent() -> MagicMock:
     agent = MagicMock()
     agent.state = MagicMock()
     agent.state.name = "IDLE"
-    agent.chat = AsyncMock(return_value={
-        "content": "Mock response",
-        "tools_used": [],
-        "metadata": {"elapsed_seconds": 0.01, "total_tokens": 10},
-    })
+    agent.chat = AsyncMock(
+        return_value={
+            "content": "Mock response",
+            "tools_used": [],
+            "metadata": {"elapsed_seconds": 0.01, "total_tokens": 10},
+        }
+    )
     # Subsystems
     agent._memory = MagicMock()
     agent._memory.recent_memories = MagicMock(return_value=[])
@@ -44,7 +46,9 @@ def _make_mock_agent() -> MagicMock:
     agent._tools.list_tools = MagicMock(return_value=[tool_mock])
     agent.tool_registry = agent._tools
     agent.config = MagicMock()
-    agent.config.to_dict = MagicMock(return_value={"name": "Aion", "default_provider": "openai"})
+    agent.config.to_dict = MagicMock(
+        return_value={"name": "Aion", "default_provider": "openai"}
+    )
     return agent
 
 
@@ -105,7 +109,9 @@ class TestPersonaEndpoints:
 
     @pytest.mark.asyncio
     async def test_apply_unknown_persona_returns_404(self, api_client: TestClient):
-        resp = await api_client.post("/api/personas/apply", json={"name": "nonexistent"})
+        resp = await api_client.post(
+            "/api/personas/apply", json={"name": "nonexistent"}
+        )
         assert resp.status == 404
 
     @pytest.mark.asyncio
@@ -171,7 +177,9 @@ class TestChatEndpoint:
 
     @pytest.mark.asyncio
     async def test_chat_with_session_id(self, api_client: TestClient):
-        resp = await api_client.post("/api/chat", json={"message": "hello", "session_id": "abc"})
+        resp = await api_client.post(
+            "/api/chat", json={"message": "hello", "session_id": "abc"}
+        )
         assert resp.status == 200
 
 
@@ -193,5 +201,7 @@ class TestCORSHeaders:
 
     @pytest.mark.asyncio
     async def test_cors_header_present(self, api_client: TestClient):
-        resp = await api_client.get("/api/personas", headers={"Origin": "http://localhost:3000"})
+        resp = await api_client.get(
+            "/api/personas", headers={"Origin": "http://localhost:3000"}
+        )
         assert "Access-Control-Allow-Origin" in resp.headers

@@ -18,6 +18,7 @@ logger = logging.getLogger("aion_hand.pipeline")
 @dataclass
 class ExecutionResult:
     """Result of executing a single plan node."""
+
     node_id: str = ""
     status: str = "pending"  # success, failed, timeout, cancelled, skipped
     output: Any = None
@@ -92,14 +93,18 @@ class ParallelExecutor:
             f"max_workers={self._max_workers}, entry={plan.entry_node}"
         )
 
-        self._log("plan_start", {"node_count": len(plan.nodes), "entry": plan.entry_node})
+        self._log(
+            "plan_start", {"node_count": len(plan.nodes), "entry": plan.entry_node}
+        )
 
         try:
             topo_order = self._topological_sort(plan)
             logger.debug(f"Topological order: {topo_order}")
 
             for node_id in plan.nodes:
-                self._results[node_id] = ExecutionResult(node_id=node_id, status="pending")
+                self._results[node_id] = ExecutionResult(
+                    node_id=node_id, status="pending"
+                )
 
             await self._execute_graph(plan, topo_order)
 
@@ -119,12 +124,15 @@ class ParallelExecutor:
             f"Plan execution complete in {elapsed:.2f}s: "
             f"{successful} succeeded, {failed} failed, {total_tokens} tokens used"
         )
-        self._log("plan_end", {
-            "elapsed": round(elapsed, 3),
-            "successful": successful,
-            "failed": failed,
-            "total_tokens": total_tokens,
-        })
+        self._log(
+            "plan_end",
+            {
+                "elapsed": round(elapsed, 3),
+                "successful": successful,
+                "failed": failed,
+                "total_tokens": total_tokens,
+            },
+        )
 
         return dict(self._results)
 
@@ -154,8 +162,10 @@ class ParallelExecutor:
                 node = plan.nodes[node_id]
 
                 deps_failed = [
-                    dep for dep in node.dependencies
-                    if dep in failed_nodes and not self._results[dep].metadata.get("retried", False)
+                    dep
+                    for dep in node.dependencies
+                    if dep in failed_nodes
+                    and not self._results[dep].metadata.get("retried", False)
                 ]
                 if deps_failed:
                     self._results[node_id].status = "failed"
@@ -197,7 +207,11 @@ class ParallelExecutor:
                 if self._cancelled:
                     break
                 in_flight.add(node_id)
-                asyncio.create_task(self._run_and_catch(node_id, run_node(node_id), completion_events[node_id]))
+                asyncio.create_task(
+                    self._run_and_catch(
+                        node_id, run_node(node_id), completion_events[node_id]
+                    )
+                )
 
             if in_flight:
                 await asyncio.sleep(0.05)
@@ -213,7 +227,9 @@ class ParallelExecutor:
                 in_flight.discard(nid)
                 completed.add(nid)
 
-    async def _run_and_catch(self, node_id: str, coro: Any, event: asyncio.Event) -> None:
+    async def _run_and_catch(
+        self, node_id: str, coro: Any, event: asyncio.Event
+    ) -> None:
         """Run a node coroutine and ensure the completion event is always set."""
         try:
             await coro
@@ -225,12 +241,16 @@ class ParallelExecutor:
         finally:
             event.set()
 
-    async def _execute_node_with_retries(self, node: PlanNode, context: dict[str, Any]) -> ExecutionResult:
+    async def _execute_node_with_retries(
+        self, node: PlanNode, context: dict[str, Any]
+    ) -> ExecutionResult:
         """Execute a node with retry logic."""
         last_result = None
         for attempt in range(node.retry_limit + 1):
             if self._cancelled:
-                return ExecutionResult(node_id=node.id, status="cancelled", retry_count=attempt)
+                return ExecutionResult(
+                    node_id=node.id, status="cancelled", retry_count=attempt
+                )
 
             result = await self._execute_node(node, context)
             result.retry_count = attempt
@@ -240,24 +260,32 @@ class ParallelExecutor:
 
             last_result = result
             if attempt < node.retry_limit:
-                wait_time = min(2.0 ** attempt, 10.0)
+                wait_time = min(2.0**attempt, 10.0)
                 logger.info(
                     f"Node '{node.name}' failed (attempt {attempt + 1}/{node.retry_limit + 1}), "
                     f"retrying in {wait_time}s: {result.error}"
                 )
-                self._log("node_retry", {
-                    "node_id": node.id,
-                    "attempt": attempt + 1,
-                    "error": result.error,
-                    "wait": wait_time,
-                })
+                self._log(
+                    "node_retry",
+                    {
+                        "node_id": node.id,
+                        "attempt": attempt + 1,
+                        "error": result.error,
+                        "wait": wait_time,
+                    },
+                )
                 await asyncio.sleep(wait_time)
 
         return last_result or ExecutionResult(
-            node_id=node.id, status="failed", error="All retry attempts exhausted", retry_count=node.retry_limit
+            node_id=node.id,
+            status="failed",
+            error="All retry attempts exhausted",
+            retry_count=node.retry_limit,
         )
 
-    async def _execute_node(self, node: PlanNode, context: dict[str, Any]) -> ExecutionResult:
+    async def _execute_node(
+        self, node: PlanNode, context: dict[str, Any]
+    ) -> ExecutionResult:
         """Execute a single node based on its type."""
         start_time = time.monotonic()
         logger.info(f"Executing node '{node.name}' (type={node.node_type})")
@@ -277,25 +305,48 @@ class ParallelExecutor:
             elif node.node_type == "verify":
                 result = await self._execute_verify_node(node, context)
             else:
-                result = ExecutionResult(node_id=node.id, status="failed", error=f"Unknown node type: {node.node_type}")
+                result = ExecutionResult(
+                    node_id=node.id,
+                    status="failed",
+                    error=f"Unknown node type: {node.node_type}",
+                )
         except TimeoutError:
             elapsed = time.monotonic() - start_time
-            result = ExecutionResult(node_id=node.id, status="timeout", error=f"Node timed out after {node.timeout}s", elapsed=elapsed)
+            result = ExecutionResult(
+                node_id=node.id,
+                status="timeout",
+                error=f"Node timed out after {node.timeout}s",
+                elapsed=elapsed,
+            )
             logger.warning(f"Node '{node.name}' timed out after {node.timeout}s")
         except Exception as e:
             elapsed = time.monotonic() - start_time
-            result = ExecutionResult(node_id=node.id, status="failed", error=str(e), elapsed=elapsed)
+            result = ExecutionResult(
+                node_id=node.id, status="failed", error=str(e), elapsed=elapsed
+            )
             logger.error(f"Node '{node.name}' failed with error: {e}")
         else:
             result.elapsed = time.monotonic() - start_time
 
-        self._log("node_end", {"node_id": node.id, "status": result.status, "elapsed": round(result.elapsed, 3), "tokens_used": result.tokens_used})
+        self._log(
+            "node_end",
+            {
+                "node_id": node.id,
+                "status": result.status,
+                "elapsed": round(result.elapsed, 3),
+                "tokens_used": result.tokens_used,
+            },
+        )
         return result
 
-    async def _execute_agent_node(self, node: PlanNode, context: dict[str, Any]) -> ExecutionResult:
+    async def _execute_agent_node(
+        self, node: PlanNode, context: dict[str, Any]
+    ) -> ExecutionResult:
         """Execute an agent node by calling agent.chat()."""
         if not node.prompt:
-            return ExecutionResult(node_id=node.id, status="failed", error="Agent node has no prompt")
+            return ExecutionResult(
+                node_id=node.id, status="failed", error="Agent node has no prompt"
+            )
 
         resolved_prompt = self._resolve_prompt_placeholders(node.prompt, context)
 
@@ -315,12 +366,22 @@ class ParallelExecutor:
             content = str(result)
             tokens = len(content) // 4
 
-        return ExecutionResult(node_id=node.id, status="success", output=content, tokens_used=tokens, metadata={"agent_type": node.agent_type})
+        return ExecutionResult(
+            node_id=node.id,
+            status="success",
+            output=content,
+            tokens_used=tokens,
+            metadata={"agent_type": node.agent_type},
+        )
 
-    async def _execute_tool_node(self, node: PlanNode, context: dict[str, Any]) -> ExecutionResult:
+    async def _execute_tool_node(
+        self, node: PlanNode, context: dict[str, Any]
+    ) -> ExecutionResult:
         """Execute a tool node by calling agent.execute_tool()."""
         if not node.tool_name:
-            return ExecutionResult(node_id=node.id, status="failed", error="Tool node has no tool_name")
+            return ExecutionResult(
+                node_id=node.id, status="failed", error="Tool node has no tool_name"
+            )
 
         tool_args = node.metadata.get("tool_args", {})
         if isinstance(tool_args, str):
@@ -331,17 +392,36 @@ class ParallelExecutor:
             timeout=node.timeout,
         )
 
-        return ExecutionResult(node_id=node.id, status="success", output=result, tokens_used=0, metadata={"tool_name": node.tool_name})
+        return ExecutionResult(
+            node_id=node.id,
+            status="success",
+            output=result,
+            tokens_used=0,
+            metadata={"tool_name": node.tool_name},
+        )
 
-    async def _execute_parallel_node(self, node: PlanNode, context: dict[str, Any]) -> ExecutionResult:
+    async def _execute_parallel_node(
+        self, node: PlanNode, context: dict[str, Any]
+    ) -> ExecutionResult:
         """Execute a parallel node - delegates to graph-level parallel execution."""
         parallel_results = context.get("parallel_results", [])
-        return ExecutionResult(node_id=node.id, status="success", output=parallel_results, metadata={"parallel_group": node.parallel_group})
+        return ExecutionResult(
+            node_id=node.id,
+            status="success",
+            output=parallel_results,
+            metadata={"parallel_group": node.parallel_group},
+        )
 
-    async def _execute_condition_node(self, node: PlanNode, context: dict[str, Any]) -> ExecutionResult:
+    async def _execute_condition_node(
+        self, node: PlanNode, context: dict[str, Any]
+    ) -> ExecutionResult:
         """Execute a condition node - evaluate and route."""
         if not node.prompt:
-            return ExecutionResult(node_id=node.id, status="failed", error="Condition node has no prompt to evaluate")
+            return ExecutionResult(
+                node_id=node.id,
+                status="failed",
+                error="Condition node has no prompt to evaluate",
+            )
 
         resolved_prompt = self._resolve_prompt_placeholders(node.prompt, context)
         condition_prompt = f"Evaluate this condition and respond with ONLY 'true' or 'false':\n\n{resolved_prompt}"
@@ -355,18 +435,26 @@ class ParallelExecutor:
         evaluation = "true" in content.lower().strip()[:20]
 
         return ExecutionResult(
-            node_id=node.id, status="success",
+            node_id=node.id,
+            status="success",
             output={"condition_result": evaluation, "raw": content},
             tokens_used=len(content) // 4,
             metadata={"condition_result": evaluation},
         )
 
-    async def _execute_merge_node(self, node: PlanNode, context: dict[str, Any]) -> ExecutionResult:
+    async def _execute_merge_node(
+        self, node: PlanNode, context: dict[str, Any]
+    ) -> ExecutionResult:
         """Execute a merge node - combine upstream results."""
         upstream_results = context.get("upstream_results", {})
 
         if not upstream_results:
-            return ExecutionResult(node_id=node.id, status="success", output="", metadata={"merged_count": 0})
+            return ExecutionResult(
+                node_id=node.id,
+                status="success",
+                output="",
+                metadata={"merged_count": 0},
+            )
 
         if not node.prompt:
             if isinstance(upstream_results, dict):
@@ -382,8 +470,16 @@ class ParallelExecutor:
                 merged = str(upstream_results)
 
             return ExecutionResult(
-                node_id=node.id, status="success", output=merged,
-                metadata={"merged_count": len(upstream_results) if isinstance(upstream_results, dict) else 1},
+                node_id=node.id,
+                status="success",
+                output=merged,
+                metadata={
+                    "merged_count": (
+                        len(upstream_results)
+                        if isinstance(upstream_results, dict)
+                        else 1
+                    )
+                },
             )
 
         resolved_prompt = self._resolve_prompt_placeholders(node.prompt, context)
@@ -394,17 +490,34 @@ class ParallelExecutor:
         )
 
         content = result.get("content", "") if isinstance(result, dict) else str(result)
-        tokens = result.get("metadata", {}).get("tokens_used", 0) if isinstance(result, dict) else 0
-
-        return ExecutionResult(
-            node_id=node.id, status="success", output=content, tokens_used=tokens or len(content) // 4,
-            metadata={"merged_count": len(upstream_results) if isinstance(upstream_results, dict) else 1},
+        tokens = (
+            result.get("metadata", {}).get("tokens_used", 0)
+            if isinstance(result, dict)
+            else 0
         )
 
-    async def _execute_verify_node(self, node: PlanNode, context: dict[str, Any]) -> ExecutionResult:
+        return ExecutionResult(
+            node_id=node.id,
+            status="success",
+            output=content,
+            tokens_used=tokens or len(content) // 4,
+            metadata={
+                "merged_count": (
+                    len(upstream_results) if isinstance(upstream_results, dict) else 1
+                )
+            },
+        )
+
+    async def _execute_verify_node(
+        self, node: PlanNode, context: dict[str, Any]
+    ) -> ExecutionResult:
         """Execute a verification node."""
         if not node.prompt:
-            return ExecutionResult(node_id=node.id, status="success", output={"verified": True, "notes": "No verification prompt"})
+            return ExecutionResult(
+                node_id=node.id,
+                status="success",
+                output={"verified": True, "notes": "No verification prompt"},
+            )
 
         resolved_prompt = self._resolve_prompt_placeholders(node.prompt, context)
 
@@ -414,15 +527,23 @@ class ParallelExecutor:
         )
 
         content = result.get("content", "") if isinstance(result, dict) else str(result)
-        tokens = result.get("metadata", {}).get("tokens_used", 0) if isinstance(result, dict) else 0
+        tokens = (
+            result.get("metadata", {}).get("tokens_used", 0)
+            if isinstance(result, dict)
+            else 0
+        )
 
         return ExecutionResult(
-            node_id=node.id, status="success", output=content,
+            node_id=node.id,
+            status="success",
+            output=content,
             tokens_used=tokens or len(content) // 4,
             metadata={"node_type": "verify"},
         )
 
-    def _build_upstream_context(self, node: PlanNode, plan: ExecutionPlan) -> dict[str, Any]:
+    def _build_upstream_context(
+        self, node: PlanNode, plan: ExecutionPlan
+    ) -> dict[str, Any]:
         """Build context from completed upstream dependency results."""
         upstream_results = {}
         all_outputs = []
@@ -464,7 +585,9 @@ class ParallelExecutor:
             resolved = prompt
 
         if "{context}" in resolved:
-            resolved = resolved.replace("{context}", upstream_text or "No context available")
+            resolved = resolved.replace(
+                "{context}", upstream_text or "No context available"
+            )
 
         return resolved
 

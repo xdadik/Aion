@@ -33,12 +33,12 @@ import logging
 import time
 import uuid
 from collections import deque
+from collections.abc import Awaitable
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import (
     Any,
 )
-from collections.abc import Awaitable
 
 logger = logging.getLogger("aion_hand.orchestration")
 
@@ -268,7 +268,11 @@ class SubAgent:
             raise RuntimeError(
                 "The agent object provided to SubAgent must have a 'chat()' method"
             )
-        result = chat_fn(prompt) if not asyncio.iscoroutinefunction(chat_fn) else await chat_fn(prompt)
+        result = (
+            chat_fn(prompt)
+            if not asyncio.iscoroutinefunction(chat_fn)
+            else await chat_fn(prompt)
+        )
         if not isinstance(result, dict):
             result = {"content": str(result)}
         return result
@@ -469,9 +473,7 @@ class Workflow:
 
     def get_downstream(self, node_id: str) -> list[WorkflowNode]:
         """Return nodes that depend on *node_id*."""
-        return [
-            n for n in self.nodes.values() if node_id in n.dependencies
-        ]
+        return [n for n in self.nodes.values() if node_id in n.dependencies]
 
     # ---- topological helpers --------------------------------------------
 
@@ -486,9 +488,7 @@ class Workflow:
         for n in self.nodes.values():
             for dep in n.dependencies:
                 if dep not in self.nodes:
-                    raise ValueError(
-                        f"Node '{n.id}' depends on unknown node '{dep}'"
-                    )
+                    raise ValueError(f"Node '{n.id}' depends on unknown node '{dep}'")
                 adj[dep].append(n.id)
                 in_degree[n.id] += 1
 
@@ -574,12 +574,8 @@ class Workflow:
 
         except TimeoutError:
             self.status = WorkflowStatus.FAILED
-            logger.error(
-                "Workflow '%s' timed out after %.1fs", self.name, self.timeout
-            )
-            self.errors["__workflow__"] = (
-                f"Workflow timed out after {self.timeout}s"
-            )
+            logger.error("Workflow '%s' timed out after %.1fs", self.name, self.timeout)
+            self.errors["__workflow__"] = f"Workflow timed out after {self.timeout}s"
             # Mark remaining nodes as cancelled
             for n in self.nodes.values():
                 if n.status in (NodeStatus.PENDING, NodeStatus.RUNNING):
@@ -596,14 +592,14 @@ class Workflow:
         except Exception as exc:
             self.status = WorkflowStatus.FAILED
             self.errors["__workflow__"] = str(exc)
-            logger.error(
-                "Workflow '%s' failed: %s", self.name, exc, exc_info=True
-            )
+            logger.error("Workflow '%s' failed: %s", self.name, exc, exc_info=True)
 
         finally:
             self.finished_at = time.monotonic()
 
-        elapsed = (self.finished_at or time.monotonic()) - (self.started_at or time.monotonic())
+        elapsed = (self.finished_at or time.monotonic()) - (
+            self.started_at or time.monotonic()
+        )
         logger.info(
             "Workflow '%s' finished with status=%s, elapsed=%.2fs, errors=%d",
             self.name,
@@ -615,9 +611,7 @@ class Workflow:
         return {
             "workflow": self.name,
             "status": self.status.value,
-            "results": {
-                nid: n._serialise_result() for nid, n in self.nodes.items()
-            },
+            "results": {nid: n._serialise_result() for nid, n in self.nodes.items()},
             "errors": dict(self.errors),
             "elapsed": round(elapsed, 4),
         }
@@ -653,9 +647,7 @@ class Workflow:
         """Execute a single node based on its type."""
         node.status = NodeStatus.RUNNING
         node.started_at = time.monotonic()
-        logger.debug(
-            "Executing node '%s' (type=%s)", node.id, node.node_type.value
-        )
+        logger.debug("Executing node '%s' (type=%s)", node.id, node.node_type.value)
 
         try:
             if node.node_type == NodeType.AGENT:
@@ -685,9 +677,7 @@ class Workflow:
             node.status = NodeStatus.FAILED
             node.error = str(exc)
             self.errors[node.id] = str(exc)
-            logger.error(
-                "Node '%s' failed: %s", node.id, exc, exc_info=True
-            )
+            logger.error("Node '%s' failed: %s", node.id, exc, exc_info=True)
 
         finally:
             node.finished_at = time.monotonic()
@@ -762,9 +752,26 @@ class Workflow:
         expression = node.config.get("expression", "True")
         branches = node.config.get("branches", {})
 
-        # Evaluate the expression safely
+        # Evaluate the expression safely — denylist dangerous patterns first
+        _DISALLOWED_SUBSTRINGS = (
+            "__",
+            "import ",
+            "open(",
+            "exec(",
+            "eval(",
+            "compile(",
+            "os.",
+            "sys.",
+            "subprocess",
+            "socket",
+            "shutil",
+        )
+        if any(s in expression for s in _DISALLOWED_SUBSTRINGS):
+            raise RuntimeError(
+                f"Condition expression contains disallowed pattern: {expression!r}"
+            )
         try:
-            # Build a limited evaluation context
+            # Build a limited evaluation context (no builtins leakage)
             eval_context = {
                 "ctx": self.context,
                 "results": dict(self.results),
@@ -821,7 +828,9 @@ class Workflow:
             if dep_id in self.nodes:
                 dep = self.nodes[dep_id]
                 val = dep._serialise_result()
-                merged.append({"node_id": dep_id, "status": dep.status.value, "result": val})
+                merged.append(
+                    {"node_id": dep_id, "status": dep.status.value, "result": val}
+                )
         logger.debug(
             "Merge node '%s' collected %d upstream results", node.id, len(merged)
         )
@@ -890,9 +899,7 @@ class Workflow:
     # ---- factory --------------------------------------------------------
 
     @classmethod
-    def from_dict(
-        cls, data: dict[str, Any], engine: Any | None = None
-    ) -> Workflow:
+    def from_dict(cls, data: dict[str, Any], engine: Any | None = None) -> Workflow:
         """Create a :class:`Workflow` from a definition dictionary.
 
         Expected structure::
@@ -1159,9 +1166,7 @@ class OrchestrationEngine:
         """
         sa = self._subagents.get(subagent_id)
         if sa is None:
-            logger.warning(
-                "cancel_subagent: unknown id '%s'", subagent_id
-            )
+            logger.warning("cancel_subagent: unknown id '%s'", subagent_id)
             return False
         sa.cancel()
         self._stats["subagents_cancelled"] += 1
@@ -1224,9 +1229,7 @@ class OrchestrationEngine:
         workflow = self._workflows.get(name)
         if workflow is None:
             available = list(self._workflows.keys())
-            raise KeyError(
-                f"Workflow '{name}' not found. Available: {available}"
-            )
+            raise KeyError(f"Workflow '{name}' not found. Available: {available}")
 
         self._stats["workflows_executed"] += 1
         result = await workflow.execute(context=context)

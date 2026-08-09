@@ -1,4 +1,5 @@
 """Tests for aion_core.skills.engine - Skill serialisation."""
+
 import unittest
 
 from aion_core.skills.engine import Skill, SkillStatus
@@ -30,6 +31,7 @@ class TestSkillMarkdown(unittest.TestCase):
         d = skill.to_dict()
         self.assertEqual(d["name"], "test")
         self.assertIn("python", d["tags"])
+
 
 if __name__ == "__main__":
     unittest.main()

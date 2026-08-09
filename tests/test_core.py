@@ -13,7 +13,7 @@ class TestAgentConfigDefaults(unittest.TestCase):
     def test_default_config_values(self):
         cfg = AgentConfig()
         self.assertEqual(cfg.name, "Aion Hand")
-        self.assertEqual(cfg.version, "0.3.0")
+        self.assertEqual(cfg.version, "0.4.0")
         self.assertEqual(cfg.default_provider, "openai")
         self.assertEqual(cfg.default_model, "gpt-4o")
         self.assertEqual(cfg.max_turns, 50)
@@ -26,8 +26,15 @@ class TestAgentConfigDefaults(unittest.TestCase):
 
     def test_config_paths_are_path_objects(self):
         cfg = AgentConfig()
-        for attr in ("home_dir", "data_dir", "memory_dir",
-                      "skills_dir", "tools_dir", "logs_dir", "config_file"):
+        for attr in (
+            "home_dir",
+            "data_dir",
+            "memory_dir",
+            "skills_dir",
+            "tools_dir",
+            "logs_dir",
+            "config_file",
+        ):
             with self.subTest(attr=attr):
                 val = getattr(cfg, attr)
                 self.assertIsInstance(val, Path)
@@ -58,9 +65,16 @@ class TestAgentStateEnum(unittest.TestCase):
     """Verify all expected AgentState enum members exist."""
 
     EXPECTED = [
-        "UNINITIALIZED", "INITIALIZING", "IDLE", "THINKING",
-        "EXECUTING", "WAITING", "RESPONDING", "ERROR",
-        "SHUTTING_DOWN", "SHUTDOWN",
+        "UNINITIALIZED",
+        "INITIALIZING",
+        "IDLE",
+        "THINKING",
+        "EXECUTING",
+        "WAITING",
+        "RESPONDING",
+        "ERROR",
+        "SHUTTING_DOWN",
+        "SHUTDOWN",
     ]
 
     def test_agent_state_enum(self):

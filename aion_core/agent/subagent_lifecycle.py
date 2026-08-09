@@ -73,6 +73,7 @@ class SubagentState(Enum):
                    │                       ──► TIMED_OUT
                    └──► CANCELLED
     """
+
     PENDING = "pending"
     STARTING = "starting"
     RUNNING = "running"
@@ -105,7 +106,11 @@ class SubagentState(Enum):
 # Valid state transitions: current_state -> allowed next states.
 _VALID_TRANSITIONS: dict[SubagentState, set] = {
     SubagentState.PENDING: {SubagentState.STARTING, SubagentState.CANCELLED},
-    SubagentState.STARTING: {SubagentState.RUNNING, SubagentState.FAILED, SubagentState.CANCELLED},
+    SubagentState.STARTING: {
+        SubagentState.RUNNING,
+        SubagentState.FAILED,
+        SubagentState.CANCELLED,
+    },
     SubagentState.RUNNING: {
         SubagentState.SUCCEEDED,
         SubagentState.FAILED,
@@ -142,6 +147,7 @@ class SubagentLaunchRequest:
     max_tokens:
         Token budget for the sub-agent's total output.
     """
+
     goal: str
     context: str = ""
     model: str = ""
@@ -162,6 +168,7 @@ class SubagentHandle:
     Consumers should only inspect ``subagent_id`` and ``state``; the rest
     is for internal bookkeeping.
     """
+
     subagent_id: str
     parent_session_id: str
     state: SubagentState = SubagentState.PENDING
@@ -193,6 +200,7 @@ class SubagentResult:
     state:
         The terminal state the sub-agent ended in.
     """
+
     success: bool
     result: str = ""
     error: str = ""
@@ -382,8 +390,13 @@ class SubagentLifecycle:
                 return SubagentResult(
                     success=(handle.state == SubagentState.SUCCEEDED),
                     result="" if handle.state == SubagentState.SUCCEEDED else "",
-                    error="" if handle.state == SubagentState.SUCCEEDED else handle.state.value,
-                    elapsed_seconds=(handle.completed_at or time.time()) - handle.created_at,
+                    error=(
+                        ""
+                        if handle.state == SubagentState.SUCCEEDED
+                        else handle.state.value
+                    ),
+                    elapsed_seconds=(handle.completed_at or time.time())
+                    - handle.created_at,
                     subagent_id=subagent_id,
                     state=handle.state,
                 )
@@ -418,9 +431,7 @@ class SubagentLifecycle:
         """Wait for *all* currently active sub-agents and return their
         results (in no particular order)."""
         with self._lock:
-            active_ids = [
-                sid for sid, h in self._handles.items() if h.state.is_active
-            ]
+            active_ids = [sid for sid, h in self._handles.items() if h.state.is_active]
 
         results: list[SubagentResult] = []
         for sid in active_ids:
@@ -483,9 +494,7 @@ class SubagentLifecycle:
         for handle in self._handles.values():
             state_counts[handle.state.value] += 1
 
-        succeeded = sum(
-            1 for r in self._results.values() if r.success
-        )
+        succeeded = sum(1 for r in self._results.values() if r.success)
         failed = len(self._results) - succeeded
 
         total_elapsed = sum(r.elapsed_seconds for r in self._results.values())
@@ -494,7 +503,11 @@ class SubagentLifecycle:
         return {
             "parent_session_id": self.parent_session_id,
             "total_launched": self._total_launched,
-            "currently_active": sum(1 for s in state_counts.values() if s > 0 and s != SubagentState.UNKNOWN.value),
+            "currently_active": sum(
+                1
+                for s in state_counts.values()
+                if s > 0 and s != SubagentState.UNKNOWN.value
+            ),
             "state_counts": state_counts,
             "completed_count": succeeded + failed,
             "succeeded_count": succeeded,

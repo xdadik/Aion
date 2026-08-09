@@ -27,11 +27,8 @@ Usage:
 from __future__ import annotations
 
 import asyncio
-import os
 import shutil
 import sys
-import tempfile
-import wave
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -43,6 +40,7 @@ logger = __import__("logging").getLogger("aion_hand.voice")
 # Backend detection
 # ---------------------------------------------------------------------------
 
+
 def _has(cmd: str) -> bool:
     """True if a CLI command exists on PATH."""
     return shutil.which(cmd) is not None
@@ -52,6 +50,7 @@ def _detect_tts_backend() -> str:
     """Return 'pyttsx3', 'say', 'espeak', or 'none'."""
     try:
         import pyttsx3  # type: ignore[import-not-found]  # noqa: F401
+
         return "pyttsx3"
     except ImportError:
         pass
@@ -68,6 +67,7 @@ def _detect_stt_backend() -> str:
     """Return 'whisper' or 'none'."""
     try:
         import whisper  # type: ignore[import-not-found]  # noqa: F401
+
         return "whisper"
     except ImportError:
         pass
@@ -78,13 +78,15 @@ def _detect_stt_backend() -> str:
 # Voice config
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class VoiceConfig:
     """Voice configuration."""
+
     tts_backend: str = ""  # auto-detect if empty
     stt_backend: str = ""  # auto-detect if empty
-    rate: int = 175        # words per minute (espeak/pyttsx3)
-    volume: float = 1.0    # 0.0 - 1.0
+    rate: int = 175  # words per minute (espeak/pyttsx3)
+    volume: float = 1.0  # 0.0 - 1.0
     voice_id: str | None = None  # backend-specific voice ID
     output_dir: Path = Path.home() / ".aion-hand" / "voice"
 
@@ -92,6 +94,7 @@ class VoiceConfig:
 # ---------------------------------------------------------------------------
 # Voice main class
 # ---------------------------------------------------------------------------
+
 
 class Voice:
     """Text-to-speech + speech-to-text with multi-backend support."""
@@ -117,7 +120,9 @@ class Voice:
     #  Text-to-Speech
     # ------------------------------------------------------------------
 
-    async def speak(self, text: str, *, output_file: Path | str | None = None) -> Path | None:
+    async def speak(
+        self, text: str, *, output_file: Path | str | None = None
+    ) -> Path | None:
         """Speak `text` aloud. If `output_file` is given, save audio there
         instead of playing it. Returns the audio file path if saved, else None.
         """
@@ -127,7 +132,10 @@ class Voice:
         if output_file is not None:
             out_path = Path(output_file)
         else:
-            out_path = self.config.output_dir / f"tts_{asyncio.get_event_loop().time():.0f}.wav"
+            out_path = (
+                self.config.output_dir
+                / f"tts_{asyncio.get_event_loop().time():.0f}.wav"
+            )
 
         out_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -144,8 +152,10 @@ class Voice:
 
     async def _speak_pyttsx3(self, text: str, out_path: Path, *, play: bool) -> Path:
         """Use pyttsx3 (cross-platform, offline)."""
+
         def _run() -> None:
             import pyttsx3  # type: ignore[import-not-found]
+
             engine = pyttsx3.init()
             engine.setProperty("rate", self.config.rate)
             engine.setProperty("volume", self.config.volume)
@@ -157,6 +167,7 @@ class Voice:
             else:
                 engine.save_to_file(text, str(out_path))
                 engine.runAndWait()
+
         # pyttsx3 is synchronous — run in executor
         await asyncio.get_event_loop().run_in_executor(None, _run)
         return out_path if not play else None
@@ -178,9 +189,17 @@ class Voice:
             await asyncio.create_subprocess_exec(*cmd)
             return out_path
 
-    async def _speak_espeak(self, text: str, out_path: Path, *, play: bool) -> Path | None:
+    async def _speak_espeak(
+        self, text: str, out_path: Path, *, play: bool
+    ) -> Path | None:
         """Use Linux `espeak` / `espeak-ng`."""
-        cmd = [self._tts, "-s", str(self.config.rate), "-a", str(int(self.config.volume * 200))]
+        cmd = [
+            self._tts,
+            "-s",
+            str(self.config.rate),
+            "-a",
+            str(int(self.config.volume * 200)),
+        ]
         if self.config.voice_id:
             cmd += ["-v", self.config.voice_id]
         if play:
@@ -196,7 +215,9 @@ class Voice:
     #  Speech-to-Text
     # ------------------------------------------------------------------
 
-    async def transcribe(self, audio_path: Path | str, *, language: str | None = None) -> str:
+    async def transcribe(
+        self, audio_path: Path | str, *, language: str | None = None
+    ) -> str:
         """Transcribe an audio file to text.
 
         Args:
@@ -215,15 +236,21 @@ class Voice:
         logger.warning("No STT backend available. Install: pip install openai-whisper")
         return ""
 
-    async def transcribe_microphone(self, duration: float = 5.0, *, language: str | None = None) -> str:
+    async def transcribe_microphone(
+        self, duration: float = 5.0, *, language: str | None = None
+    ) -> str:
         """Record from the microphone for `duration` seconds and transcribe.
 
         Falls back to recording via `sox` (Linux/macOS) if available; otherwise
         raises RuntimeError.
         """
         if not _has("sox") and not _has("rec"):
-            raise RuntimeError("Microphone recording requires `sox` (rec) to be installed")
-        out_path = self.config.output_dir / f"rec_{asyncio.get_event_loop().time():.0f}.wav"
+            raise RuntimeError(
+                "Microphone recording requires `sox` (rec) to be installed"
+            )
+        out_path = (
+            self.config.output_dir / f"rec_{asyncio.get_event_loop().time():.0f}.wav"
+        )
         cmd = ["rec", "-q", str(out_path), "trim", "0", str(duration)]
         proc = await asyncio.create_subprocess_exec(*cmd)
         await proc.wait()
@@ -231,12 +258,15 @@ class Voice:
 
     async def _transcribe_whisper(self, path: Path, language: str | None) -> str:
         """Use OpenAI Whisper (local model)."""
+
         def _run() -> str:
             import whisper  # type: ignore[import-not-found]
+
             if self._whisper_model is None:
                 self._whisper_model = whisper.load_model("base")
             result = self._whisper_model.transcribe(str(path), language=language)
             return str(result.get("text", "")).strip()
+
         return await asyncio.get_event_loop().run_in_executor(None, _run)
 
     # ------------------------------------------------------------------
@@ -248,13 +278,19 @@ class Voice:
         if self._tts == "say":
             # macOS: `say -v '?'` lists voices
             import subprocess
+
             try:
                 out = subprocess.check_output(["say", "-v", "?"], text=True)
-                return [line.split("  ")[0].strip() for line in out.splitlines() if line.strip()]
+                return [
+                    line.split("  ")[0].strip()
+                    for line in out.splitlines()
+                    if line.strip()
+                ]
             except Exception:  # noqa: BLE001
                 return []
         if self._tts == "espeak" or self._tts == "espeak-ng":
             import subprocess
+
             try:
                 out = subprocess.check_output([self._tts, "--voices"], text=True)
                 lines = out.splitlines()[1:]  # skip header
@@ -264,6 +300,7 @@ class Voice:
         if self._tts == "pyttsx3":
             try:
                 import pyttsx3  # type: ignore[import-not-found]
+
                 eng = pyttsx3.init()
                 return [v.id for v in eng.getProperty("voices")]
             except Exception:  # noqa: BLE001

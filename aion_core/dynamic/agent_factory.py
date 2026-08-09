@@ -51,8 +51,14 @@ AgentRole = Literal[
 ]
 
 VALID_ROLES: set[str] = {
-    "planner", "coder", "researcher", "verifier",
-    "critic", "repairer", "summarizer", "fact_checker",
+    "planner",
+    "coder",
+    "researcher",
+    "verifier",
+    "critic",
+    "repairer",
+    "summarizer",
+    "fact_checker",
 }
 
 DEFAULT_MAX_RETRIES: int = 2
@@ -125,7 +131,9 @@ class DynamicAgent:
     profile: AgentProfile
     status: str = "created"
     parent_task: str | None = None
-    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat().replace("+00:00", "Z"))
+    created_at: str = field(
+        default_factory=lambda: datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    )
     tokens_used: int = 0
     results: list[dict[str, Any]] = field(default_factory=list)
     child_agents: list[str] = field(default_factory=list)
@@ -469,14 +477,13 @@ class DynamicAgentFactory:
             ValueError: If role is not recognized.
         """
         if role not in VALID_ROLES:
-            raise ValueError(
-                f"Unknown role '{role}'. Available: {sorted(VALID_ROLES)}"
-            )
+            raise ValueError(f"Unknown role '{role}'. Available: {sorted(VALID_ROLES)}")
 
         profile = self._templates[role]
         if config_override:
-            safe_overrides = {k: v for k, v in config_override.items()
-                            if hasattr(profile, k)}
+            safe_overrides = {
+                k: v for k, v in config_override.items() if hasattr(profile, k)
+            }
             profile = AgentProfile(**{**profile.to_dict(), **safe_overrides})
 
         agent = DynamicAgent(
@@ -490,8 +497,7 @@ class DynamicAgentFactory:
 
         self._emit("on_create", agent)
         logger.info(
-            f"Created dynamic agent '{agent.id}' "
-            f"(role={role}, task='{task[:60]}')"
+            f"Created dynamic agent '{agent.id}' " f"(role={role}, task='{task[:60]}')"
         )
         return agent
 
@@ -521,9 +527,7 @@ class DynamicAgentFactory:
         self._stats["total_created"] += 1
 
         self._emit("on_create", agent)
-        logger.info(
-            f"Created custom dynamic agent '{agent.id}' (name={profile.name})"
-        )
+        logger.info(f"Created custom dynamic agent '{agent.id}' (name={profile.name})")
         return agent
 
     # ------------------------------------------------------------------
@@ -588,9 +592,7 @@ class DynamicAgentFactory:
             except Exception as exc:
                 last_error = exc
                 agent.error_count += 1
-                logger.warning(
-                    f"Agent '{agent_id}' attempt {attempt} failed: {exc}"
-                )
+                logger.warning(f"Agent '{agent_id}' attempt {attempt} failed: {exc}")
                 if attempt <= self._max_retries:
                     self._stats["total_retries"] += 1
                     await asyncio.sleep(self._retry_delay * attempt)
@@ -607,7 +609,9 @@ class DynamicAgentFactory:
             "retry_count": self._max_retries,
         }
         self._emit("on_error", error_result)
-        logger.error(f"Agent '{agent_id}' failed after {self._max_retries + 1} attempts: {last_error}")
+        logger.error(
+            f"Agent '{agent_id}' failed after {self._max_retries + 1} attempts: {last_error}"
+        )
         return error_result
 
     async def _run_agent_loop(
@@ -638,8 +642,7 @@ class DynamicAgentFactory:
             for turn in range(agent.profile.max_turns):
                 response = await provider.complete(
                     messages=messages,
-                    model=agent.profile.model
-                    or self._base_agent.config.default_model,
+                    model=agent.profile.model or self._base_agent.config.default_model,
                     temperature=agent.profile.temperature,
                     max_tokens=self._base_agent.config.max_tokens,
                 )
@@ -653,11 +656,13 @@ class DynamicAgentFactory:
                 if tool_calls:
                     for tc in tool_calls:
                         tools_used.append(tc.get("name", "unknown"))
-                    messages.append({
-                        "role": "tool",
-                        "content": "Tool executed successfully.",
-                        "tool_call_id": tool_calls[0].get("id", ""),
-                    })
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "content": "Tool executed successfully.",
+                            "tool_call_id": tool_calls[0].get("id", ""),
+                        }
+                    )
                 else:
                     break
 

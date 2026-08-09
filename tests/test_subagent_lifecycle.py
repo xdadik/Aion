@@ -1,4 +1,5 @@
 """Tests for subagent lifecycle management."""
+
 import sys
 import unittest
 from pathlib import Path
@@ -13,6 +14,7 @@ try:
         SubagentLifecycle,
         SubagentState,
     )
+
     HAS_MODULE = True
 except ImportError:
     HAS_MODULE = False

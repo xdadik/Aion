@@ -143,8 +143,7 @@ class MCPToolRegistry:
             else:
                 query_words = query_lower.split()
                 matches = sum(
-                    1 for w in query_words
-                    if w in name_lower or w in desc_lower
+                    1 for w in query_words if w in name_lower or w in desc_lower
                 )
                 if matches > 0:
                     score = 20 * matches
@@ -179,10 +178,7 @@ class MCPToolRegistry:
 
     def get_tools_for_server(self, server_name: str) -> list[MCPTool]:
         """Return all tools from a specific server."""
-        return [
-            t for t in self._tool_cache.values()
-            if t.server_name == server_name
-        ]
+        return [t for t in self._tool_cache.values() if t.server_name == server_name]
 
     def get_all_tools(self) -> list[MCPTool]:
         """Return all cached tools."""

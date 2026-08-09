@@ -52,18 +52,22 @@ class GraphReasoner:
 
         # Find similar past tasks
         past_tasks = [
-            e for e in self._graph.find_entities(entity_type="task")
+            e
+            for e in self._graph.find_entities(entity_type="task")
             if any(
-                word in e.name.lower()
-                for word in task.lower().split()
-                if len(word) > 3
+                word in e.name.lower() for word in task.lower().split() if len(word) > 3
             )
         ]
 
         return {
             "task": task,
             "matched_entities": [
-                {"id": e.id, "name": e.name, "type": e.entity_type, "props": e.properties}
+                {
+                    "id": e.id,
+                    "name": e.name,
+                    "type": e.entity_type,
+                    "props": e.properties,
+                }
                 for e in matched
             ],
             "related_entities": [
@@ -112,9 +116,7 @@ class GraphReasoner:
         # Collect tools used by those tasks
         tool_scores: dict[str, dict[str, Any]] = {}
         for t in top_tasks:
-            tool_rels = self._graph.get_relations(
-                entity_id=t.id, relation_type="uses"
-            )
+            tool_rels = self._graph.get_relations(entity_id=t.id, relation_type="uses")
             for rel in tool_rels:
                 tool_ent = self._graph.get_entity(rel.target_id)
                 if tool_ent and tool_ent.entity_type == "tool":
@@ -180,25 +182,29 @@ class GraphReasoner:
                 fixes = self._graph.get_relations(
                     entity_id=err.id, relation_type="fixed_by"
                 )
-                error_scores.append({
-                    "error": err.name,
-                    "score": overlap,
-                    "has_known_fix": bool(fixes),
-                    "fix_entities": [
-                        {
-                            "name": self._graph.get_entity(f.target_id).name
-                            if self._graph.get_entity(f.target_id)
-                            else "unknown"
-                        }
-                        for f in fixes[:3]
-                    ],
-                    "related_task_names": [
-                        t.name
-                        for t in self._graph.get_related_entities(
-                            err.id, relation_type="caused"
-                        )[:3]
-                    ],
-                })
+                error_scores.append(
+                    {
+                        "error": err.name,
+                        "score": overlap,
+                        "has_known_fix": bool(fixes),
+                        "fix_entities": [
+                            {
+                                "name": (
+                                    self._graph.get_entity(f.target_id).name
+                                    if self._graph.get_entity(f.target_id)
+                                    else "unknown"
+                                )
+                            }
+                            for f in fixes[:3]
+                        ],
+                        "related_task_names": [
+                            t.name
+                            for t in self._graph.get_related_entities(
+                                err.id, relation_type="caused"
+                            )[:3]
+                        ],
+                    }
+                )
 
         error_scores.sort(key=lambda x: x["score"], reverse=True)
         return error_scores[:10]
@@ -217,7 +223,8 @@ class GraphReasoner:
 
         # Find successful tasks
         successful = [
-            t for t in self._graph.find_entities(entity_type="task")
+            t
+            for t in self._graph.find_entities(entity_type="task")
             if t.properties.get("success") is True
         ]
 
@@ -234,20 +241,20 @@ class GraphReasoner:
         tool_counter: Counter = Counter()
         strategy_tasks: list = []
         for _, t in scored[:5]:
-            tool_rels = self._graph.get_relations(
-                entity_id=t.id, relation_type="uses"
-            )
+            tool_rels = self._graph.get_relations(entity_id=t.id, relation_type="uses")
             tools_used = []
             for rel in tool_rels:
                 tool_ent = self._graph.get_entity(rel.target_id)
                 if tool_ent:
                     tool_counter[tool_ent.name] += 1
                     tools_used.append(tool_ent.name)
-            strategy_tasks.append({
-                "task": t.name,
-                "tools": tools_used,
-                "result": t.properties.get("result_summary", "")[:200],
-            })
+            strategy_tasks.append(
+                {
+                    "task": t.name,
+                    "tools": tools_used,
+                    "result": t.properties.get("result_summary", "")[:200],
+                }
+            )
 
         # Determine most effective tool ordering
         tool_sequence = [name for name, _ in tool_counter.most_common(5)]
@@ -267,9 +274,11 @@ class GraphReasoner:
             "recommended_tools": tool_sequence,
             "recommended_skills": list(set(skills_used))[:5],
             "similar_successful_tasks": strategy_tasks[:5],
-            "confidence": round(min(scored[0][0] / max(len(task_words), 1), 1.0), 3)
-            if scored
-            else 0.0,
+            "confidence": (
+                round(min(scored[0][0] / max(len(task_words), 1), 1.0), 3)
+                if scored
+                else 0.0
+            ),
             "approach": self._synthesize_approach(strategy_tasks, tool_sequence),
         }
 
@@ -317,7 +326,9 @@ class GraphReasoner:
         similar: list = []
         for err in all_errors:
             overlap = len(error_words & set(err.name.lower().split()))
-            if overlap > 0 or (len(error_lower) > 10 and error_lower[:15] in err.name.lower()):
+            if overlap > 0 or (
+                len(error_lower) > 10 and error_lower[:15] in err.name.lower()
+            ):
                 similar.append((overlap, err))
 
         similar.sort(key=lambda x: x[0], reverse=True)
@@ -332,14 +343,22 @@ class GraphReasoner:
             for rel in fix_rels:
                 fix_ent = self._graph.get_entity(rel.target_id)
                 if fix_ent:
-                    fixes.append({
-                        "fix_entity": fix_ent.name,
-                        "fix_type": fix_ent.entity_type,
-                        "fix_properties": fix_ent.properties,
-                        "similarity_score": overlap if (overlap := next(
-                            (o for o, e in similar if e.id == err.id), 0
-                        )) else 0,
-                    })
+                    fixes.append(
+                        {
+                            "fix_entity": fix_ent.name,
+                            "fix_type": fix_ent.entity_type,
+                            "fix_properties": fix_ent.properties,
+                            "similarity_score": (
+                                overlap
+                                if (
+                                    overlap := next(
+                                        (o for o, e in similar if e.id == err.id), 0
+                                    )
+                                )
+                                else 0
+                            ),
+                        }
+                    )
 
         # Deduplicate fixes by name
         seen_fixes: set = set()
@@ -359,12 +378,16 @@ class GraphReasoner:
             for rel in fix_rels:
                 path = self._graph.find_path(err.id, rel.target_id, max_depth=5)
                 if path:
-                    paths.append([
-                        self._graph.get_entity(pid).name
-                        if self._graph.get_entity(pid)
-                        else pid
-                        for pid in path
-                    ])
+                    paths.append(
+                        [
+                            (
+                                self._graph.get_entity(pid).name
+                                if self._graph.get_entity(pid)
+                                else pid
+                            )
+                            for pid in path
+                        ]
+                    )
 
         # Check context for additional hints
         context_entities = []
@@ -380,8 +403,7 @@ class GraphReasoner:
             "known_fixes": unique_fixes[:5],
             "resolution_paths": paths[:3],
             "context_entities": [
-                {"name": e.name, "type": e.entity_type}
-                for e in context_entities
+                {"name": e.name, "type": e.entity_type} for e in context_entities
             ],
             "summary": self._summarize_failure(top_errors, unique_fixes, paths),
         }

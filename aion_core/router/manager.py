@@ -4,6 +4,7 @@
 It delegates to :class:`ModelRouter` for routing decisions and
 :class:`CostOptimizer` for spend tracking / persistence.
 """
+
 from __future__ import annotations
 
 import logging

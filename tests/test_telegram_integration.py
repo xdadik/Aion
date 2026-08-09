@@ -35,12 +35,15 @@ pytestmark = pytest.mark.skipif(
 # Import after the skip check so we don't fail collection without a token
 # ---------------------------------------------------------------------------
 
-from aion_core.messaging.real_adapters import RealTelegramAdapter, RealMessage  # noqa: E402
-
+from aion_core.messaging.real_adapters import (
+    RealTelegramAdapter,
+    RealMessage,
+)  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 class TestTelegramConnect:
     """Connection / getMe tests."""
@@ -153,11 +156,13 @@ class TestTelegramGetUpdates:
         try:
             # Try to receive for up to 3 seconds
             received = []
+
             async def _collect():
                 async for msg in adapter.receive():
                     received.append(msg)
                     if len(received) >= 1:
                         return
+
             try:
                 await asyncio.wait_for(_collect(), timeout=3.0)
             except TimeoutError:

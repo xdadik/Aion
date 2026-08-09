@@ -69,9 +69,7 @@ class DynamicOrchestrationPlan:
     parallel_groups: list[list[str]]
     estimated_tokens: int = 0
     estimated_time: float = 0.0
-    created_at: str = field(
-        default_factory=lambda: time.strftime("%Y-%m-%dT%H:%M:%S")
-    )
+    created_at: str = field(default_factory=lambda: time.strftime("%Y-%m-%dT%H:%M:%S"))
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -93,21 +91,21 @@ class DynamicOrchestrationPlan:
 
 _ROLE_TASK_PREFIXES: dict[str, str] = {
     "planner": "Create a detailed execution plan for the following task. "
-               "Break it into ordered sub-tasks with roles and dependencies:\n\n",
+    "Break it into ordered sub-tasks with roles and dependencies:\n\n",
     "researcher": "Research the following topic thoroughly. "
-                   "Gather information from multiple sources and present findings:\n\n",
+    "Gather information from multiple sources and present findings:\n\n",
     "coder": "Implement the following based on the plan and context provided. "
-             "Write clean, tested, well-documented code:\n\n",
+    "Write clean, tested, well-documented code:\n\n",
     "critic": "Critically review the following work. "
-              "Identify strengths, weaknesses, risks, and suggest improvements:\n\n",
+    "Identify strengths, weaknesses, risks, and suggest improvements:\n\n",
     "verifier": "Verify the correctness and completeness of the following. "
-                "Check each requirement and report PASS/PARTIAL/FAIL:\n\n",
+    "Check each requirement and report PASS/PARTIAL/FAIL:\n\n",
     "repairer": "Fix the issues identified in the following. "
-                "Apply minimal targeted fixes and explain each change:\n\n",
+    "Apply minimal targeted fixes and explain each change:\n\n",
     "summarizer": "Summarize the following into a concise, structured summary. "
-                  "Capture key points, decisions, and action items:\n\n",
+    "Capture key points, decisions, and action items:\n\n",
     "fact_checker": "Fact-check all substantive claims in the following. "
-                    "Verify each against sources and report VERIFIED/UNVERIFIED/FALSE:\n\n",
+    "Verify each against sources and report VERIFIED/UNVERIFIED/FALSE:\n\n",
 }
 
 
@@ -219,9 +217,7 @@ class DynamicOrchestrator:
 
         for group in parallel_groups:
             if len(group) == 1:
-                result = await self._execute_single(
-                    agent_tasks[group[0]], all_results
-                )
+                result = await self._execute_single(agent_tasks[group[0]], all_results)
                 all_results.append(result)
                 total_tokens += result.get("tokens_used", 0)
             else:
@@ -229,9 +225,7 @@ class DynamicOrchestrator:
                     [agent_tasks[aid] for aid in group], all_results
                 )
                 all_results.extend(group_results)
-                total_tokens += sum(
-                    r.get("tokens_used", 0) for r in group_results
-                )
+                total_tokens += sum(r.get("tokens_used", 0) for r in group_results)
 
         # Step 5: destroy all agents
         destroyed = self._factory.destroy_all()
@@ -310,18 +304,11 @@ class DynamicOrchestrator:
                 name="Fallback Solo",
             )
 
-        agents_to_create = [
-            {"role": role, "task": task}
-            for role in topology.agents
-        ]
+        agents_to_create = [{"role": role, "task": task} for role in topology.agents]
 
         # Pre-assign IDs for planning purposes
-        execution_order = [
-            f"agent_{i}" for i in range(len(topology.agents))
-        ]
-        parallel_groups = self._compute_parallel_groups_pre(
-            execution_order, topology
-        )
+        execution_order = [f"agent_{i}" for i in range(len(topology.agents))]
+        parallel_groups = self._compute_parallel_groups_pre(execution_order, topology)
 
         # Rough estimates based on topology size
         est_tokens = len(topology.agents) * 1500
@@ -393,16 +380,11 @@ class DynamicOrchestrator:
                 total_tokens += result.get("tokens_used", 0)
             else:
                 tasks = [
-                    {"agent": id_to_agent[aid], "task": plan.task}
-                    for aid in group
+                    {"agent": id_to_agent[aid], "task": plan.task} for aid in group
                 ]
-                group_results = await self._execute_parallel_group(
-                    tasks, all_results
-                )
+                group_results = await self._execute_parallel_group(tasks, all_results)
                 all_results.extend(group_results)
-                total_tokens += sum(
-                    r.get("tokens_used", 0) for r in group_results
-                )
+                total_tokens += sum(r.get("tokens_used", 0) for r in group_results)
 
         # Cleanup
         self._factory.destroy_all()
@@ -524,9 +506,7 @@ class DynamicOrchestrator:
                 result_text = pr.get("result", "")
                 agent_id = pr.get("agent_id", "?")
                 if result_text:
-                    ctx_parts.append(
-                        f"[Agent {agent_id} output]:\n{result_text[:500]}"
-                    )
+                    ctx_parts.append(f"[Agent {agent_id} output]:\n{result_text[:500]}")
             if ctx_parts:
                 context = "\n\n---\n\n".join(ctx_parts)
 
@@ -549,9 +529,7 @@ class DynamicOrchestrator:
         Returns:
             List of result dicts (order matches input order).
         """
-        coros = [
-            self._execute_single(spec, prior_results) for spec in task_specs
-        ]
+        coros = [self._execute_single(spec, prior_results) for spec in task_specs]
         return list(await asyncio.gather(*coros, return_exceptions=False))
 
     def _build_agent_tasks(
@@ -705,13 +683,15 @@ class DynamicOrchestrator:
                     sum(h["tokens"] for h in self._execution_history) / total,
                     1,
                 )
-                if total else 0
+                if total
+                else 0
             ),
             "avg_time": (
                 round(
                     sum(h["time"] for h in self._execution_history) / total,
                     2,
                 )
-                if total else 0.0
+                if total
+                else 0.0
             ),
         }

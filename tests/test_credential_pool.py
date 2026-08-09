@@ -1,4 +1,5 @@
 """Tests for credential pool system."""
+
 import os
 import sys
 import tempfile
@@ -16,9 +17,11 @@ try:
         PooledCredential,
         RotationStrategy,
     )
+
     HAS_MODULE = True
 except ImportError:
     HAS_MODULE = False
+
 
 @unittest.skipUnless(HAS_MODULE, "credential_pool not available")
 class TestCredentialPool(TestCase):
@@ -31,8 +34,11 @@ class TestCredentialPool(TestCase):
         else:
             expires = datetime.now(UTC) + timedelta(hours=1)
         return PooledCredential(
-            id=str(uuid.uuid4())[:8], provider=provider, api_key=key,
-            source=CredentialSource.CUSTOM, expires_at=expires,
+            id=str(uuid.uuid4())[:8],
+            provider=provider,
+            api_key=key,
+            source=CredentialSource.CUSTOM,
+            expires_at=expires,
         )
 
     def test_add_and_get_all(self):
@@ -82,6 +88,7 @@ class TestCredentialPool(TestCase):
         self.pool.add_credential(self._make_cred("openai", "sk-1"))
         stats = self.pool.get_stats()
         self.assertIsInstance(stats, dict)
+
 
 if __name__ == "__main__":
     unittest.main()

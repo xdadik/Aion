@@ -118,7 +118,11 @@ class PooledCredential:
             "id": self.id,
             "provider": self.provider,
             "api_key": "***REDACTED***",
-            "source": self.source.value if isinstance(self.source, CredentialSource) else str(self.source),
+            "source": (
+                self.source.value
+                if isinstance(self.source, CredentialSource)
+                else str(self.source)
+            ),
             "expires_at": expires,
             "priority": self.priority,
             "metadata": self.metadata,
@@ -286,9 +290,7 @@ class CredentialPool:
                 if c.provider == provider and c.is_available()
             ]
             if not candidates:
-                logger.warning(
-                    "No available credentials for provider %s", provider
-                )
+                logger.warning("No available credentials for provider %s", provider)
                 return None
 
             selected: PooledCredential
@@ -301,9 +303,7 @@ class CredentialPool:
             elif strat == RotationStrategy.RANDOM:
                 selected = random.choice(candidates)
             elif strat == RotationStrategy.PRIORITY:
-                selected = max(
-                    candidates, key=lambda c: (c.priority, -c._last_used)
-                )
+                selected = max(candidates, key=lambda c: (c.priority, -c._last_used))
             elif strat == RotationStrategy.LRU:
                 selected = min(candidates, key=lambda c: c._last_used)
             else:
@@ -342,9 +342,7 @@ class CredentialPool:
                 return False
             cred._rate_limited_until = time.time() + cd
             self._stats["total_rate_limited"] += 1
-            logger.info(
-                "Credential %s rate-limited for %.1fs", credential_id, cd
-            )
+            logger.info("Credential %s rate-limited for %.1fs", credential_id, cd)
             return True
 
     # -- queries -----------------------------------------------------------
@@ -367,9 +365,7 @@ class CredentialPool:
             "total_credentials": len(creds),
             "available": sum(1 for c in creds if c.is_available(now)),
             "exhausted": sum(1 for c in creds if c._exhausted),
-            "rate_limited": sum(
-                1 for c in creds if now < c._rate_limited_until
-            ),
+            "rate_limited": sum(1 for c in creds if now < c._rate_limited_until),
             "expired": sum(1 for c in creds if c.is_expired()),
             "providers": sorted({c.provider for c in creds}),
             "strategy": self._strategy.value,
@@ -411,9 +407,7 @@ class CredentialPool:
                 del self._credentials[cid]
             self._stats["total_expired_cleaned"] += len(removed_ids)
         if removed_ids:
-            logger.info(
-                "Cleaned up %d expired credential(s)", len(removed_ids)
-            )
+            logger.info("Cleaned up %d expired credential(s)", len(removed_ids))
         return len(removed_ids)
 
     # -- dunder ------------------------------------------------------------

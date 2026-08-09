@@ -43,7 +43,11 @@ class TestHealthReport:
     def test_fail_report_has_503_status(self):
         r = HealthReport(
             status="fail",
-            checks=[CheckResult(name="x", passed=False, duration_seconds=0.001, error="oops")],
+            checks=[
+                CheckResult(
+                    name="x", passed=False, duration_seconds=0.001, error="oops"
+                )
+            ],
             timestamp="2026-01-01T00:00:00Z",
             duration_seconds=0.001,
         )
@@ -136,11 +140,14 @@ class TestDefaultChecks:
         report = await reg.run_liveness()
         # process + event_loop checks should pass
         assert any(c.name == "process" for c in report.checks)
-        assert all(c.passed for c in report.checks if c.name in ("process", "event_loop"))
+        assert all(
+            c.passed for c in report.checks if c.name in ("process", "event_loop")
+        )
 
     @pytest.mark.asyncio
     async def test_register_default_checks_with_mock_agent(self):
         from unittest.mock import MagicMock
+
         agent = MagicMock()
         agent.state = MagicMock()
         agent.state.name = "IDLE"

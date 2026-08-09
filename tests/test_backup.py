@@ -138,6 +138,7 @@ class TestBackupEntry:
 
     def test_entry_to_dict(self, tmp_path):
         import time
+
         path = tmp_path / "test.tar.gz"
         path.write_bytes(b"fake")
         entry = BackupEntry(path=path, created_at=time.time(), size_bytes=2048)

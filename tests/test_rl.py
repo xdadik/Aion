@@ -59,7 +59,9 @@ class TestRewardModel:
     def test_pii_detected_lower_reward(self):
         rm = RewardModel()
         r_safe = rm.compute_reward("hi", "hello", metadata={"contains_pii": False})
-        r_pii = rm.compute_reward("hi", "my SSN is 123-45-6789", metadata={"contains_pii": True})
+        r_pii = rm.compute_reward(
+            "hi", "my SSN is 123-45-6789", metadata={"contains_pii": True}
+        )
         assert r_pii < r_safe
         assert r_pii < 0
 
@@ -67,7 +69,8 @@ class TestRewardModel:
         rm = RewardModel()
         # Even with everything negative, should not go below -1
         r = rm.compute_reward(
-            "x", "y",
+            "x",
+            "y",
             explicit_feedback=-1.0,
             metadata={"contains_pii": True, "contains_harmful": True, "retried": True},
         )
@@ -77,13 +80,17 @@ class TestRewardModel:
     def test_tool_use_increases_reward(self):
         rm = RewardModel()
         r_no_tools = rm.compute_reward("search for python", "here's info", metadata={})
-        r_with_tools = rm.compute_reward("search for python", "here's info", metadata={"tools_used": ["web_search"]})
+        r_with_tools = rm.compute_reward(
+            "search for python", "here's info", metadata={"tools_used": ["web_search"]}
+        )
         assert r_with_tools > r_no_tools
 
     def test_keyword_overlap_increases_reward(self):
         rm = RewardModel()
         r_no_overlap = rm.compute_reward("python programming", "the weather is sunny")
-        r_overlap = rm.compute_reward("python programming", "python is a great programming language")
+        r_overlap = rm.compute_reward(
+            "python programming", "python is a great programming language"
+        )
         assert r_overlap > r_no_overlap
 
     def test_explain_reward_returns_dict(self):
@@ -260,7 +267,9 @@ class TestRLTrainer:
         trainer = RLTrainer(config=config)
         # Collect some trajectories
         for i in range(5):
-            await trainer.collect(f"question {i}", f"answer {i}", feedback=1.0 if i % 2 == 0 else -1.0)
+            await trainer.collect(
+                f"question {i}", f"answer {i}", feedback=1.0 if i % 2 == 0 else -1.0
+            )
         metrics = trainer.train_step()
         assert metrics["n_samples"] > 0
         assert metrics["step"] == 1

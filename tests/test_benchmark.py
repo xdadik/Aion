@@ -13,14 +13,21 @@ import pytest
 
 from aion_core.benchmark.evaluator import BenchmarkEvaluator
 from aion_core.benchmark.runner import BenchmarkReport, BenchmarkRunner
-from aion_core.benchmark.tasks import BENCHMARK_TASKS, BenchmarkTask, Category, Difficulty
+from aion_core.benchmark.tasks import (
+    BENCHMARK_TASKS,
+    BenchmarkTask,
+    Category,
+    Difficulty,
+)
 
 
 class TestBenchmarkTaskSuite:
     """Verify the built-in task suite is well-formed."""
 
     def test_tasks_are_non_empty(self):
-        assert len(BENCHMARK_TASKS) > 0, "Benchmark suite should ship with at least one task"
+        assert (
+            len(BENCHMARK_TASKS) > 0
+        ), "Benchmark suite should ship with at least one task"
 
     def test_each_task_has_unique_id(self):
         ids = [t.id for t in BENCHMARK_TASKS]
@@ -31,8 +38,12 @@ class TestBenchmarkTaskSuite:
             assert t.id, f"Task missing id: {t}"
             assert t.name, f"Task {t.id} missing name"
             assert t.task_prompt, f"Task {t.id} missing prompt"
-            assert isinstance(t.category, Category), f"Task {t.id} category not Category"
-            assert isinstance(t.difficulty, Difficulty), f"Task {t.id} difficulty not Difficulty"
+            assert isinstance(
+                t.category, Category
+            ), f"Task {t.id} category not Category"
+            assert isinstance(
+                t.difficulty, Difficulty
+            ), f"Task {t.id} difficulty not Difficulty"
             assert t.max_turns > 0, f"Task {t.id} max_turns must be > 0"
 
     def test_categories_represented(self):
@@ -55,16 +66,26 @@ class TestBenchmarkEvaluator:
     def test_evaluate_empty_output(self):
         ev = BenchmarkEvaluator()
         task = BENCHMARK_TASKS[0]
-        result = ev.evaluate(task, "", {"tools_used": [], "turns_used": 0, "tokens_used": 0, "errors": []})
+        result = ev.evaluate(
+            task,
+            "",
+            {"tools_used": [], "turns_used": 0, "tokens_used": 0, "errors": []},
+        )
         assert result is not None
-        assert result.success is False or result.score <= 0.5  # empty output shouldn't pass
+        assert (
+            result.success is False or result.score <= 0.5
+        )  # empty output shouldn't pass
 
     def test_evaluate_with_relevant_output(self):
         ev = BenchmarkEvaluator()
         task = BENCHMARK_TASKS[0]
         # Produce an output that mentions keywords from the task
         output = f"Completed: {task.name}. " + ("detail " * 50)
-        result = ev.evaluate(task, output, {"tools_used": [], "turns_used": 1, "tokens_used": 100, "errors": []})
+        result = ev.evaluate(
+            task,
+            output,
+            {"tools_used": [], "turns_used": 1, "tokens_used": 100, "errors": []},
+        )
         assert result is not None
         assert 0.0 <= result.score <= 1.0
 
@@ -74,23 +95,29 @@ class TestBenchmarkRunner:
 
     def _make_mock_agent(self, output: str = "Done.") -> MagicMock:
         agent = MagicMock()
-        agent.run = AsyncMock(return_value={
-            "output": output,
-            "tools_used": ["web_search"],
-            "turns_used": 2,
-            "tokens_used": 250,
-        })
+        agent.run = AsyncMock(
+            return_value={
+                "output": output,
+                "tools_used": ["web_search"],
+                "turns_used": 2,
+                "tokens_used": 250,
+            }
+        )
         return agent
 
     def test_runner_instantiable(self, tmp_path):
         agent = self._make_mock_agent()
-        runner = BenchmarkRunner(agent=agent, output_dir=str(tmp_path), agent_version="test-0.1")
+        runner = BenchmarkRunner(
+            agent=agent, output_dir=str(tmp_path), agent_version="test-0.1"
+        )
         assert runner is not None
 
     @pytest.mark.asyncio
     async def test_run_task_completes(self, tmp_path):
         agent = self._make_mock_agent("Hello world from the agent.")
-        runner = BenchmarkRunner(agent=agent, output_dir=str(tmp_path), agent_version="test-0.1")
+        runner = BenchmarkRunner(
+            agent=agent, output_dir=str(tmp_path), agent_version="test-0.1"
+        )
         task = BENCHMARK_TASKS[0]
         result = await runner.run_task(task)
         assert result is not None
@@ -100,7 +127,9 @@ class TestBenchmarkRunner:
     @pytest.mark.asyncio
     async def test_run_full_benchmark_produces_report(self, tmp_path):
         agent = self._make_mock_agent("Generic successful output. ")
-        runner = BenchmarkRunner(agent=agent, output_dir=str(tmp_path), agent_version="test-0.1")
+        runner = BenchmarkRunner(
+            agent=agent, output_dir=str(tmp_path), agent_version="test-0.1"
+        )
         report = await runner.run_full_benchmark()
         assert isinstance(report, BenchmarkReport)
         assert report.total_tasks == len(BENCHMARK_TASKS)
@@ -111,7 +140,9 @@ class TestBenchmarkRunner:
     @pytest.mark.asyncio
     async def test_report_serialises_to_dict(self, tmp_path):
         agent = self._make_mock_agent()
-        runner = BenchmarkRunner(agent=agent, output_dir=str(tmp_path), agent_version="test-0.1")
+        runner = BenchmarkRunner(
+            agent=agent, output_dir=str(tmp_path), agent_version="test-0.1"
+        )
         report = await runner.run_full_benchmark()
         d = report.to_dict()
         assert "run_id" in d
@@ -122,7 +153,9 @@ class TestBenchmarkRunner:
     @pytest.mark.asyncio
     async def test_run_subset_by_category(self, tmp_path):
         agent = self._make_mock_agent()
-        runner = BenchmarkRunner(agent=agent, output_dir=str(tmp_path), agent_version="test-0.1")
+        runner = BenchmarkRunner(
+            agent=agent, output_dir=str(tmp_path), agent_version="test-0.1"
+        )
         # Pick the first category present in the suite
         first_cat = BENCHMARK_TASKS[0].category.value
         report = await runner.run_suite(categories=[first_cat])

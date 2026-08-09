@@ -15,7 +15,6 @@ from aion_core.knowledge.auto_builder import AutoKnowledgeBuilder
 from aion_core.knowledge.reasoner import GraphReasoner
 from aion_core.knowledge.manager import KnowledgeManager
 
-
 # ===================================================================
 # Entity tests
 # ===================================================================

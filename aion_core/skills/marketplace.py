@@ -19,14 +19,11 @@ Usage:
 from __future__ import annotations
 
 import asyncio
-import os
-import re
 import shutil
 import tempfile
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 from aion_core.skills.engine import Skill, SkillEngine, SkillStatus
 
@@ -37,9 +34,11 @@ logger = __import__("logging").getLogger("aion_hand.skills.marketplace")
 # Catalog entry
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class CatalogEntry:
     """A skill available in a remote catalog."""
+
     name: str
     description: str
     url: str
@@ -52,6 +51,7 @@ class CatalogEntry:
 # ---------------------------------------------------------------------------
 # Marketplace
 # ---------------------------------------------------------------------------
+
 
 class SkillMarketplace:
     """Install / uninstall / list skills from remote sources.
@@ -78,7 +78,9 @@ class SkillMarketplace:
         skills_dir: Path | str | None = None,
         engine: SkillEngine | None = None,
     ) -> None:
-        self.skills_dir = Path(skills_dir) if skills_dir else Path.home() / ".aion-hand" / "skills"
+        self.skills_dir = (
+            Path(skills_dir) if skills_dir else Path.home() / ".aion-hand" / "skills"
+        )
         self.skills_dir.mkdir(parents=True, exist_ok=True)
         self.engine = engine or SkillEngine(storage_dir=self.skills_dir)
         self._catalog: list[CatalogEntry] = list(self.DEFAULT_CATALOG)
@@ -97,9 +99,12 @@ class SkillMarketplace:
         Returns the number of new entries added.
         """
         try:
-            req = urllib.request.Request(catalog_url, headers={"User-Agent": "AionHand/0.3"})
+            req = urllib.request.Request(
+                catalog_url, headers={"User-Agent": "AionHand/0.3"}
+            )
             with urllib.request.urlopen(req, timeout=15) as resp:  # noqa: S310
                 import json
+
                 data = json.loads(resp.read().decode("utf-8"))
             added = 0
             for item in data:
@@ -113,7 +118,9 @@ class SkillMarketplace:
                     tags=list(item.get("tags", [])),
                 )
                 # Avoid duplicates by name+url
-                if not any(e.name == entry.name and e.url == entry.url for e in self._catalog):
+                if not any(
+                    e.name == entry.name and e.url == entry.url for e in self._catalog
+                ):
                     self._catalog.append(entry)
                     added += 1
             return added
@@ -125,13 +132,19 @@ class SkillMarketplace:
     #  Install
     # ------------------------------------------------------------------
 
-    async def install_from_url(self, url: str, *, name: str | None = None) -> Skill | None:
+    async def install_from_url(
+        self, url: str, *, name: str | None = None
+    ) -> Skill | None:
         """Fetch a single SKILL.md from a URL and install it."""
         try:
+
             def _fetch() -> str:
-                req = urllib.request.Request(url, headers={"User-Agent": "AionHand/0.3"})
+                req = urllib.request.Request(
+                    url, headers={"User-Agent": "AionHand/0.3"}
+                )
                 with urllib.request.urlopen(req, timeout=15) as resp:  # noqa: S310
                     return resp.read().decode("utf-8")
+
             text = await asyncio.get_event_loop().run_in_executor(None, _fetch)
         except Exception as exc:  # noqa: BLE001
             logger.error(f"Failed to fetch skill from {url}: {exc}")
@@ -139,7 +152,9 @@ class SkillMarketplace:
 
         return self._install_from_text(text, name=name, source=url)
 
-    async def install_from_git(self, repo_url: str, *, skill_path: str | None = None) -> list[Skill]:
+    async def install_from_git(
+        self, repo_url: str, *, skill_path: str | None = None
+    ) -> list[Skill]:
         """Clone a git repo and install any SKILL.md files found in it.
 
         Args:
@@ -157,7 +172,12 @@ class SkillMarketplace:
         with tempfile.TemporaryDirectory() as tmpdir:
             # Clone
             proc = await asyncio.create_subprocess_exec(
-                "git", "clone", "--depth", "1", repo_url, tmpdir,
+                "git",
+                "clone",
+                "--depth",
+                "1",
+                repo_url,
+                tmpdir,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -178,7 +198,9 @@ class SkillMarketplace:
             installed: list[Skill] = []
             for sf in skill_files:
                 text = sf.read_text(encoding="utf-8", errors="replace")
-                skill = self._install_from_text(text, source=f"{repo_url}#{sf.relative_to(Path(tmpdir))}")
+                skill = self._install_from_text(
+                    text, source=f"{repo_url}#{sf.relative_to(Path(tmpdir))}"
+                )
                 if skill is not None:
                     installed.append(skill)
             return installed
@@ -211,7 +233,9 @@ class SkillMarketplace:
         logger.error(f"Unknown source type: {entry.source}")
         return None
 
-    def _install_from_text(self, text: str, *, name: str | None = None, source: str = "") -> Skill | None:
+    def _install_from_text(
+        self, text: str, *, name: str | None = None, source: str = ""
+    ) -> Skill | None:
         """Validate and install a SKILL.md from its text content."""
         try:
             skill = Skill.from_markdown(text)

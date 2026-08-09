@@ -121,6 +121,7 @@ class TestApplyToAgent:
 
     def test_apply_to_agent_without_subsystems_doesnt_crash(self, tmp_path):
         from unittest.mock import MagicMock
+
         loader = PluginLoader(plugins_dir=tmp_path / "no-plugins")
         loader.discover()
         agent = MagicMock()

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aion-hand"
-version = "0.1.0"
+version = "0.4.0"
 description = "A modular, extensible AI agent framework with tool-use, memory, orchestration, and messaging integrations."
 readme = "README.md"
 license = "MIT"
@@ -26,7 +26,7 @@ dependencies = []
 
 [project.optional-dependencies]
 all = [
-    "aion-hand[web,messaging]",
+    "aion-hand[web,messaging,tui]",
     "rich>=13.0",
 ]
 dev = [
@@ -49,6 +49,12 @@ tui = [
     "prompt_toolkit>=3.0",
     "pyyaml>=6.0",
 ]
+voice = [
+    "pyttsx3>=2.90",
+]
+browser = [
+    "playwright>=1.40",
+]
 
 [project.scripts]
 aion-hand = "aion_hand_cli.cli:main"
@@ -67,6 +73,7 @@ line-length = 88
 
 [tool.ruff]
 target-version = "py311"
+exclude = ["aion_web", "desktop", ".git", "__pycache__"]
 line-length = 88
 
 [tool.ruff.lint]
@@ -81,6 +88,8 @@ select = [
     "A",
     "SIM",
 ]
+# E501 is handled by black; ignore for long docstrings that black can't break
+ignore = ["E501"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -95,3 +104,10 @@ branch = true
 [tool.coverage.report]
 show_missing = true
 skip_empty = true
+
+[project.urls]
+Homepage = "https://github.com/xdadik/Aion"
+Repository = "https://github.com/xdadik/Aion"
+Issues = "https://github.com/xdadik/Aion/issues"
+Documentation = "https://github.com/xdadik/Aion#readme"
+Changelog = "https://github.com/xdadik/Aion/blob/main/CHANGELOG.md"

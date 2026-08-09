@@ -17,6 +17,7 @@ logger = logging.getLogger("aion_hand.pipeline")
 @dataclass
 class TaskLesson:
     """A complete lesson learned from a single task execution."""
+
     task_hash: str = ""
     task_summary: str = ""
     task_keywords: list[str] = field(default_factory=list)
@@ -141,18 +142,18 @@ class RuntimeLearning:
         total_tokens = 0
         total_time = 0.0
         for r in results.values():
-            if hasattr(r, 'status') and r.status == "success":
+            if hasattr(r, "status") and r.status == "success":
                 nodes_succeeded += 1
-            if hasattr(r, 'tokens_used'):
+            if hasattr(r, "tokens_used"):
                 total_tokens += r.tokens_used
-            if hasattr(r, 'elapsed'):
+            if hasattr(r, "elapsed"):
                 total_time += r.elapsed
 
         # Count verification metrics
         verif_passed = 0
         verif_total = len(verifications)
         for v in verifications:
-            if hasattr(v, 'passed') and v.passed:
+            if hasattr(v, "passed") and v.passed:
                 verif_passed += 1
 
         # Extract failures and mistakes
@@ -165,9 +166,9 @@ class RuntimeLearning:
         was_repaired = False
         repair_successful = False
         for r in results.values():
-            if hasattr(r, 'metadata') and r.metadata.get("is_repair"):
+            if hasattr(r, "metadata") and r.metadata.get("is_repair"):
                 was_repaired = True
-                if hasattr(r, 'status') and r.status == "success":
+                if hasattr(r, "status") and r.status == "success":
                     repair_successful = True
 
         # Determine overall success
@@ -177,10 +178,14 @@ class RuntimeLearning:
             task_hash=task_hash,
             task_summary=task[:200],
             task_keywords=keywords,
-            mission_complexity=getattr(plan, 'complexity', 0.5) if plan else 0.5,
-            mission_capabilities=getattr(plan, 'capabilities_needed', []) if hasattr(plan, 'capabilities_needed') else [],
-            plan_node_count=len(plan.nodes) if plan and hasattr(plan, 'nodes') else 0,
-            plan_risk_level=getattr(plan, 'risk_level', 'low') if plan else 'low',
+            mission_complexity=getattr(plan, "complexity", 0.5) if plan else 0.5,
+            mission_capabilities=(
+                getattr(plan, "capabilities_needed", [])
+                if hasattr(plan, "capabilities_needed")
+                else []
+            ),
+            plan_node_count=len(plan.nodes) if plan and hasattr(plan, "nodes") else 0,
+            plan_risk_level=getattr(plan, "risk_level", "low") if plan else "low",
             execution_success=execution_success,
             execution_nodes_succeeded=nodes_succeeded,
             execution_nodes_total=nodes_total,
@@ -188,7 +193,7 @@ class RuntimeLearning:
             execution_time=total_time,
             verifications_passed=verif_passed,
             verifications_total=verif_total,
-            critique_score=getattr(critique, 'score', 0.5) if critique else 0.5,
+            critique_score=getattr(critique, "score", 0.5) if critique else 0.5,
             final_confidence=confidence,
             mistakes=mistakes,
             learned_rules=rules,
@@ -276,7 +281,9 @@ class RuntimeLearning:
             recency = 1.0
             if lesson.timestamp:
                 try:
-                    lesson_time = datetime.fromisoformat(lesson.timestamp.replace("Z", "+00:00"))
+                    lesson_time = datetime.fromisoformat(
+                        lesson.timestamp.replace("Z", "+00:00")
+                    )
                     now = datetime.now(UTC)
                     if lesson_time.tzinfo is None:
                         now = now.replace(tzinfo=None)
@@ -293,7 +300,9 @@ class RuntimeLearning:
 
         return [lesson for _, _, lesson in scored[:max_lessons]]
 
-    def get_applicable_rules(self, task: str, max_rules: int = 10) -> list[dict[str, Any]]:
+    def get_applicable_rules(
+        self, task: str, max_rules: int = 10
+    ) -> list[dict[str, Any]]:
         """Get rules that apply to a given task.
 
         Args:
@@ -325,12 +334,16 @@ class RuntimeLearning:
                             rule_key = rule.lower().strip()
                             if rule_key not in seen_rules:
                                 seen_rules.add(rule_key)
-                                matched_rules.append({
-                                    "rule": rule,
-                                    "source_task": lesson.task_summary,
-                                    "source_success": lesson.execution_success,
-                                    "confidence_boost": self._rule_confidence_boost_from_lesson(lesson),
-                                })
+                                matched_rules.append(
+                                    {
+                                        "rule": rule,
+                                        "source_task": lesson.task_summary,
+                                        "source_success": lesson.execution_success,
+                                        "confidence_boost": self._rule_confidence_boost_from_lesson(
+                                            lesson
+                                        ),
+                                    }
+                                )
 
         # Sort by confidence boost (higher = more impactful rule)
         matched_rules.sort(key=lambda r: r.get("confidence_boost", 0.0), reverse=True)
@@ -348,28 +361,36 @@ class RuntimeLearning:
 
         # From execution results
         for node_id, r in results.items():
-            if hasattr(r, 'status') and r.status == "failed":
-                error = getattr(r, 'error', None) or "unknown error"
+            if hasattr(r, "status") and r.status == "failed":
+                error = getattr(r, "error", None) or "unknown error"
                 mistakes.append(f"Node '{node_id}' failed: {str(error)[:100]}")
-            if hasattr(r, 'status') and r.status == "timeout":
+            if hasattr(r, "status") and r.status == "timeout":
                 mistakes.append(f"Node '{node_id}' timed out")
-            if hasattr(r, 'retry_count') and r.retry_count > 0:
-                mistakes.append(f"Node '{node_id}' needed {r.retry_count} retry/retries")
+            if hasattr(r, "retry_count") and r.retry_count > 0:
+                mistakes.append(
+                    f"Node '{node_id}' needed {r.retry_count} retry/retries"
+                )
 
         # From verification results
         for v in verifications:
-            if hasattr(v, 'passed') and not v.passed:
-                if hasattr(v, 'issues'):
+            if hasattr(v, "passed") and not v.passed:
+                if hasattr(v, "issues"):
                     for issue in v.issues:
                         if issue and not any(
                             issue.startswith(p)
-                            for p in ["No ", "No code", "No factual", "No security", "No logical"]
+                            for p in [
+                                "No ",
+                                "No code",
+                                "No factual",
+                                "No security",
+                                "No logical",
+                            ]
                         ):
-                            verifier = getattr(v, 'checked_by', 'unknown')
+                            verifier = getattr(v, "checked_by", "unknown")
                             mistakes.append(f"[{verifier}] {issue}")
 
         # From critique
-        if critique and hasattr(critique, 'issues'):
+        if critique and hasattr(critique, "issues"):
             for issue in critique.issues:
                 if issue and not any(issue.startswith(p) for p in ["No ", "[critic]"]):
                     mistakes.append(f"[critic] {issue}")
@@ -396,12 +417,16 @@ class RuntimeLearning:
 
             # Retry -> improve prompt rule
             if "retry" in mistake:
-                rules.append("Consider breaking this type of task into smaller sub-steps")
+                rules.append(
+                    "Consider breaking this type of task into smaller sub-steps"
+                )
                 continue
 
             # Security
             if "SECURITY" in mistake or "security" in mistake:
-                rules.append("Always run security checks before executing code or shell commands")
+                rules.append(
+                    "Always run security checks before executing code or shell commands"
+                )
                 continue
 
             # Syntax error
@@ -412,41 +437,98 @@ class RuntimeLearning:
             # Incomplete
             if "not fully addressed" in mistake or "Goal not" in mistake:
                 goal = mistake.split(":")[-1].strip() if ":" in mistake else "goal"
-                rules.append(f"Ensure all goals are explicitly addressed, especially: {goal[:60]}")
+                rules.append(
+                    f"Ensure all goals are explicitly addressed, especially: {goal[:60]}"
+                )
                 continue
 
             # Contradiction
             if "contradiction" in mistake:
-                rules.append("Review the response for logical consistency before finalizing")
+                rules.append(
+                    "Review the response for logical consistency before finalizing"
+                )
                 continue
 
             # Node failure
             if "failed" in mistake:
                 error_text = mistake.lower()
                 if "permission" in error_text or "unauthorized" in error_text:
-                    rules.append("Check permissions before attempting file or system operations")
+                    rules.append(
+                        "Check permissions before attempting file or system operations"
+                    )
                 elif "not found" in error_text:
-                    rules.append("Verify that referenced files, modules, or resources exist before using them")
+                    rules.append(
+                        "Verify that referenced files, modules, or resources exist before using them"
+                    )
                 elif "connection" in error_text or "network" in error_text:
-                    rules.append("Handle network errors gracefully with retries and fallbacks")
+                    rules.append(
+                        "Handle network errors gracefully with retries and fallbacks"
+                    )
                 else:
                     rules.append(f"Prevent the error type: {mistake[:80]}")
                 continue
 
         if len(rules) > self.MAX_RULES_PER_TASK:
-            rules = rules[:self.MAX_RULES_PER_TASK]
+            rules = rules[: self.MAX_RULES_PER_TASK]
 
         return list(dict.fromkeys(rules))
 
     def _extract_keywords(self, text: str) -> list[str]:
         """Extract meaningful keywords from task text."""
         stop_words = {
-            "the", "a", "an", "is", "are", "was", "were", "be", "to", "of",
-            "in", "for", "on", "with", "at", "by", "from", "as", "and", "or",
-            "but", "not", "all", "that", "this", "it", "make", "ensure", "have",
-            "has", "had", "do", "does", "will", "would", "could", "should",
-            "can", "may", "need", "use", "using", "please", "how", "what",
-            "why", "when", "where", "which", "who", "been", "being", "about",
+            "the",
+            "a",
+            "an",
+            "is",
+            "are",
+            "was",
+            "were",
+            "be",
+            "to",
+            "of",
+            "in",
+            "for",
+            "on",
+            "with",
+            "at",
+            "by",
+            "from",
+            "as",
+            "and",
+            "or",
+            "but",
+            "not",
+            "all",
+            "that",
+            "this",
+            "it",
+            "make",
+            "ensure",
+            "have",
+            "has",
+            "had",
+            "do",
+            "does",
+            "will",
+            "would",
+            "could",
+            "should",
+            "can",
+            "may",
+            "need",
+            "use",
+            "using",
+            "please",
+            "how",
+            "what",
+            "why",
+            "when",
+            "where",
+            "which",
+            "who",
+            "been",
+            "being",
+            "about",
         }
         words = re.findall(r"\b[a-zA-Z]{3,}\b", text.lower())
         keywords = [w for w in words if w not in stop_words]
@@ -462,7 +544,7 @@ class RuntimeLearning:
 
         Rules from low-confidence executions are more informative.
         """
-        score = getattr(critique, 'score', 0.5) if critique else 0.5
+        score = getattr(critique, "score", 0.5) if critique else 0.5
         if score < 0.5:
             return 0.1
         elif score < 0.7:
@@ -498,8 +580,7 @@ class RuntimeLearning:
 
         # Remove rules from trimmed lessons
         self._rules = [
-            r for r in self._rules
-            if r.get("task_hash") not in removed_hashes
+            r for r in self._rules if r.get("task_hash") not in removed_hashes
         ]
 
         # Rebuild index
@@ -532,18 +613,26 @@ class RuntimeLearning:
 
         successes = sum(1 for l in self._lessons if l.execution_success)
         failures = len(self._lessons) - successes
-        avg_confidence = sum(l.final_confidence for l in self._lessons) / len(self._lessons)
+        avg_confidence = sum(l.final_confidence for l in self._lessons) / len(
+            self._lessons
+        )
         repaired = sum(1 for l in self._lessons if l.was_repaired)
-        repair_success = sum(1 for l in self._lessons if l.was_repaired and l.repair_successful)
+        repair_success = sum(
+            1 for l in self._lessons if l.was_repaired and l.repair_successful
+        )
 
         return {
             "total_lessons": len(self._lessons),
             "total_rules": len(self._rules),
             "successes": successes,
             "failures": failures,
-            "success_rate": round(successes / len(self._lessons), 3) if self._lessons else 0,
+            "success_rate": (
+                round(successes / len(self._lessons), 3) if self._lessons else 0
+            ),
             "avg_confidence": round(avg_confidence, 3),
             "repaired": repaired,
-            "repair_success_rate": round(repair_success / repaired, 3) if repaired else 0,
+            "repair_success_rate": (
+                round(repair_success / repaired, 3) if repaired else 0
+            ),
             "keyword_index_size": len(self._task_index),
         }

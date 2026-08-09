@@ -18,6 +18,7 @@ logger = logging.getLogger("aion_hand.pipeline")
 @dataclass
 class VerificationResult:
     """Result of a single verification check."""
+
     passed: bool = False
     confidence: float = 0.5
     issues: list[str] = field(default_factory=list)
@@ -56,22 +57,33 @@ class LogicVerifier(Verifier):
         result_str = str(result) if result else ""
 
         contradiction_patterns = [
-            (r"(?i)however.{1,100}(?:also true|is true)", "Potential contradiction detected"),
-            (r"(?i)but.{1,100}(?:the same|also|nevertheless)", "Check for contradictory statements"),
+            (
+                r"(?i)however.{1,100}(?:also true|is true)",
+                "Potential contradiction detected",
+            ),
+            (
+                r"(?i)but.{1,100}(?:the same|also|nevertheless)",
+                "Check for contradictory statements",
+            ),
         ]
         for pattern, issue_msg in contradiction_patterns:
             if re.search(pattern, result_str):
                 issues.append(issue_msg)
 
         vague_patterns = [
-            (r"(?i)(?:might|could|perhaps|maybe|possibly)", 8,
-             "High number of hedging words"),
+            (
+                r"(?i)(?:might|could|perhaps|maybe|possibly)",
+                8,
+                "High number of hedging words",
+            ),
         ]
         for pattern, threshold, msg in vague_patterns:
             matches = re.findall(pattern, result_str)
             if len(matches) > threshold:
                 issues.append(f"{msg} (found {len(matches)} instances)")
-                suggestions.append("Replace hedging language with definitive statements")
+                suggestions.append(
+                    "Replace hedging language with definitive statements"
+                )
 
         if not issues:
             issues.append("No logical issues detected")
@@ -79,7 +91,13 @@ class LogicVerifier(Verifier):
         passed = len([i for i in issues if "No logical" not in i]) == 0
         confidence = 0.9 if passed else max(0.3, 1.0 - len(issues) * 0.2)
 
-        return VerificationResult(passed=passed, confidence=confidence, issues=issues, suggestions=suggestions, checked_by=self.name)
+        return VerificationResult(
+            passed=passed,
+            confidence=confidence,
+            issues=issues,
+            suggestions=suggestions,
+            checked_by=self.name,
+        )
 
 
 class FactChecker(Verifier):
@@ -107,14 +125,23 @@ Return ONLY JSON."""
         confidence = 0.7
 
         if self._agent is None:
-            return VerificationResult(passed=True, confidence=0.5, issues=["No agent for fact checking"], checked_by=self.name)
+            return VerificationResult(
+                passed=True,
+                confidence=0.5,
+                issues=["No agent for fact checking"],
+                checked_by=self.name,
+            )
 
         result_str = str(result)[:4000] if result else ""
         prompt = self.FACT_CHECK_PROMPT.format(task=task[:500], result=result_str)
 
         try:
             response = await self._agent.chat(message=prompt)
-            content = response.get("content", "") if isinstance(response, dict) else str(response)
+            content = (
+                response.get("content", "")
+                if isinstance(response, dict)
+                else str(response)
+            )
             json_match = re.search(r"\{.*\}", content, re.DOTALL)
             if json_match:
                 data = json.loads(json_match.group())
@@ -132,8 +159,23 @@ Return ONLY JSON."""
         if not issues:
             issues.append("No factual issues detected")
 
-        has_real_issues = len([i for i in issues if "could not be performed" not in i and "No factual" not in i]) == 0
-        return VerificationResult(passed=has_real_issues, confidence=confidence, issues=issues, suggestions=suggestions, checked_by=self.name)
+        has_real_issues = (
+            len(
+                [
+                    i
+                    for i in issues
+                    if "could not be performed" not in i and "No factual" not in i
+                ]
+            )
+            == 0
+        )
+        return VerificationResult(
+            passed=has_real_issues,
+            confidence=confidence,
+            issues=issues,
+            suggestions=suggestions,
+            checked_by=self.name,
+        )
 
 
 class CodeVerifier(Verifier):
@@ -142,30 +184,41 @@ class CodeVerifier(Verifier):
     SECURITY_PATTERNS = [
         (r"(?i)eval\s*\(", "Use of eval() - code injection risk"),
         (r"(?i)exec\s*\(", "Use of exec() - code injection risk"),
-        (r"(?i)subprocess\.call\s*\(.*shell\s*=\s*True", "shell=True with subprocess - command injection"),
+        (
+            r"(?i)subprocess\.call\s*\(.*shell\s*=\s*True",
+            "shell=True with subprocess - command injection",
+        ),
         (r"(?i)os\.system\s*\(", "Use of os.system() - prefer subprocess"),
         (r"(?i)pickle\.loads?\s*\(", "Use of pickle - deserialization vulnerability"),
         (r"(?i)yaml\.load\s*\(.*Loader", "yaml.load without SafeLoader"),
-        (r"(?i)password\s*=\s*[""][^""]+", "Hardcoded password detected"),
-        (r"(?i)api_key\s*=\s*[""][^""]+", "Hardcoded API key detected"),
+        (r"(?i)password\s*=\s*[" "][^" "]+", "Hardcoded password detected"),
+        (r"(?i)api_key\s*=\s*[" "][^" "]+", "Hardcoded API key detected"),
     ]
 
     def is_applicable(self, task: str, result: Any, context: dict) -> bool:
         result_str = str(result) if result else ""
-        return any(ind in result_str for ind in ["def ", "class ", "import ", "from ", "return "])
+        return any(
+            ind in result_str
+            for ind in ["def ", "class ", "import ", "from ", "return "]
+        )
 
     async def verify(self, task: str, result: Any, context: dict) -> VerificationResult:
         issues = []
         suggestions = []
         result_str = str(result) if result else ""
 
-        blocks = re.findall(r'```(\w*)\n(.*?)\n```', result_str, re.DOTALL)
+        blocks = re.findall(r"```(\w*)\n(.*?)\n```", result_str, re.DOTALL)
         code_blocks = [{"lang": m[0], "code": m[1]} for m in blocks]
         if not code_blocks and any(k in result_str for k in ["def ", "import "]):
             code_blocks = [{"lang": "python", "code": result_str}]
 
         if not code_blocks:
-            return VerificationResult(passed=True, confidence=0.8, issues=["No code blocks found"], checked_by=self.name)
+            return VerificationResult(
+                passed=True,
+                confidence=0.8,
+                issues=["No code blocks found"],
+                checked_by=self.name,
+            )
 
         for i, block in enumerate(code_blocks):
             code = block["code"]
@@ -185,7 +238,13 @@ class CodeVerifier(Verifier):
 
         passed = len([i for i in issues if "No code" not in i]) == 0
         confidence = 0.95 if passed else max(0.2, 1.0 - len(issues) * 0.15)
-        return VerificationResult(passed=passed, confidence=confidence, issues=issues, suggestions=suggestions, checked_by=self.name)
+        return VerificationResult(
+            passed=passed,
+            confidence=confidence,
+            issues=issues,
+            suggestions=suggestions,
+            checked_by=self.name,
+        )
 
 
 class SecurityVerifier(Verifier):
@@ -222,7 +281,13 @@ class SecurityVerifier(Verifier):
 
         passed = len([i for i in issues if "SECURITY" in i]) == 0
         confidence = 0.95 if passed else 0.2
-        return VerificationResult(passed=passed, confidence=confidence, issues=issues, suggestions=suggestions, checked_by=self.name)
+        return VerificationResult(
+            passed=passed,
+            confidence=confidence,
+            issues=issues,
+            suggestions=suggestions,
+            checked_by=self.name,
+        )
 
 
 class CompletenessVerifier(Verifier):
@@ -238,13 +303,63 @@ class CompletenessVerifier(Verifier):
         result_str = str(result) if result else ""
 
         if mission is None:
-            return VerificationResult(passed=True, confidence=0.5, issues=["No mission analysis for completeness check"], checked_by=self.name)
+            return VerificationResult(
+                passed=True,
+                confidence=0.5,
+                issues=["No mission analysis for completeness check"],
+                checked_by=self.name,
+            )
 
-        stop_words = {"the", "a", "an", "is", "are", "was", "were", "be", "to", "of", "in", "for", "on", "with", "at", "by", "from", "as", "and", "or", "but", "not", "all", "that", "this", "it", "make", "ensure", "provide", "create", "write", "have", "has", "had", "do", "does", "will", "would", "could", "should"}
+        stop_words = {
+            "the",
+            "a",
+            "an",
+            "is",
+            "are",
+            "was",
+            "were",
+            "be",
+            "to",
+            "of",
+            "in",
+            "for",
+            "on",
+            "with",
+            "at",
+            "by",
+            "from",
+            "as",
+            "and",
+            "or",
+            "but",
+            "not",
+            "all",
+            "that",
+            "this",
+            "it",
+            "make",
+            "ensure",
+            "provide",
+            "create",
+            "write",
+            "have",
+            "has",
+            "had",
+            "do",
+            "does",
+            "will",
+            "would",
+            "could",
+            "should",
+        }
 
         unaddressed = []
         for goal in mission.goals:
-            keywords = [w for w in re.findall(r"[a-zA-Z]{3,}", goal.lower()) if w not in stop_words]
+            keywords = [
+                w
+                for w in re.findall(r"[a-zA-Z]{3,}", goal.lower())
+                if w not in stop_words
+            ]
             if keywords:
                 matches = sum(1 for kw in keywords if kw in result_str.lower())
                 if matches / len(keywords) < 0.3 and len(goal) > 5:
@@ -261,7 +376,13 @@ class CompletenessVerifier(Verifier):
         else:
             confidence = max(0.2, 1.0 - len(unaddressed) / max(len(mission.goals), 1))
 
-        return VerificationResult(passed=passed, confidence=confidence, issues=issues, suggestions=suggestions, checked_by=self.name)
+        return VerificationResult(
+            passed=passed,
+            confidence=confidence,
+            issues=issues,
+            suggestions=suggestions,
+            checked_by=self.name,
+        )
 
 
 class VerificationPipeline:
@@ -282,13 +403,24 @@ class VerificationPipeline:
     def get_verifiers(self) -> list[str]:
         return [v.name for v in self._verifiers]
 
-    async def verify(self, task: str, result: Any, mission: MissionAnalysis | None = None) -> list[VerificationResult]:
+    async def verify(
+        self, task: str, result: Any, mission: MissionAnalysis | None = None
+    ) -> list[VerificationResult]:
         context = {"mission": mission}
-        applicable = [v for v in self._verifiers if v.is_applicable(task, result, context)]
+        applicable = [
+            v for v in self._verifiers if v.is_applicable(task, result, context)
+        ]
         logger.info(f"Running {len(applicable)}/{len(self._verifiers)} verifiers")
 
         if not applicable:
-            return [VerificationResult(passed=True, confidence=1.0, issues=["No applicable verifiers"], checked_by="none")]
+            return [
+                VerificationResult(
+                    passed=True,
+                    confidence=1.0,
+                    issues=["No applicable verifiers"],
+                    checked_by="none",
+                )
+            ]
 
         tasks = [v.verify(task, result, context) for v in applicable]
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -297,10 +429,19 @@ class VerificationPipeline:
         for verifier, vresult in zip(applicable, results, strict=True):
             if isinstance(vresult, Exception):
                 logger.warning(f"Verifier '{verifier.name}' raised: {vresult}")
-                verification_results.append(VerificationResult(passed=False, confidence=0.0, issues=[f"Verifier error: {str(vresult)}"], checked_by=verifier.name))
+                verification_results.append(
+                    VerificationResult(
+                        passed=False,
+                        confidence=0.0,
+                        issues=[f"Verifier error: {str(vresult)}"],
+                        checked_by=verifier.name,
+                    )
+                )
             else:
                 verification_results.append(vresult)
 
         passed_count = sum(1 for r in verification_results if r.passed)
-        logger.info(f"Verification complete: {passed_count}/{len(verification_results)} passed")
+        logger.info(
+            f"Verification complete: {passed_count}/{len(verification_results)} passed"
+        )
         return verification_results

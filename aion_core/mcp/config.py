@@ -205,9 +205,7 @@ class MCPConfig:
                 Defaults to ``~/.aion-hand``.
         """
         if config_dir is None:
-            config_dir = os.path.join(
-                os.path.expanduser("~"), ".aion-hand"
-            )
+            config_dir = os.path.join(os.path.expanduser("~"), ".aion-hand")
         self._config_dir = Path(config_dir)
         self._config_path = self._config_dir / CONFIG_FILENAME
         self._servers: dict[str, MCPServerConfig] = {}
@@ -258,9 +256,7 @@ class MCPConfig:
                 if config.name:
                     file_servers[config.name] = config
             except Exception as exc:
-                logger.warning(
-                    "Skipping invalid server config: %s", exc
-                )
+                logger.warning("Skipping invalid server config: %s", exc)
 
         # Merge: defaults first, then user overrides
         defaults = _get_default_servers()
@@ -336,9 +332,7 @@ class MCPConfig:
             del self._servers[name]
             logger.info("Removed MCP server config: %s", name)
             return True
-        logger.warning(
-            "Cannot remove MCP server '%s': not found", name
-        )
+        logger.warning("Cannot remove MCP server '%s': not found", name)
         return False
 
     def get_server(self, name: str) -> MCPServerConfig | None:
@@ -358,11 +352,7 @@ class MCPConfig:
 
         These are servers that are both enabled and have ``auto_connect=True``.
         """
-        return [
-            s
-            for s in self._servers.values()
-            if s.enabled and s.auto_connect
-        ]
+        return [s for s in self._servers.values() if s.enabled and s.auto_connect]
 
     # ------------------------------------------------------------------
     # Queries
@@ -371,16 +361,12 @@ class MCPConfig:
     def list_stdio_servers(self) -> list[MCPServerConfig]:
         """Return all stdio-transport server configs."""
         return [
-            s for s in self._servers.values()
-            if s.transport == "stdio" and s.enabled
+            s for s in self._servers.values() if s.transport == "stdio" and s.enabled
         ]
 
     def list_sse_servers(self) -> list[MCPServerConfig]:
         """Return all SSE-transport server configs."""
-        return [
-            s for s in self._servers.values()
-            if s.transport == "sse" and s.enabled
-        ]
+        return [s for s in self._servers.values() if s.transport == "sse" and s.enabled]
 
     def count_servers(self) -> int:
         """Return total number of configured servers."""
@@ -420,10 +406,7 @@ class MCPConfig:
 
     def __repr__(self) -> str:
         enabled = sum(1 for s in self._servers.values() if s.enabled)
-        auto = sum(
-            1 for s in self._servers.values()
-            if s.enabled and s.auto_connect
-        )
+        auto = sum(1 for s in self._servers.values() if s.enabled and s.auto_connect)
         return (
             f"MCPConfig(path={self._config_path}, "
             f"servers={len(self._servers)}, "

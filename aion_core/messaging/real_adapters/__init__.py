@@ -32,7 +32,7 @@ import urllib.parse
 import urllib.request
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from typing import Any
 
 logger = logging.getLogger("aion_hand.messaging.real")
@@ -44,6 +44,7 @@ logger = logging.getLogger("aion_hand.messaging.real")
 
 try:
     import aiohttp  # type: ignore[import-not-found]
+
     _AIOHTTP_AVAILABLE = True
 except ImportError:
     _AIOHTTP_AVAILABLE = False
@@ -53,11 +54,13 @@ except ImportError:
 # Message type
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class RealMessage:
     """A real incoming message from a platform."""
+
     platform: str
-    session_id: str          # chat_id / channel_id / etc.
+    session_id: str  # chat_id / channel_id / etc.
     sender_id: str
     sender_name: str
     content: str
@@ -82,6 +85,7 @@ class RealMessage:
 # HTTP helper (stdlib urllib via executor, or aiohttp if available)
 # ---------------------------------------------------------------------------
 
+
 async def _http_request(
     method: str,
     url: str,
@@ -94,9 +98,14 @@ async def _http_request(
     else falls back to urllib in an executor."""
     if _AIOHTTP_AVAILABLE:
         try:
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as session:
+            async with aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=timeout)
+            ) as session:
                 async with session.request(
-                    method, url, json=json_body, headers=headers,
+                    method,
+                    url,
+                    json=json_body,
+                    headers=headers,
                 ) as resp:
                     text = await resp.text()
                     try:
@@ -105,6 +114,7 @@ async def _http_request(
                         return {"_status": resp.status, "_text": text}
         except aiohttp.ClientError as exc:
             return {"_status": 0, "_error": f"{type(exc).__name__}: {exc}"}
+
     # Fallback: urllib in executor
     def _do() -> dict[str, Any]:
         data = json.dumps(json_body).encode("utf-8") if json_body else None
@@ -119,7 +129,11 @@ async def _http_request(
         except urllib.error.HTTPError as exc:
             body = exc.read().decode("utf-8", errors="replace") if exc.fp else ""
             try:
-                return json.loads(body) if body else {"_status": exc.code, "_error": str(exc)}
+                return (
+                    json.loads(body)
+                    if body
+                    else {"_status": exc.code, "_error": str(exc)}
+                )
             except json.JSONDecodeError:
                 return {"_status": exc.code, "_error": str(exc), "_text": body}
         except (urllib.error.URLError, OSError) as exc:
@@ -133,6 +147,7 @@ async def _http_request(
 # Abstract base for real adapters
 # ---------------------------------------------------------------------------
 
+
 class RealAdapter(ABC):
     """Base class for real platform adapters that actually call APIs."""
 
@@ -145,8 +160,7 @@ class RealAdapter(ABC):
         self._background_task: asyncio.Task | None = None
 
     @abstractmethod
-    async def connect(self) -> None:
-        ...
+    async def connect(self) -> None: ...
 
     async def disconnect(self) -> None:
         self._connected = False
@@ -158,8 +172,7 @@ class RealAdapter(ABC):
                 pass
 
     @abstractmethod
-    async def send_text(self, session_id: str, text: str, **kwargs: Any) -> bool:
-        ...
+    async def send_text(self, session_id: str, text: str, **kwargs: Any) -> bool: ...
 
     async def receive(self):  # type: ignore[override]
         """Yield incoming messages from the platform."""
@@ -180,6 +193,7 @@ class RealAdapter(ABC):
 # ---------------------------------------------------------------------------
 # Telegram (REAL implementation)
 # ---------------------------------------------------------------------------
+
 
 class RealTelegramAdapter(RealAdapter):
     """Real Telegram Bot API adapter.
@@ -234,7 +248,9 @@ class RealTelegramAdapter(RealAdapter):
         )
         self._connected = True
         # Start long-polling
-        self._background_task = asyncio.create_task(self._poll_loop(), name="telegram-poll")
+        self._background_task = asyncio.create_task(
+            self._poll_loop(), name="telegram-poll"
+        )
 
     async def send_text(
         self,
@@ -267,12 +283,18 @@ class RealTelegramAdapter(RealAdapter):
             body["disable_web_page_preview"] = True
 
         result = await _http_request(
-            "POST", f"{self.API_BASE}{self._token}/sendMessage", json_body=body,
+            "POST",
+            f"{self.API_BASE}{self._token}/sendMessage",
+            json_body=body,
         )
         if not result.get("ok"):
             logger.error("[telegram] sendMessage failed: %s", result.get("description"))
             return False
-        logger.info("[telegram] sendMessage → chat=%s msg_id=%s", chat_id, result["result"]["message_id"])
+        logger.info(
+            "[telegram] sendMessage → chat=%s msg_id=%s",
+            chat_id,
+            result["result"]["message_id"],
+        )
         return True
 
     async def send_photo(self, chat_id: str, photo_url: str, caption: str = "") -> bool:
@@ -283,11 +305,15 @@ class RealTelegramAdapter(RealAdapter):
         if caption:
             body["caption"] = caption
         result = await _http_request(
-            "POST", f"{self.API_BASE}{self._token}/sendPhoto", json_body=body,
+            "POST",
+            f"{self.API_BASE}{self._token}/sendPhoto",
+            json_body=body,
         )
         return bool(result.get("ok"))
 
-    async def send_document(self, chat_id: str, document_url: str, caption: str = "") -> bool:
+    async def send_document(
+        self, chat_id: str, document_url: str, caption: str = ""
+    ) -> bool:
         """Send a document by URL."""
         if not self._connected:
             return False
@@ -295,7 +321,9 @@ class RealTelegramAdapter(RealAdapter):
         if caption:
             body["caption"] = caption
         result = await _http_request(
-            "POST", f"{self.API_BASE}{self._token}/sendDocument", json_body=body,
+            "POST",
+            f"{self.API_BASE}{self._token}/sendDocument",
+            json_body=body,
         )
         return bool(result.get("ok"))
 
@@ -304,7 +332,8 @@ class RealTelegramAdapter(RealAdapter):
         if not self._connected:
             return False
         result = await _http_request(
-            "POST", f"{self.API_BASE}{self._token}/sendChatAction",
+            "POST",
+            f"{self.API_BASE}{self._token}/sendChatAction",
             json_body={"chat_id": chat_id, "action": action},
         )
         return bool(result.get("ok"))
@@ -313,7 +342,9 @@ class RealTelegramAdapter(RealAdapter):
         """Return the bot's identity."""
         return self._bot_info
 
-    async def get_updates(self, limit: int = 100, timeout: int | None = None) -> list[dict[str, Any]]:
+    async def get_updates(
+        self, limit: int = 100, timeout: int | None = None
+    ) -> list[dict[str, Any]]:
         """Fetch pending updates (messages) from Telegram."""
         body: dict[str, Any] = {"limit": limit}
         if self._last_update_id:
@@ -321,8 +352,10 @@ class RealTelegramAdapter(RealAdapter):
         if timeout is not None:
             body["timeout"] = timeout
         result = await _http_request(
-            "POST", f"{self.API_BASE}{self._token}/getUpdates",
-            json_body=body, timeout=max(60.0, (timeout or 0) + 30),
+            "POST",
+            f"{self.API_BASE}{self._token}/getUpdates",
+            json_body=body,
+            timeout=max(60.0, (timeout or 0) + 30),
         )
         if not result.get("ok"):
             return []
@@ -334,7 +367,8 @@ class RealTelegramAdapter(RealAdapter):
     async def set_webhook(self, url: str) -> bool:
         """Set a webhook URL to receive updates (instead of long-polling)."""
         result = await _http_request(
-            "POST", f"{self.API_BASE}{self._token}/setWebhook",
+            "POST",
+            f"{self.API_BASE}{self._token}/setWebhook",
             json_body={"url": url},
         )
         return bool(result.get("ok"))
@@ -342,7 +376,8 @@ class RealTelegramAdapter(RealAdapter):
     async def delete_webhook(self) -> bool:
         """Delete the webhook (revert to long-polling)."""
         result = await _http_request(
-            "POST", f"{self.API_BASE}{self._token}/deleteWebhook",
+            "POST",
+            f"{self.API_BASE}{self._token}/deleteWebhook",
         )
         return bool(result.get("ok"))
 
@@ -367,7 +402,11 @@ class RealTelegramAdapter(RealAdapter):
 
     def _parse_update(self, update: dict[str, Any]) -> RealMessage | None:
         """Convert a Telegram update dict into a RealMessage."""
-        msg = update.get("message") or update.get("edited_message") or update.get("channel_post")
+        msg = (
+            update.get("message")
+            or update.get("edited_message")
+            or update.get("channel_post")
+        )
         if not msg:
             return None
         chat = msg.get("chat", {})
@@ -380,7 +419,11 @@ class RealTelegramAdapter(RealAdapter):
             sender_name=sender.get("first_name", "") or sender.get("username", ""),
             content=text,
             message_id=str(msg.get("message_id", "")),
-            timestamp=datetime.fromtimestamp(msg.get("date", 0), UTC).isoformat() if msg.get("date") else "",
+            timestamp=(
+                datetime.fromtimestamp(msg.get("date", 0), UTC).isoformat()
+                if msg.get("date")
+                else ""
+            ),
             raw=msg,
         )
 
@@ -388,6 +431,7 @@ class RealTelegramAdapter(RealAdapter):
 # ---------------------------------------------------------------------------
 # Discord (webhook-based — simple, no gateway bot)
 # ---------------------------------------------------------------------------
+
 
 class RealDiscordAdapter(RealAdapter):
     """Real Discord adapter using webhooks.
@@ -446,6 +490,7 @@ class RealDiscordAdapter(RealAdapter):
 # Slack (webhook-based)
 # ---------------------------------------------------------------------------
 
+
 class RealSlackAdapter(RealAdapter):
     """Real Slack adapter using incoming webhooks.
 
@@ -502,6 +547,7 @@ class RealSlackAdapter(RealAdapter):
 # Generic HTTP webhook
 # ---------------------------------------------------------------------------
 
+
 class RealWebhookAdapter(RealAdapter):
     """Generic HTTP webhook adapter — POST JSON to any URL.
 
@@ -547,7 +593,10 @@ class RealWebhookAdapter(RealAdapter):
         if self._secret:
             headers["Authorization"] = f"Bearer {self._secret}"
         result = await _http_request(
-            self._method, self._url, json_body=body, headers=headers,
+            self._method,
+            self._url,
+            json_body=body,
+            headers=headers,
         )
         # Consider 2xx success
         status = result.get("_status", 200)
@@ -561,6 +610,7 @@ class RealWebhookAdapter(RealAdapter):
 # ---------------------------------------------------------------------------
 # Factory
 # ---------------------------------------------------------------------------
+
 
 def create_real_adapter(platform: str, **config: Any) -> RealAdapter:
     """Create a real adapter by platform name.
@@ -580,7 +630,9 @@ def create_real_adapter(platform: str, **config: Any) -> RealAdapter:
         return RealSlackAdapter(**config)
     if platform == "webhook":
         return RealWebhookAdapter(**config)
-    raise ValueError(f"Unknown platform: {platform}. Supported: telegram, discord, slack, webhook")
+    raise ValueError(
+        f"Unknown platform: {platform}. Supported: telegram, discord, slack, webhook"
+    )
 
 
 __all__ = [

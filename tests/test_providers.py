@@ -48,6 +48,7 @@ class TestProviderFactory(unittest.TestCase):
 
             async def chat(self, messages, **kwargs):
                 from aion_core.providers.factory import ProviderResponse
+
                 return ProviderResponse(content="ok")
 
         ProviderFactory.register_provider("mock_test", MockProvider)
@@ -57,6 +58,7 @@ class TestProviderFactory(unittest.TestCase):
             self.assertIn("mock_test", ProviderFactory.list_providers())
         finally:
             from aion_core.providers import factory as f
+
             f._PROVIDER_REGISTRY.pop("mock_test", None)
 
 

@@ -68,7 +68,9 @@ class TestRuntimeLearningRecord:
         lesson = rl._lessons[0]
         # At least one of these keywords should be extracted
         keywords_str = " ".join(lesson.task_keywords).lower()
-        assert any(kw in keywords_str for kw in ["python", "rest", "api", "fastapi", "jwt"])
+        assert any(
+            kw in keywords_str for kw in ["python", "rest", "api", "fastapi", "jwt"]
+        )
 
 
 class TestRuntimeLearningRetrieval:
@@ -149,7 +151,11 @@ class TestSkillEngineAutoCreate:
         skill = engine.create_from_experience(
             name="python-rest-api",
             task="Build a Python REST API with FastAPI",
-            lessons_learned=["Use FastAPI for async", "Add JWT auth", "Use Pydantic models"],
+            lessons_learned=[
+                "Use FastAPI for async",
+                "Add JWT auth",
+                "Use Pydantic models",
+            ],
         )
         assert skill is not None
         assert skill.name == "python-rest-api"
@@ -207,8 +213,12 @@ class TestSkillEnginePersistence:
 
     def test_save_and_load_roundtrip(self, tmp_path: Path):
         engine1 = SkillEngine(storage_dir=tmp_path)
-        engine1.create_skill(name="skill-a", description="A", content="content A", tags=["x"])
-        engine1.create_skill(name="skill-b", description="B", content="content B", tags=["y"])
+        engine1.create_skill(
+            name="skill-a", description="A", content="content A", tags=["x"]
+        )
+        engine1.create_skill(
+            name="skill-b", description="B", content="content B", tags=["y"]
+        )
         n_saved = engine1.save()
         assert n_saved == 2
 
@@ -220,7 +230,9 @@ class TestSkillEnginePersistence:
 
     def test_export_all_markdown(self, tmp_path: Path):
         engine = SkillEngine(storage_dir=tmp_path)
-        engine.create_skill(name="exportable", description="d", content="# Some skill\n\nbody")
+        engine.create_skill(
+            name="exportable", description="d", content="# Some skill\n\nbody"
+        )
         out_dir = tmp_path / "exported"
         n = engine.export_all_markdown(out_dir)
         assert n == 1

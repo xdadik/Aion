@@ -14,7 +14,6 @@ from aion_core.mcp.client import MCPTool, MCPServer, MCPClient
 from aion_core.mcp.registry import MCPToolRegistry
 from aion_core.mcp.bridge import MCPBridge
 
-
 # ===================================================================
 # MCPServerConfig tests
 # ===================================================================
@@ -129,7 +128,9 @@ class TestMCPConfig(unittest.TestCase):
     def test_list_enabled_servers(self):
         """list_enabled_servers filters out disabled servers."""
         self.cfg.add_server(MCPServerConfig(name="on", transport="stdio", enabled=True))
-        self.cfg.add_server(MCPServerConfig(name="off", transport="stdio", enabled=False))
+        self.cfg.add_server(
+            MCPServerConfig(name="off", transport="stdio", enabled=False)
+        )
         enabled = self.cfg.list_enabled_servers()
         self.assertEqual(len(enabled), 1)
         self.assertEqual(enabled[0].name, "on")
@@ -137,13 +138,19 @@ class TestMCPConfig(unittest.TestCase):
     def test_get_auto_connect_servers(self):
         """get_auto_connect_servers returns enabled+auto_connect servers."""
         self.cfg.add_server(
-            MCPServerConfig(name="auto", transport="stdio", enabled=True, auto_connect=True)
+            MCPServerConfig(
+                name="auto", transport="stdio", enabled=True, auto_connect=True
+            )
         )
         self.cfg.add_server(
-            MCPServerConfig(name="manual", transport="stdio", enabled=True, auto_connect=False)
+            MCPServerConfig(
+                name="manual", transport="stdio", enabled=True, auto_connect=False
+            )
         )
         self.cfg.add_server(
-            MCPServerConfig(name="disabled", transport="stdio", enabled=False, auto_connect=True)
+            MCPServerConfig(
+                name="disabled", transport="stdio", enabled=False, auto_connect=True
+            )
         )
         auto = self.cfg.get_auto_connect_servers()
         self.assertEqual(len(auto), 1)
@@ -198,7 +205,9 @@ class TestMCPToolRegistry(unittest.TestCase):
 
     def test_register_and_get_tool(self):
         """Tools can be retrieved by name after being cached."""
-        tool = MCPTool(name="read_file", description="Read a file", server_name="filesystem")
+        tool = MCPTool(
+            name="read_file", description="Read a file", server_name="filesystem"
+        )
         reg, _ = self._make_registry(tools=[tool])
         fetched = reg.get_tool("read_file")
         self.assertIsNotNone(fetched)
@@ -356,7 +365,10 @@ class TestMCPTool(unittest.TestCase):
         func = schema["function"]
         self.assertEqual(func["name"], "read_file")
         self.assertEqual(func["description"], "Read a file from disk")
-        self.assertEqual(func["parameters"], {"type": "object", "properties": {"path": {"type": "string"}}})
+        self.assertEqual(
+            func["parameters"],
+            {"type": "object", "properties": {"path": {"type": "string"}}},
+        )
 
 
 # ===================================================================

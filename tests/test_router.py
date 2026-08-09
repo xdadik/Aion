@@ -10,11 +10,14 @@ from pathlib import Path
 # Ensure project root is importable
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from aion_core.router.estimator import ComplexityEstimator, ReasoningType, TaskComplexity
+from aion_core.router.estimator import (
+    ComplexityEstimator,
+    ReasoningType,
+    TaskComplexity,
+)
 from aion_core.router.manager import RouterManager
 from aion_core.router.optimizer import CostOptimizer, UsageRecord
 from aion_core.router.router import Tier, ModelProfile, RoutingDecision, ModelRouter
-
 
 # ===================================================================
 # ComplexityEstimator tests
@@ -211,9 +214,14 @@ class TestModelProfile(unittest.TestCase):
     def test_to_dict(self):
         """to_dict is not a method on ModelProfile, but it's a dataclass — use dataclasses.asdict."""
         from dataclasses import asdict
+
         p = ModelProfile(
-            name="m1", provider="p1", tier="budget",
-            cost_per_1k_input=0.1, cost_per_1k_output=0.2, max_context=2048,
+            name="m1",
+            provider="p1",
+            tier="budget",
+            cost_per_1k_input=0.1,
+            cost_per_1k_output=0.2,
+            max_context=2048,
         )
         d = asdict(p)
         self.assertEqual(d["name"], "m1")

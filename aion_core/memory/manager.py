@@ -21,12 +21,12 @@ import re
 import sqlite3
 import time
 import uuid
-from dataclasses import dataclass, field, asdict
-from datetime import datetime, timedelta, UTC
+from collections.abc import Sequence
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from pathlib import Path
 from typing import Any
-from collections.abc import Sequence
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +47,7 @@ DEFAULT_NUDGE_INTERVAL_SECONDS = 600  # 10 minutes
 # ---------------------------------------------------------------------------
 # Enums
 # ---------------------------------------------------------------------------
+
 
 class MemoryLayer(Enum):
     """The six layers of the memory architecture."""
@@ -85,6 +86,7 @@ class NudgeAction(Enum):
 # ---------------------------------------------------------------------------
 # Data models
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class MemoryEntry:
@@ -201,6 +203,7 @@ class MemoryStats:
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_id() -> str:
     return uuid.uuid4().hex[:12]
 
@@ -242,6 +245,7 @@ def _compute_importance_score(
 # ---------------------------------------------------------------------------
 # Storage backend (JSON files + SQLite FTS5)
 # ---------------------------------------------------------------------------
+
 
 class _MemoryStorage:
     """Low-level persistence for memory entries, user profile, and nudge state."""
@@ -311,7 +315,9 @@ class _MemoryStorage:
         path = self._dir / _MEMORY_FILE
         data = [e.to_dict() for e in self._entries.values()]
         try:
-            path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+            path.write_text(
+                json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
         except Exception:
             logger.exception("Failed to save memory entries to %s", path)
 
@@ -407,7 +413,9 @@ class _FTSIndex:
 
         # Detect FTS5 support
         try:
-            self._conn.execute("CREATE VIRTUAL TABLE IF NOT EXISTS _ftstest USING fts5(content)")
+            self._conn.execute(
+                "CREATE VIRTUAL TABLE IF NOT EXISTS _ftstest USING fts5(content)"
+            )
             self._conn.execute("DROP TABLE IF EXISTS _ftstest")
             self._fts5_available = True
         except Exception:
@@ -522,9 +530,7 @@ class _FTSIndex:
                 fts_query = tokens[0]
 
             sql = (
-                "SELECT entry_id, rank "
-                "FROM memory_fts "
-                "WHERE memory_fts MATCH ? "
+                "SELECT entry_id, rank " "FROM memory_fts " "WHERE memory_fts MATCH ? "
             )
             params: tuple = (fts_query,)
 
@@ -697,6 +703,7 @@ def _render_user_md(profile: UserProfile) -> str:
 # ---------------------------------------------------------------------------
 # MemoryManager — the public API
 # ---------------------------------------------------------------------------
+
 
 class MemoryManager:
     """Central memory manager combining multi-layer storage, FTS5 search,
@@ -904,11 +911,17 @@ class MemoryManager:
             if entry is None:
                 continue
             # Re-rank using blended importance score
-            age_hours = (datetime.now(UTC) - _parse_iso(entry.created_at)).total_seconds() / 3600
+            age_hours = (
+                datetime.now(UTC) - _parse_iso(entry.created_at)
+            ).total_seconds() / 3600
             blended = _compute_importance_score(entry, age_hours)
             final_score = 0.6 * score + 0.4 * blended
             results.append(
-                SearchResult(entry=entry, score=round(final_score, 4), match_highlights=highlights)
+                SearchResult(
+                    entry=entry,
+                    score=round(final_score, 4),
+                    match_highlights=highlights,
+                )
             )
 
         results.sort(key=lambda r: r.score, reverse=True)
@@ -1022,45 +1035,52 @@ class MemoryManager:
         # 1. Check for working memory that could be consolidated to episodic
         working = self._storage.entries_by_layer(MemoryLayer.WORKING)
         if len(working) > self._max_entries.get(MemoryLayer.WORKING, 200) * 0.8:
-            actions.append({
-                "action": NudgeAction.CONSOLIDATE.value,
-                "message": (
-                    "Working memory is approaching capacity. "
-                    "Consider summarizing recent conversations into episodic memory."
-                ),
-                "layer": MemoryLayer.WORKING.value,
-                "count": len(working),
-            })
+            actions.append(
+                {
+                    "action": NudgeAction.CONSOLIDATE.value,
+                    "message": (
+                        "Working memory is approaching capacity. "
+                        "Consider summarizing recent conversations into episodic memory."
+                    ),
+                    "layer": MemoryLayer.WORKING.value,
+                    "count": len(working),
+                }
+            )
 
         # 2. Check for old session memories that could be promoted to semantic
         session = self._storage.entries_by_layer(MemoryLayer.SESSION)
         old_sessions = [
-            e for e in session
+            e
+            for e in session
             if (datetime.now(UTC) - _parse_iso(e.updated_at)).total_seconds() > 3600
         ]
         if old_sessions:
-            actions.append({
-                "action": NudgeAction.PROMOTE.value,
-                "message": (
-                    f"{len(old_sessions)} session memories are over an hour old. "
-                    "Promote important ones to semantic memory."
-                ),
-                "layer": MemoryLayer.SESSION.value,
-                "count": len(old_sessions),
-            })
+            actions.append(
+                {
+                    "action": NudgeAction.PROMOTE.value,
+                    "message": (
+                        f"{len(old_sessions)} session memories are over an hour old. "
+                        "Promote important ones to semantic memory."
+                    ),
+                    "layer": MemoryLayer.SESSION.value,
+                    "count": len(old_sessions),
+                }
+            )
 
         # 3. Suggest importance re-evaluation for untouched entries
         all_entries = self._storage.all_entries()
         untouched = [e for e in all_entries if e.access_count == 0]
         if len(untouched) > 50:
-            actions.append({
-                "action": NudgeAction.UPDATE_IMPORTANCE.value,
-                "message": (
-                    f"{len(untouched)} entries have never been accessed. "
-                    "Consider updating their importance or forgetting irrelevant ones."
-                ),
-                "count": len(untouched),
-            })
+            actions.append(
+                {
+                    "action": NudgeAction.UPDATE_IMPORTANCE.value,
+                    "message": (
+                        f"{len(untouched)} entries have never been accessed. "
+                        "Consider updating their importance or forgetting irrelevant ones."
+                    ),
+                    "count": len(untouched),
+                }
+            )
 
         if not actions:
             return None
@@ -1079,7 +1099,11 @@ class MemoryManager:
             "nudge_count": state.nudge_count,
         }
 
-        logger.info("Memory nudge triggered (nudge #%d): %d actions", state.nudge_count, len(actions))
+        logger.info(
+            "Memory nudge triggered (nudge #%d): %d actions",
+            state.nudge_count,
+            len(actions),
+        )
         return nudge_result
 
     async def mark_nudge_action_done(self, action_index: int) -> None:
@@ -1093,7 +1117,9 @@ class MemoryManager:
     async def export_memory_md(self) -> str:
         """Export all memories as an OpenClaw-compatible MEMORY.md string."""
         self._ensure_initialized()
-        return _render_memory_md(self._storage.all_entries(), self._storage.user_profile)
+        return _render_memory_md(
+            self._storage.all_entries(), self._storage.user_profile
+        )
 
     async def export_user_md(self) -> str:
         """Export the user profile as an OpenClaw-compatible USER.md string."""
@@ -1345,7 +1371,7 @@ class MemoryManager:
 
     def _extract_facts(self, text: str) -> list[str]:
         """Heuristic extraction of preference/fact statements from user text."""
-        sentences = re.split(r'[.!?;\n]+', text)
+        sentences = re.split(r"[.!?;\n]+", text)
         facts: list[str] = []
         # Patterns that suggest preferences or personal facts
         preference_patterns = re.compile(

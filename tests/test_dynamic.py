@@ -21,10 +21,10 @@ from aion_core.dynamic.topology import AgentTopology, TopologyManager
 from aion_core.dynamic.orchestrator import DynamicOrchestrator, DynamicOrchestrationPlan
 from aion_core.dynamic.manager import classify_task, estimate_complexity
 
-
 # ===================================================================
 # AgentProfile tests
 # ===================================================================
+
 
 class TestAgentProfile(unittest.TestCase):
     """Tests for the AgentProfile dataclass."""
@@ -97,14 +97,13 @@ class TestAgentProfile(unittest.TestCase):
 # DynamicAgent tests
 # ===================================================================
 
+
 class TestDynamicAgent(unittest.TestCase):
     """Tests for the DynamicAgent dataclass."""
 
     def test_dynamic_agent_creation(self):
         """Creating a DynamicAgent should populate all fields."""
-        profile = AgentProfile(
-            name="Test", role="coder", system_prompt="test"
-        )
+        profile = AgentProfile(name="Test", role="coder", system_prompt="test")
         agent = DynamicAgent(id="abc123", profile=profile)
         self.assertEqual(agent.id, "abc123")
         self.assertEqual(agent.profile, profile)
@@ -117,9 +116,7 @@ class TestDynamicAgent(unittest.TestCase):
 
     def test_dynamic_agent_status_transitions(self):
         """Agent status should transition: created -> running -> completed."""
-        profile = AgentProfile(
-            name="Test", role="coder", system_prompt="test"
-        )
+        profile = AgentProfile(name="Test", role="coder", system_prompt="test")
         agent = DynamicAgent(id="abc123", profile=profile)
         self.assertEqual(agent.status, "created")
         agent.status = "running"
@@ -131,6 +128,7 @@ class TestDynamicAgent(unittest.TestCase):
 # ===================================================================
 # DynamicAgentFactory tests
 # ===================================================================
+
 
 class TestDynamicAgentFactory(unittest.TestCase):
     """Tests for the DynamicAgentFactory class."""
@@ -226,6 +224,7 @@ class TestDynamicAgentFactory(unittest.TestCase):
 # AgentTopology tests
 # ===================================================================
 
+
 class TestAgentTopology(unittest.TestCase):
     """Tests for the AgentTopology dataclass."""
 
@@ -320,6 +319,7 @@ class TestAgentTopology(unittest.TestCase):
 # TopologyManager tests
 # ===================================================================
 
+
 class TestTopologyManager(unittest.TestCase):
     """Tests for the TopologyManager class."""
 
@@ -374,15 +374,21 @@ class TestTopologyManager(unittest.TestCase):
         topo = self.mgr.list_topologies()[0]
         topo_id = topo.id
 
-        self.mgr.record_execution(topo_id, "coding", success=True, tokens=100, time=10.0)
+        self.mgr.record_execution(
+            topo_id, "coding", success=True, tokens=100, time=10.0
+        )
         self.assertEqual(topo.usage_count, 1)
         self.assertEqual(topo.success_rate, 1.0)
 
-        self.mgr.record_execution(topo_id, "coding", success=False, tokens=200, time=20.0)
+        self.mgr.record_execution(
+            topo_id, "coding", success=False, tokens=200, time=20.0
+        )
         self.assertEqual(topo.usage_count, 2)
         self.assertAlmostEqual(topo.success_rate, 0.5)
 
-        self.mgr.record_execution(topo_id, "coding", success=True, tokens=300, time=30.0)
+        self.mgr.record_execution(
+            topo_id, "coding", success=True, tokens=300, time=30.0
+        )
         self.assertEqual(topo.usage_count, 3)
         self.assertAlmostEqual(topo.success_rate, 2.0 / 3.0, places=4)
         self.assertAlmostEqual(topo.avg_tokens, 200.0)
@@ -430,9 +436,15 @@ class TestTopologyManager(unittest.TestCase):
     def test_analyze_patterns_with_executions(self):
         """analyze_patterns should produce insights after recording executions."""
         topo = self.mgr.list_topologies()[0]
-        self.mgr.record_execution(topo.id, "coding", success=True, tokens=500, time=10.0)
-        self.mgr.record_execution(topo.id, "coding", success=True, tokens=600, time=12.0)
-        self.mgr.record_execution(topo.id, "research", success=False, tokens=800, time=20.0)
+        self.mgr.record_execution(
+            topo.id, "coding", success=True, tokens=500, time=10.0
+        )
+        self.mgr.record_execution(
+            topo.id, "coding", success=True, tokens=600, time=12.0
+        )
+        self.mgr.record_execution(
+            topo.id, "research", success=False, tokens=800, time=20.0
+        )
 
         result = self.mgr.analyze_patterns()
         self.assertEqual(result["total_executions"], 3)
@@ -479,6 +491,7 @@ class TestTopologyManager(unittest.TestCase):
 # DynamicOrchestrator tests
 # ===================================================================
 
+
 class TestDynamicOrchestrator(unittest.TestCase):
     """Tests for the DynamicOrchestrator class."""
 
@@ -498,7 +511,9 @@ class TestDynamicOrchestrator(unittest.TestCase):
             factory = DynamicAgentFactory(storage_dir=Path(tmpdir))
             topo_mgr = TopologyManager(storage_dir=Path(tmpdir))
             orch = DynamicOrchestrator(factory=factory, topology_manager=topo_mgr)
-            plan = orch.create_plan("Build a REST API", complexity=7, task_type="coding")
+            plan = orch.create_plan(
+                "Build a REST API", complexity=7, task_type="coding"
+            )
             self.assertIsInstance(plan, DynamicOrchestrationPlan)
             self.assertEqual(plan.task, "Build a REST API")
             self.assertIsNotNone(plan.topology)
@@ -559,6 +574,7 @@ class TestDynamicOrchestrator(unittest.TestCase):
 # classify_task tests
 # ===================================================================
 
+
 class TestClassifyTask(unittest.TestCase):
     """Tests for the classify_task function."""
 
@@ -569,8 +585,12 @@ class TestClassifyTask(unittest.TestCase):
 
     def test_classify_research_task(self):
         """Tasks with research keywords should classify as 'research'."""
-        self.assertEqual(classify_task("Research quantum computing applications"), "research")
-        self.assertEqual(classify_task("Investigate the effects of climate change"), "research")
+        self.assertEqual(
+            classify_task("Research quantum computing applications"), "research"
+        )
+        self.assertEqual(
+            classify_task("Investigate the effects of climate change"), "research"
+        )
 
     def test_classify_bugfix_task(self):
         """Tasks with bugfix keywords should classify as 'bugfix'."""
@@ -579,8 +599,12 @@ class TestClassifyTask(unittest.TestCase):
 
     def test_classify_code_review_task(self):
         """Tasks with code review keywords should classify as 'code_review'."""
-        self.assertEqual(classify_task("Review code for the authentication module"), "code_review")
-        self.assertEqual(classify_task("Code review the PR for the API endpoint"), "code_review")
+        self.assertEqual(
+            classify_task("Review code for the authentication module"), "code_review"
+        )
+        self.assertEqual(
+            classify_task("Code review the PR for the API endpoint"), "code_review"
+        )
 
     def test_classify_general_task(self):
         """Tasks with no matching keywords should classify as 'general'."""
@@ -591,6 +615,7 @@ class TestClassifyTask(unittest.TestCase):
 # ===================================================================
 # estimate_complexity tests
 # ===================================================================
+
 
 class TestEstimateComplexity(unittest.TestCase):
     """Tests for the estimate_complexity function."""
@@ -616,12 +641,16 @@ class TestEstimateComplexity(unittest.TestCase):
     def test_scope_keywords_increase_complexity(self):
         """Tasks with scope keywords like 'full', 'complete' should increase complexity."""
         normal = estimate_complexity("Build an API")
-        scoped = estimate_complexity("Build a comprehensive full production API from scratch")
+        scoped = estimate_complexity(
+            "Build a comprehensive full production API from scratch"
+        )
         self.assertGreater(scoped, normal)
 
     def test_simple_keywords_reduce_complexity(self):
         """Tasks with 'quick', 'simple' keywords should reduce complexity."""
-        normal = estimate_complexity("Implement a sorting algorithm with various approaches and benchmarks")
+        normal = estimate_complexity(
+            "Implement a sorting algorithm with various approaches and benchmarks"
+        )
         simple = estimate_complexity("quick simple sorting algorithm")
         self.assertLess(simple, normal)
 

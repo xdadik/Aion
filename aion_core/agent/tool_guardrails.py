@@ -64,9 +64,9 @@ logger = logging.getLogger("aion_hand.agent.tool_guardrails")
 class ToolGuardrailDecision(str, Enum):
     """Verdict returned by the guardrail after observing a tool call."""
 
-    PROCEED = "proceed"    # No concerns – let the tool execute.
-    WARN = "warn"          # Pattern detected but not yet at block threshold.
-    BLOCK = "block"        # Pattern has exceeded the block threshold; abort.
+    PROCEED = "proceed"  # No concerns – let the tool execute.
+    WARN = "warn"  # Pattern detected but not yet at block threshold.
+    BLOCK = "block"  # Pattern has exceeded the block threshold; abort.
 
 
 # ======================================================================
@@ -368,35 +368,37 @@ class ToolGuardrails:
 # Write-tool set (tools that indicate forward progress)
 # ======================================================================
 
-_WRITE_TOOLS: frozenset[str] = frozenset({
-    "shell_exec",
-    "shell",
-    "bash",
-    "execute_command",
-    "write_file",
-    "file_write",
-    "create_file",
-    "edit_file",
-    "file_edit",
-    "patch_file",
-    "send_message",
-    "create_issue",
-    "create_pr",
-    "git_commit",
-    "git_push",
-    "deploy",
-    "publish",
-    "http_post",
-    "http_put",
-    "http_delete",
-    "db_execute",
-    "db_insert",
-    "db_update",
-    "db_delete",
-    "install_package",
-    "run_tests",
-    "apply_change",
-})
+_WRITE_TOOLS: frozenset[str] = frozenset(
+    {
+        "shell_exec",
+        "shell",
+        "bash",
+        "execute_command",
+        "write_file",
+        "file_write",
+        "create_file",
+        "edit_file",
+        "file_edit",
+        "patch_file",
+        "send_message",
+        "create_issue",
+        "create_pr",
+        "git_commit",
+        "git_push",
+        "deploy",
+        "publish",
+        "http_post",
+        "http_put",
+        "http_delete",
+        "db_execute",
+        "db_insert",
+        "db_update",
+        "db_delete",
+        "install_package",
+        "run_tests",
+        "apply_change",
+    }
+)
 
 
 # ======================================================================
@@ -405,37 +407,39 @@ _WRITE_TOOLS: frozenset[str] = frozenset({
 
 
 # Tools that must run alone (no parallelism) for safety.
-_DANGEROUS_TOOLS: frozenset[str] = frozenset({
-    "shell_exec",
-    "shell",
-    "bash",
-    "execute_command",
-    "write_file",
-    "file_write",
-    "create_file",
-    "edit_file",
-    "file_edit",
-    "patch_file",
-    "delete_file",
-    "file_delete",
-    "move_file",
-    "file_move",
-    "http_post",
-    "http_put",
-    "http_delete",
-    "db_execute",
-    "db_insert",
-    "db_update",
-    "db_delete",
-    "deploy",
-    "publish",
-    "install_package",
-    "run_tests",
-    "apply_change",
-    "git_push",
-    "git_reset",
-    "git_force_push",
-})
+_DANGEROUS_TOOLS: frozenset[str] = frozenset(
+    {
+        "shell_exec",
+        "shell",
+        "bash",
+        "execute_command",
+        "write_file",
+        "file_write",
+        "create_file",
+        "edit_file",
+        "file_edit",
+        "patch_file",
+        "delete_file",
+        "file_delete",
+        "move_file",
+        "file_move",
+        "http_post",
+        "http_put",
+        "http_delete",
+        "db_execute",
+        "db_insert",
+        "db_update",
+        "db_delete",
+        "deploy",
+        "publish",
+        "install_package",
+        "run_tests",
+        "apply_change",
+        "git_push",
+        "git_reset",
+        "git_force_push",
+    }
+)
 
 
 @dataclass
@@ -552,21 +556,30 @@ class ConcurrentToolExecutor:
             {
                 "tool_name": calls[i].tool_name,
                 "call_id": calls[i].call_id,
-                "result": call_to_result.get(calls[i].tool_name, _ToolResult(
-                    call_id=calls[i].call_id,
-                    tool_name=calls[i].tool_name,
-                    result=None,
-                )).result,
-                "error": call_to_result.get(calls[i].tool_name, _ToolResult(
-                    call_id=calls[i].call_id,
-                    tool_name=calls[i].tool_name,
-                    result=None,
-                )).error,
-                "duration_seconds": call_to_result.get(calls[i].tool_name, _ToolResult(
-                    call_id=calls[i].call_id,
-                    tool_name=calls[i].tool_name,
-                    result=None,
-                )).duration_seconds,
+                "result": call_to_result.get(
+                    calls[i].tool_name,
+                    _ToolResult(
+                        call_id=calls[i].call_id,
+                        tool_name=calls[i].tool_name,
+                        result=None,
+                    ),
+                ).result,
+                "error": call_to_result.get(
+                    calls[i].tool_name,
+                    _ToolResult(
+                        call_id=calls[i].call_id,
+                        tool_name=calls[i].tool_name,
+                        result=None,
+                    ),
+                ).error,
+                "duration_seconds": call_to_result.get(
+                    calls[i].tool_name,
+                    _ToolResult(
+                        call_id=calls[i].call_id,
+                        tool_name=calls[i].tool_name,
+                        result=None,
+                    ),
+                ).duration_seconds,
             }
             for i in range(len(calls))
         ]
@@ -596,13 +609,15 @@ class ConcurrentToolExecutor:
                 call_id=tc.get("call_id"),
             )
             r = await self._run_one(call, executor_fn)
-            results.append({
-                "tool_name": call.tool_name,
-                "call_id": call.call_id,
-                "result": r.result,
-                "error": r.error,
-                "duration_seconds": r.duration_seconds,
-            })
+            results.append(
+                {
+                    "tool_name": call.tool_name,
+                    "call_id": call.call_id,
+                    "result": r.result,
+                    "error": r.error,
+                    "duration_seconds": r.duration_seconds,
+                }
+            )
         return results
 
     # -- Batch planning ---------------------------------------------------

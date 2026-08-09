@@ -10,25 +10,39 @@ from __future__ import annotations
 import json
 import uuid
 from collections import defaultdict, deque
-from dataclasses import dataclass, field, asdict
-from datetime import datetime, UTC
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-
 
 # ---------------------------------------------------------------------------
 # Data classes
 # ---------------------------------------------------------------------------
 
 ENTITY_TYPES = (
-    "person", "project", "file", "tool", "concept",
-    "task", "agent", "memory", "error", "skill",
+    "person",
+    "project",
+    "file",
+    "tool",
+    "concept",
+    "task",
+    "agent",
+    "memory",
+    "error",
+    "skill",
 )
 
 RELATION_TYPES = (
-    "uses", "depends_on", "created_by", "related_to",
-    "caused", "fixed_by", "part_of", "similar_to",
-    "succeeded_after", "failed_because",
+    "uses",
+    "depends_on",
+    "created_by",
+    "related_to",
+    "caused",
+    "fixed_by",
+    "part_of",
+    "similar_to",
+    "succeeded_after",
+    "failed_because",
 )
 
 
@@ -87,6 +101,7 @@ class Relation:
 # KnowledgeGraph
 # ---------------------------------------------------------------------------
 
+
 class KnowledgeGraph:
     """In-memory knowledge graph with JSON persistence and graph algorithms."""
 
@@ -96,8 +111,12 @@ class KnowledgeGraph:
         self._relations: dict[str, Relation] = {}
 
         # Adjacency lists for fast traversal
-        self._outgoing: dict[str, list[str]] = defaultdict(list)   # entity_id -> [relation_ids]
-        self._incoming: dict[str, list[str]] = defaultdict(list)   # entity_id -> [relation_ids]
+        self._outgoing: dict[str, list[str]] = defaultdict(
+            list
+        )  # entity_id -> [relation_ids]
+        self._incoming: dict[str, list[str]] = defaultdict(
+            list
+        )  # entity_id -> [relation_ids]
 
         # Name+type dedup index: (name, type) -> entity_id
         self._dedup_index: dict[tuple[str, str], str] = {}
@@ -161,8 +180,7 @@ class KnowledgeGraph:
                 continue
             if properties_filter:
                 if not all(
-                    entity.properties.get(k) == v
-                    for k, v in properties_filter.items()
+                    entity.properties.get(k) == v for k, v in properties_filter.items()
                 ):
                     continue
             results.append(entity)
@@ -291,7 +309,9 @@ class KnowledgeGraph:
         for _ in range(depth):
             next_frontier: set[str] = set()
             for eid in frontier:
-                rels = self.get_relations(eid, relation_type=relation_type, direction=direction)
+                rels = self.get_relations(
+                    eid, relation_type=relation_type, direction=direction
+                )
                 for rel in rels:
                     neighbor = rel.target_id if eid == rel.source_id else rel.source_id
                     if neighbor not in visited:

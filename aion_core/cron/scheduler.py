@@ -43,11 +43,11 @@ logger = logging.getLogger(__name__)
 
 # Field ranges for each cron position: (min_val, max_val)
 _FIELD_RANGES = [
-    (0, 59),   # minute
-    (0, 23),   # hour
-    (1, 31),   # day of month
-    (1, 12),   # month
-    (0, 6),    # day of week (0 = Sunday)
+    (0, 59),  # minute
+    (0, 23),  # hour
+    (1, 31),  # day of month
+    (1, 12),  # month
+    (0, 6),  # day of week (0 = Sunday)
 ]
 
 
@@ -165,6 +165,7 @@ def next_occurrence(parsed_fields: list[set[int]], after: datetime) -> datetime:
 # ScheduledTask data model
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ScheduledTask:
     """Represents a single recurring task managed by the scheduler.
@@ -204,6 +205,7 @@ class ScheduledTask:
 # ---------------------------------------------------------------------------
 # CronScheduler
 # ---------------------------------------------------------------------------
+
 
 class CronScheduler:
     """Async cron scheduler that evaluates tasks on a per-minute tick loop.
@@ -253,7 +255,9 @@ class CronScheduler:
 
         self._running = True
         self._tick_task = asyncio.create_task(self._tick_loop(), name="cron-tick")
-        logger.info("CronScheduler started — tick loop running every %ds", self._tick_interval)
+        logger.info(
+            "CronScheduler started — tick loop running every %ds", self._tick_interval
+        )
 
     async def shutdown(self) -> None:
         """Stop the scheduler tick loop and cancel all pending work."""
@@ -262,9 +266,7 @@ class CronScheduler:
             self._tick_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await self._tick_task
-        logger.info(
-            "CronScheduler shut down (%d tasks unregistered)", len(self._tasks)
-        )
+        logger.info("CronScheduler shut down (%d tasks unregistered)", len(self._tasks))
 
     # ------------------------------------------------------------------
     # Tick loop
@@ -326,7 +328,11 @@ class CronScheduler:
             result = {"content": f"[cron] executed: {task.task}"}
 
         # Deliver to configured platforms.
-        if task.platforms and hasattr(self._agent, "_messenger") and self._agent._messenger is not None:
+        if (
+            task.platforms
+            and hasattr(self._agent, "_messenger")
+            and self._agent._messenger is not None
+        ):
             content = result.get("content", str(result))
             for platform in task.platforms:
                 try:

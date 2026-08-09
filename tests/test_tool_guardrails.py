@@ -1,4 +1,5 @@
 """Tests for tool guardrails and concurrent execution."""
+
 import sys
 import unittest
 from pathlib import Path
@@ -12,6 +13,7 @@ try:
         ToolGuardrailDecision,
         ToolGuardrails,
     )
+
     HAS_MODULE = True
 except ImportError:
     HAS_MODULE = False
@@ -24,7 +26,9 @@ class TestToolGuardrails(TestCase):
         self.executor = ConcurrentToolExecutor()
 
     def test_first_call_proceeds(self):
-        decision = self.guardrails.observe("read_file", {"path": "/tmp/test.txt"}, "success")
+        decision = self.guardrails.observe(
+            "read_file", {"path": "/tmp/test.txt"}, "success"
+        )
         self.assertEqual(decision, ToolGuardrailDecision.PROCEED)
 
     def test_get_stats(self):

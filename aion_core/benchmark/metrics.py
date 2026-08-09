@@ -1,9 +1,10 @@
 """Aion Hand Benchmark Metrics Tracker"""
+
 from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -60,7 +61,12 @@ class MetricsTracker:
             try:
                 ts = datetime.fromisoformat(entry["timestamp"])
                 if ts.replace(tzinfo=UTC) >= cutoff:
-                    trend.append({"timestamp": entry["timestamp"], "value": entry.get(metric_name, 0.0)})
+                    trend.append(
+                        {
+                            "timestamp": entry["timestamp"],
+                            "value": entry.get(metric_name, 0.0),
+                        }
+                    )
             except (KeyError, ValueError):
                 continue
         return trend
@@ -81,7 +87,9 @@ class MetricsTracker:
             "worst_score": min(scores) if scores else 0.0,
             "avg_score": sum(scores) / len(scores) if scores else 0.0,
             "latest_run": self._history[-1] if self._history else None,
-            "improvement_from_first": round(scores[-1] - scores[0], 4) if len(scores) >= 2 else 0.0,
+            "improvement_from_first": (
+                round(scores[-1] - scores[0], 4) if len(scores) >= 2 else 0.0
+            ),
         }
 
 
