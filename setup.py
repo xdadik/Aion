@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="aion-hand",
-    version="0.1.0",
+    version="0.4.0",
     description="A modular, extensible AI agent framework with tool-use, memory, orchestration, and messaging integrations.",
     author="Aion Hand Contributors",
     license="MIT",

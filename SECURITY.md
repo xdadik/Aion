@@ -283,7 +283,7 @@ GitHub issue for security vulnerabilities.
 - **Preferred:** email **security@aion-hand.dev** with a PGP-encrypted
   description. Public key fingerprint:
   `A1ON H4ND S3CU RITY 2024 K3Y0 RSA4 096`
-- **Alternative:** open a [GitHub Security Advisory](https://github.com/aion-hand/aion-hand/security/advisories/new)
+- **Alternative:** open a [GitHub Security Advisory](https://github.com/xdadik/Aion/security/advisories/new)
   using the "Report a vulnerability" flow.
 - **Bug bounty:** we are not currently running a paid bounty program,
   but credit and a place in the release notes hall-of-fame are guaranteed.
@@ -434,4 +434,4 @@ no network and a non-root UID.
 
 *This policy is versioned with the codebase. Last updated for Aion Hand
 v0.1.0. If you are reading a fork or vendor copy, verify it against the
-canonical version at https://github.com/aion-hand/aion-hand/SECURITY.md.*
+canonical version at https://github.com/xdadik/Aion/SECURITY.md.*

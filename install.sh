@@ -4,18 +4,18 @@
 # The easiest way to install Aion Hand — just like Hermes.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/your-org/aion-hand/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/xdadik/Aion/main/install.sh | bash
 #
 # Or locally:
 #   bash install.sh
 # ==============================================================================
 set -euo pipefail
 
-AION_HAND_VERSION="0.3.0"
+AION_HAND_VERSION="0.4.0"
 INSTALL_DIR="${HOME}/.aion-hand"
 BIN_DIR="${INSTALL_DIR}/bin"
 VENV_DIR="${INSTALL_DIR}/venv"
-REPO_URL="https://github.com/your-org/aion-hand"
+REPO_URL="https://github.com/xdadik/Aion"
 BRANCH="main"
 
 # ── Colors ──────────────────────────────────────────────────────────
@@ -124,7 +124,7 @@ check_requirements() {
         os_name="macOS ($(uname -m))"
     elif [[ "${OSTYPE:-}" == msys* ]] || [[ "${OSTYPE:-}" == cygwin* ]]; then
         error "Windows detected. Please use install.ps1 instead."
-        echo "  irm https://raw.githubusercontent.com/your-org/aion-hand/main/install.ps1 | iex"
+        echo "  irm https://raw.githubusercontent.com/xdadik/Aion/main/install.ps1 | iex"
         exit 1
     fi
     info "OS: ${os_name}"
@@ -310,7 +310,7 @@ VENV_DIR="${AION_HOME}/venv"
 
 if [ ! -d "${VENV_DIR}" ]; then
     echo "[ERROR] Aion Hand virtual environment not found."
-    echo "  Run: curl -fsSL https://raw.githubusercontent.com/your-org/aion-hand/main/install.sh | bash"
+    echo "  Run: curl -fsSL https://raw.githubusercontent.com/xdadik/Aion/main/install.sh | bash"
     exit 1
 fi
 

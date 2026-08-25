@@ -198,8 +198,11 @@ class _StdioConnection:
 
     async def _read_loop(self) -> None:
         """Continuously read stdout lines and dispatch to pending futures."""
-        assert self.process is not None
-        assert self.process.stdout is not None
+        # Validate explicitly instead of using `assert` — `assert` is stripped
+        # by `python -O`, which would turn a connection bug into an obscure
+        # AttributeError on the next line in production deployments.
+        if self.process is None or self.process.stdout is None:
+            raise RuntimeError("MCP stdio server not connected; cannot start read loop")
         try:
             buffer = b""
             while not self._closed:

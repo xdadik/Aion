@@ -314,8 +314,10 @@ class CronScheduler:
                 task.id,
                 task.task[:60],
             )
-            # Compute next run and return
-            assert task._parsed is not None
+            # Compute next run and return. Validate explicitly instead of
+            # using `assert` (stripped by `python -O`, would mask the bug).
+            if task._parsed is None:
+                raise RuntimeError(f"Cron task {task.id!r} has no parsed schedule")
             task.next_run = next_occurrence(task._parsed, now)
             return
 
@@ -339,7 +341,8 @@ class CronScheduler:
                     )
 
         # Compute next run.
-        assert task._parsed is not None
+        if task._parsed is None:
+            raise RuntimeError(f"Cron task {task.id!r} has no parsed schedule")
         task.next_run = next_occurrence(task._parsed, now)
 
     # ------------------------------------------------------------------
@@ -418,7 +421,8 @@ class CronScheduler:
         # Recompute next_run if it's in the past.
         now = datetime.now(UTC)
         if task.next_run is None or task.next_run <= now:
-            assert task._parsed is not None
+            if task._parsed is None:
+                raise RuntimeError(f"Cron task {task.id!r} has no parsed schedule")
             task.next_run = next_occurrence(task._parsed, now)
 
         logger.info("Task %s enabled (next at %s)", task_id, task.next_run)

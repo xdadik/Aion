@@ -108,7 +108,7 @@ Combining the best of OpenClaw, Hermes Agent, NullClaw, CrewAI, AutoGPT & LangGr
 - 🎭 **SOUL.md Persona System** — OpenClaw-inspired persona templates; 5 built-in (default, researcher, coder, assistant, analyst); user personas shadow built-ins
 - 📦 **Zero Hard Dependencies** — Core runs on Python stdlib; extras are optional
 - ⚡ **Lightweight Mode** — NullClaw-inspired minimal footprint mode
-- 🧪 **Comprehensive Tests** — 419 passing tests across 24 test files (pytest + asyncio)
+- 🧪 **Comprehensive Tests** — 600+ passing tests across 42 test files (pytest + asyncio)
 - 🎨 **ANSI Colored Output** — Beautiful terminal output everywhere
 - 🔄 **Async Throughout** — Fully async/await architecture
 - 📁 **Pluggable Architecture** — Drop-in custom tools, skills, and providers
@@ -238,15 +238,15 @@ Every row is a feature you can verify in this repo today.
 12. **20+ messaging adapters** — Telegram, Discord, Slack, WhatsApp, Signal, Teams, WeChat, QQ, Feishu, WeixinWork, Yuanbao, Matrix, IRC, Mattermost, Line, GoogleChat, DingTalk, Email, Ntfy, Webhook.
 13. **Knowledge graph + entity/relation reasoner** — structured world knowledge neither Hermes nor OpenClaw has.
 14. **Model router with cost/latency optimiser** — auto-pick the cheapest model that meets a quality bar.
-15. **Zero hard dependencies** — the core runs on the Python stdlib; rich/yaml/aiohttp are all optional.
+15. **Zero hard dependencies** — the core runs on the Python stdlib; rich/aiohttp are all optional.
 16. **Built-in benchmark harness** — actually measure Aion vs. baselines on a fixed task suite.
 17. **Architecture Decision Records (ADRs)** — `docs/adr/` documents every major design decision with tradeoffs and alternatives considered.
 
 ### Where Aion can still improve (honest gaps)
 
-- **Native desktop app** — Hermes has a native macOS/Windows/Linux app; Aion is terminal + web only for now.
-- **Skill ecosystem depth** — Hermes has 200+ community-published skills with deep domain expertise (ComfyUI workflows, MLOps integrations). Aion's 70 skills are well-curated but smaller.
-- **OpenClaw-RL training** — OpenClaw has a reinforcement-learning training loop; Aion doesn't.
+- **Skill ecosystem depth** — Hermes has 200+ community-published skills with deep domain expertise (ComfyUI workflows, MLOps integrations). Aion's 93 skills are well-curated but smaller.
+- **Real RLHF fine-tuning** — Aion ships a working RL training loop (GAE advantage estimation + PPO-style updates via prompt engineering; see `aion_core/rl/`), but it does not yet perform actual weight updates. Integration with HuggingFace TRL for true RLHF is on the v0.6.0 roadmap.
+- **Discord community** — Discord invite link is "coming soon"; governance and issue templates are in place but the live server is not yet launched.
 
 ---
 
@@ -256,7 +256,7 @@ Every row is a feature you can verify in this repo today.
 
 ```bash
 # Clone the repository
-git clone https://github.com/aion-hand/aion-hand.git
+git clone https://github.com/xdadik/Aion.git
 cd aion-hand
 
 # Install with all optional dependencies
@@ -867,7 +867,7 @@ aion-hand/
 
 ```bash
 # Clone and enter the project
-git clone https://github.com/aion-hand/aion-hand.git
+git clone https://github.com/xdadik/Aion.git
 cd aion-hand
 
 # Create a virtual environment

@@ -2,7 +2,7 @@
 # Aion Hand Windows Installer
 # 
 # Usage:
-#   irm https://raw.githubusercontent.com/your-org/aion-hand/main/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/xdadik/Aion/main/install.ps1 | iex
 #
 # Or locally:
 #   powershell -ExecutionPolicy Bypass -File install.ps1
@@ -11,11 +11,11 @@
 $ErrorActionPreference = "Stop"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-$AION_VERSION = "0.1.0"
+$AION_VERSION = "0.4.0"
 $INSTALL_DIR = Join-Path $env:LOCALAPPDATA "aion-hand"
 $BIN_DIR = Join-Path $INSTALL_DIR "bin"
 $VENV_DIR = Join-Path $INSTALL_DIR "venv"
-$REPO_URL = "https://github.com/your-org/aion-hand"
+$REPO_URL = "https://github.com/xdadik/Aion"
 $BRANCH = "main"
 
 # ── Helpers ──────────────────────────────────────────────────────────────────

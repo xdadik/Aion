@@ -45,7 +45,7 @@ pip install "aion-hand[messaging]"
 ### Option 2: curl | bash (one-liner)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/aion-hand/aion-hand/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/xdadik/Aion/main/install.sh | bash
 ```
 
 This script:
@@ -58,7 +58,7 @@ This script:
 On Windows:
 
 ```powershell
-irm https://raw.githubusercontent.com/aion-hand/aion-hand/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/xdadik/Aion/main/install.ps1 | iex
 ```
 
 ### Option 3: Docker
@@ -72,7 +72,7 @@ docker run -it --rm \
   aionhand/aion-hand
 
 # Or build from source
-git clone https://github.com/aion-hand/aion-hand.git
+git clone https://github.com/xdadik/Aion.git
 cd aion-hand
 docker build -t aion-hand .
 docker run -it --rm \
@@ -320,7 +320,7 @@ print(f"Scheduled task ID: {task_id}")
 | MCP server setup       | [`aion_core/mcp/`](../aion_core/mcp/config.py)           |
 | All CLI commands       | `aion-hand --help`                                       |
 | Discord community      | [discord.gg/aion-hand](https://discord.gg/aion-hand)    |
-| GitHub                 | [github.com/aion-hand/aion-hand](https://github.com/aion-hand/aion-hand) |
+| GitHub                 | [github.com/xdadik/Aion](https://github.com/xdadik/Aion) |
 
 ---
 

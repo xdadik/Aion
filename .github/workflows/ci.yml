@@ -33,11 +33,23 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt || true
           pip install -r requirements-dev.txt || true
-          pip install pytest pytest-asyncio ruff
+          pip install pytest pytest-asyncio ruff black mypy bandit
 
       - name: Lint (ruff)
         run: ruff check aion_core/ tests/ --select=E,F,W,UP --statistics || true
         continue-on-error: true  # info-only for now; will fail-fast in a future release
+
+      - name: Format check (black)
+        run: black --check aion_core/ aion_hand_cli/ tests/ || true
+        continue-on-error: true  # soft gate; flip to false once codebase is black-clean
+
+      - name: Type check (mypy)
+        run: mypy aion_core/ --ignore-missing-imports || true
+        continue-on-error: true  # soft gate; flip to false once type hints are complete
+
+      - name: Security scan (bandit)
+        run: bandit -r aion_core/ -ll -q || true
+        continue-on-error: true  # soft gate; SECURITY.md promises bandit runs
 
       - name: Test (pytest)
         run: pytest --tb=short -q --maxfail=10
