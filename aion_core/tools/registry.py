@@ -362,17 +362,367 @@ async def _handle_web_reader(
     }
 
 
+# -- Tool execution context (Hermes parity features) -----------------------
+#
+# Several Hermes-parity tools (session_search, delegate_task, cronjob) need
+# access to the live agent / session store / scheduler. Handlers are plain
+# module functions, so they share state through this single context object
+# which the host application populates via ToolRegistry.set_context().
+
+
+class _ToolExecutionContext:
+    """Shared context injected by the host application (AionHand)."""
+
+    def __init__(self) -> None:
+        self.agent: Any = None
+        self.session_store: Any = None
+        self.cron_scheduler: Any = None
+
+
+_TOOL_CONTEXT = _ToolExecutionContext()
+
+
+def _get_session_store() -> Any:
+    """Return the session store from context, or the process default."""
+    if _TOOL_CONTEXT.session_store is not None:
+        return _TOOL_CONTEXT.session_store
+    try:
+        from aion_core.state import get_default_store
+
+        return get_default_store()
+    except Exception:
+        return None
+
+
+async def _handle_session_search(
+    query: str,
+    limit: int = 8,
+    platform: str = "",
+) -> dict[str, Any]:
+    """Full-text search across ALL past conversations (Hermes session_search).
+
+    Queries the persistent session archive (SQLite FTS5) without an LLM
+    call. Works over every message the agent has ever exchanged on any
+    platform — CLI, gateway, API.
+    """
+    store = _get_session_store()
+    if store is None:
+        return {
+            "success": False,
+            "error": "Session store not initialized",
+            "results": [],
+        }
+    try:
+        hits = store.search(query, limit=limit, platform=platform or None)
+        results = [
+            {
+                "session_id": h.get("session_id"),
+                "platform": h.get("platform"),
+                "role": h.get("role"),
+                "content": h.get("content", "")[:400],
+                "date": h.get("created_at"),
+            }
+            for h in hits
+        ]
+        return {
+            "success": True,
+            "query": query,
+            "count": len(results),
+            "results": results,
+            "note": (
+                "Searched persistent conversation archive. Use these results "
+                "to recall past discussions, decisions and context."
+            ),
+        }
+    except Exception as exc:
+        return {"success": False, "error": str(exc), "results": []}
+
+
+async def _handle_delegate_task(
+    task: str,
+    role: str = "generalist",
+    tools: str = "",
+    timeout: int = 120,
+) -> dict[str, Any]:
+    """Delegate a task to an isolated subagent (Hermes delegate_task).
+
+    The subagent runs with its own context window, personality and tool
+    subset, then returns its result — keeping the main conversation lean.
+    """
+    agent = _TOOL_CONTEXT.agent
+    if agent is None:
+        return {
+            "success": False,
+            "error": "Agent context not available for delegation",
+        }
+    try:
+        tool_list = [t.strip() for t in tools.split(",") if t.strip()] or None
+        result = await agent.spawn_subagent(
+            task=task,
+            tools=tool_list,
+            personality=role,
+            timeout=timeout,
+        )
+        return {
+            "success": True,
+            "task": task,
+            "role": role,
+            "result": result,
+        }
+    except Exception as exc:
+        return {"success": False, "error": str(exc), "task": task}
+
+
+async def _handle_cron_manage(
+    action: str,
+    schedule: str = "",
+    task: str = "",
+    job_id: str = "",
+) -> dict[str, Any]:
+    """List / create / delete scheduled tasks (Hermes cronjob tool).
+
+    Supports natural-language schedules: "30m", "2h", "every monday 9am",
+    plus standard 5-field cron expressions.
+    """
+    sched = _TOOL_CONTEXT.cron_scheduler
+    if sched is None:
+        return {"success": False, "error": "Cron scheduler not initialized"}
+
+    def _serialize_task(t: Any) -> dict[str, Any]:
+        """ScheduledTask -> JSON-safe dict for the LLM."""
+        return {
+            "id": getattr(t, "id", ""),
+            "task": getattr(t, "task", ""),
+            "schedule": getattr(t, "schedule", ""),
+            "platforms": getattr(t, "platforms", []),
+            "enabled": getattr(t, "enabled", True),
+            "run_count": getattr(t, "run_count", 0),
+            "next_run": str(getattr(t, "next_run", "") or ""),
+            "last_run": str(getattr(t, "last_run", "") or ""),
+        }
+
+    try:
+        if action == "list":
+            # CronScheduler.list_tasks() is async and returns ScheduledTask objects
+            tasks = await sched.list_tasks()
+            return {
+                "success": True,
+                "count": len(tasks),
+                "jobs": [_serialize_task(t) for t in tasks],
+            }
+        if action == "create":
+            if not (schedule and task):
+                return {
+                    "success": False,
+                    "error": "create requires 'schedule' and 'task'",
+                }
+            cron_expr = _parse_nl_schedule(schedule)
+            if cron_expr is None:
+                return {
+                    "success": False,
+                    "error": (
+                        f"Cannot parse schedule {schedule!r}. Use 5-field cron, "
+                        "'30m'/'2h', or 'every monday 9am'."
+                    ),
+                }
+            # CronScheduler.add_task(task=..., schedule=...) is async -> returns job id
+            new_id = await sched.add_task(task=task, schedule=cron_expr)
+            return {
+                "success": True,
+                "job_id": new_id,
+                "cron": cron_expr,
+                "note": (
+                    f"Scheduled. The scheduler runs it per '{cron_expr}' and "
+                    "delivers results to the agent."
+                ),
+            }
+        if action == "delete":
+            if not job_id:
+                return {"success": False, "error": "delete requires 'job_id'"}
+            removed = await sched.remove_task(job_id)
+            return {"success": bool(removed), "job_id": job_id}
+        return {"success": False, "error": f"Unknown action {action!r}"}
+    except Exception as exc:
+        return {"success": False, "error": str(exc)}
+
+
+def _parse_nl_schedule(spec: str) -> str | None:
+    """Convert natural-language schedules to 5-field cron expressions.
+
+    Understands: "30m", "2h", "45s", "every monday 9am", "every day 18:30",
+    and passes through valid 5-field cron expressions unchanged.
+    """
+    import re
+
+    s = spec.strip().lower()
+
+    # Interval form: 30m / 2h / 45s
+    m = re.fullmatch(r"(\d+)\s*([smh])", s)
+    if m:
+        n, unit = int(m.group(1)), m.group(2)
+        if unit == "s":
+            return None if n < 60 else f"*/{n // 60} * * * *"
+        if unit == "m":
+            if n < 60:
+                return f"*/{n} * * * *"
+            return f"0 */{n // 60} * * *"
+        return f"0 */{n} * * *"  # hours
+
+    # "every monday 9am" / "every day 18:30"
+    days = {
+        "monday": 1, "tuesday": 2, "wednesday": 3, "thursday": 4,
+        "friday": 5, "saturday": 6, "sunday": 0, "day": "*",
+    }
+    m = re.fullmatch(r"every\s+(\w+)\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?", s)
+    if m:
+        day_tok, hh, mm, ampm = m.group(1), int(m.group(2)), m.group(3), m.group(4)
+        day = days.get(day_tok)
+        if day is None:
+            return None
+        minute = int(mm or 0)
+        hour = hh
+        if ampm == "pm" and hour < 12:
+            hour += 12
+        if ampm == "am" and hour == 12:
+            hour = 0
+        return f"{minute} {hour} * * {day}"
+
+    # Raw 5-field cron passthrough (validate fields look cron-ish)
+    fields = s.split()
+    if len(fields) == 5 and all(
+        f.replace("*", "").replace("/", "").replace("-", "").replace(",", "").isdigit()
+        or f == "*"
+        for f in fields
+    ):
+        return s
+    return None
+
+
 # -- Code / Shell ---------------------------------------------------------
+
+
+async def _run_python_with_tool_rpc(code: str, timeout: int) -> dict[str, Any]:
+    """Run Python in-process with a ``call_tool()`` RPC helper (Hermes parity).
+
+    The code executes in a worker thread with its own event loop;
+    ``call_tool(name, **args)`` dispatches through the *live* ToolRegistry,
+    so approval gates, timeouts, validation and the audit log all stay
+    active. Returns combined stdout of the user code.
+    """
+    import concurrent.futures
+    import io
+    import threading
+
+    registry: ToolRegistry | None = _TOOL_CONTEXT.agent._tools if (
+        _TOOL_CONTEXT.agent is not None and hasattr(_TOOL_CONTEXT.agent, "_tools")
+    ) else None
+    if registry is None:
+        return {
+            "success": False,
+            "error": "Tool RPC unavailable: no agent/registry in context",
+            "output": "",
+            "exit_code": -1,
+        }
+
+    captured = io.StringIO()
+    rpc_calls: list[dict[str, Any]] = []
+    done = threading.Event()
+    error_holder: list[str] = []
+
+    def _runner() -> None:
+        try:
+            def call_tool(name: str, **kwargs: Any) -> Any:
+                """Synchronous RPC into the live tool registry.
+
+                Approval gates, validation, timeouts and the audit log all
+                stay active because this dispatches through
+                ToolRegistry.execute(). Each call runs on its own event
+                loop (the user code executes synchronously in this thread,
+                so no loop is running when call_tool is entered).
+                """
+                return asyncio.run(registry.execute(name, **kwargs))
+
+            def _print(*args: Any, **kwargs: Any) -> None:
+                print(*args, file=captured, **kwargs)
+
+            scope: dict[str, Any] = {
+                "__builtins__": {
+                    "print": _print, "len": len, "range": range, "str": str,
+                    "int": int, "float": float, "list": list, "dict": dict,
+                    "tuple": tuple, "set": set, "sum": sum, "min": min,
+                    "max": max, "sorted": sorted, "reversed": reversed,
+                    "enumerate": enumerate, "zip": zip, "abs": abs,
+                    "round": round, "isinstance": isinstance, "type": type,
+                    "any": any, "all": all, "map": map, "filter": filter,
+                    "Exception": Exception, "ValueError": ValueError,
+                    "TypeError": TypeError, "RuntimeError": RuntimeError,
+                    "KeyError": KeyError, "ZeroDivisionError": ZeroDivisionError,
+                    "True": True, "False": False, "None": None,
+                },
+                "call_tool": call_tool,
+                "print": _print,
+            }
+            exec(code, scope)  # noqa: S102 - documented sandbox surface
+        except Exception as exc:
+            error_holder.append(f"{type(exc).__name__}: {exc}")
+        finally:
+            done.set()
+
+    thread = threading.Thread(target=_runner, daemon=True)
+    thread.start()
+    finished = done.wait(timeout=timeout)
+    if not finished:
+        return {
+            "success": False,
+            "error": f"Tool-RPC code execution timed out after {timeout}s",
+            "output": captured.getvalue(),
+            "rpc_calls": rpc_calls,
+            "exit_code": -1,
+        }
+    thread.join(timeout=5)
+
+    return {
+        "success": not error_holder,
+        "output": captured.getvalue(),
+        "error": error_holder[0] if error_holder else None,
+        "rpc_calls": rpc_calls,
+        "exit_code": 0 if not error_holder else 1,
+        "language": "python",
+        "mode": "tool-rpc",
+    }
+
+
+async def _handle_rollback(checkpoint_id: str = "") -> dict[str, Any]:
+    """List or restore checkpoints (Hermes /rollback parity)."""
+    try:
+        from aion_core.checkpoints import CheckpointManager
+
+        mgr = CheckpointManager()
+        if not checkpoint_id:
+            return {
+                "success": True,
+                "checkpoints": mgr.list_checkpoints(limit=15),
+                "note": "Pass checkpoint_id to restore.",
+            }
+        return mgr.rollback(checkpoint_id)
+    except Exception as exc:
+        return {"success": False, "error": str(exc)}
 
 
 async def _handle_code_execute(
     code: str,
     language: str = "python",
     timeout: int = 30,
+    use_tools: bool = False,
 ) -> dict[str, Any]:
-    """Execute code in a sandboxed environment."""
+    """Execute code in a sandboxed environment.
+
+    With ``use_tools=True`` the code runs in-process with a ``call_tool(name, **args)``
+    helper injected (Hermes execute_code RPC pattern) — collapsing multi-step
+    tool pipelines into a single turn with zero context cost per step.
+    """
     logger.info(
-        f"code_execute: language={language!r}, code_len={len(code)}"
+        f"code_execute: language={language!r}, code_len={len(code)}, use_tools={use_tools}"
     )
     if language not in ("python", "bash", "javascript"):
         return {
@@ -380,6 +730,10 @@ async def _handle_code_execute(
             "error": f"Unsupported language: {language}. Use python, bash, or javascript.",
             "output": "",
         }
+
+    # --- Python with tool RPC (Hermes execute_code parity) ---------------
+    if language == "python" and use_tools:
+        return await _run_python_with_tool_rpc(code, timeout)
 
     # --- Python execution via subprocess ---------------------------------
     if language == "python":
@@ -518,17 +872,30 @@ async def _handle_file_write(
     encoding: str = "utf-8",
     create_dirs: bool = False,
 ) -> dict[str, Any]:
-    """Write content to a file."""
+    """Write content to a file. Snapshots the existing file first
+    so /rollback can undo the write (Hermes checkpoints parity)."""
     logger.info(f"file_write: path={path!r}, content_len={len(content)}")
     try:
         p = Path(path).expanduser().resolve()
         if create_dirs:
             p.parent.mkdir(parents=True, exist_ok=True)
+        # Checkpoint before overwrite
+        checkpoint_id = None
+        try:
+            from aion_core.checkpoints import CheckpointManager
+
+            _cp = CheckpointManager()
+            checkpoint_id = _cp.create_checkpoint(
+                files=[str(p)], reason=f"file_write -> {p.name}"
+            )
+        except Exception:
+            pass  # checkpointing must never block the write
         p.write_text(content, encoding=encoding)
         return {
             "success": True,
             "path": str(p),
             "size_bytes": len(content.encode(encoding)),
+            "checkpoint_id": checkpoint_id,
         }
     except PermissionError:
         return {"success": False, "error": f"Permission denied: {path}"}
@@ -1108,12 +1475,120 @@ def _build_builtin_tools() -> list[Tool]:
                     "Execution timeout in seconds",
                     required=False, default=30,
                 ),
+                ToolParameter(
+                    "use_tools", "boolean",
+                    "Inject call_tool() RPC helper to chain tool calls in one script",
+                    required=False, default=False,
+                ),
             ],
             handler=_handle_code_execute,
             toolset="code",
             dangerous=True,
             requires_approval=True,
             timeout=60,
+        ),
+        Tool(
+            name="session_search",
+            description=(
+                "Full-text search across ALL past conversations with the agent "
+                "(every platform: CLI, messaging, API). Recall previous "
+                "discussions, decisions and context in milliseconds."
+            ),
+            parameters=[
+                ToolParameter("query", "string", "The search query"),
+                ToolParameter(
+                    "limit", "integer",
+                    "Maximum number of results (1-50)",
+                    required=False, default=8,
+                ),
+                ToolParameter(
+                    "platform", "string",
+                    "Filter by platform (cli/telegram/discord/... or empty for all)",
+                    required=False, default="",
+                ),
+            ],
+            handler=_handle_session_search,
+            toolset="memory",
+            timeout=15,
+        ),
+        Tool(
+            name="delegate_task",
+            description=(
+                "Delegate a task to an isolated subagent with its own context "
+                "window, role and tool subset. Use for parallel research, "
+                "long subtasks, or keeping the main context lean."
+            ),
+            parameters=[
+                ToolParameter("task", "string", "Complete description of the task"),
+                ToolParameter(
+                    "role", "string",
+                    "Subagent role/personality (e.g. researcher, coder, analyst)",
+                    required=False, default="generalist",
+                ),
+                ToolParameter(
+                    "tools", "string",
+                    "Comma-separated tool names the subagent may use (empty = all)",
+                    required=False, default="",
+                ),
+                ToolParameter(
+                    "timeout", "integer",
+                    "Subagent timeout in seconds",
+                    required=False, default=120,
+                ),
+            ],
+            handler=_handle_delegate_task,
+            toolset="delegation",
+            timeout=300,
+        ),
+        Tool(
+            name="cronjob",
+            description=(
+                "Manage scheduled tasks. Actions: list, create, delete. "
+                "Schedules: 5-field cron, '30m', '2h', or 'every monday 9am'."
+            ),
+            parameters=[
+                ToolParameter(
+                    "action", "string", "Action to perform",
+                    enum=["list", "create", "delete"],
+                ),
+                ToolParameter(
+                    "schedule", "string",
+                    "Schedule (cron / '30m' / 'every monday 9am') for create",
+                    required=False, default="",
+                ),
+                ToolParameter(
+                    "task", "string",
+                    "Task prompt or command for create",
+                    required=False, default="",
+                ),
+                ToolParameter(
+                    "job_id", "string",
+                    "Job id for delete",
+                    required=False, default="",
+                ),
+            ],
+            handler=_handle_cron_manage,
+            toolset="cron",
+            timeout=20,
+        ),
+        Tool(
+            name="rollback",
+            description=(
+                "Undo file changes made by the agent. Every file_write is "
+                "auto-snapshotted; rollback(checkpoint_id) restores the "
+                "previous content and removes files the operation created. "
+                "With empty checkpoint_id, lists recent checkpoints."
+            ),
+            parameters=[
+                ToolParameter(
+                    "checkpoint_id", "string",
+                    "Checkpoint id to restore (empty = list checkpoints)",
+                    required=False, default="",
+                ),
+            ],
+            handler=_handle_rollback,
+            toolset="file",
+            timeout=30,
         ),
         Tool(
             name="shell_command",
@@ -2056,6 +2531,25 @@ class ToolRegistry:
     def get_execution_log(self, limit: int = 50) -> list[dict[str, Any]]:
         """Return the most recent execution log entries."""
         return self._execution_log[-limit:]
+
+    def set_context(
+        self,
+        agent: Any = None,
+        session_store: Any = None,
+        cron_scheduler: Any = None,
+    ) -> None:
+        """Inject live services for the context-aware Hermes-parity tools.
+
+        Powers ``session_search`` (session archive), ``delegate_task``
+        (subagent orchestration) and ``cronjob`` (scheduler management).
+        Called by AionHand.start() after subsystems are up.
+        """
+        if agent is not None:
+            _TOOL_CONTEXT.agent = agent
+        if session_store is not None:
+            _TOOL_CONTEXT.session_store = session_store
+        if cron_scheduler is not None:
+            _TOOL_CONTEXT.cron_scheduler = cron_scheduler
 
     # ------------------------------------------------------------------
     # Dunder methods

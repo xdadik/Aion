@@ -1688,3 +1688,91 @@ class ProviderFactory:
     def is_registered(name: str) -> bool:
         """Check if a provider name is registered."""
         return name.lower().strip() in _PROVIDER_REGISTRY
+
+
+# ======================================================================
+# Provider fallback chain (Hermes fallback_providers parity)
+# ======================================================================
+
+
+class ProviderChain:
+    """Try providers in order; on rate-limit / server errors, fail over.
+
+    Hermes ships ``fallback_providers`` config so a 429/5xx on the primary
+    model transparently retries on the next provider. This is Aion's port:
+    wrap any set of instantiated providers and expose the BaseProvider
+    ``chat`` surface.
+
+    Usage::
+
+        chain = ProviderChain(
+            primary=openai_provider,
+            fallbacks=[anthropic_provider, ollama_provider],
+        )
+        response = await chain.chat(messages)   # automatic failover
+    """
+
+    # Error substrings that justify failing over to the next provider.
+    _TRANSIENT_MARKERS = (
+        "429", "rate limit", "rate_limit", "too many requests",
+        "500", "502", "503", "504", "server error", "overloaded",
+        "timeout", "timed out", "connection", "temporarily",
+        "401", "403", "unauthorized", "quota", "insufficient",
+    )
+
+    def __init__(
+        self,
+        primary: BaseProvider,
+        fallbacks: list[BaseProvider] | None = None,
+    ) -> None:
+        self._providers: list[BaseProvider] = [primary, *(fallbacks or [])]
+        self._last_provider: BaseProvider | None = None
+        self._failover_count: int = 0
+
+    @property
+    def last_provider(self) -> BaseProvider | None:
+        return self._last_provider
+
+    @property
+    def failover_count(self) -> int:
+        return self._failover_count
+
+    def _is_transient(self, error_text: str) -> bool:
+        lowered = error_text.lower()
+        return any(marker in lowered for marker in self._TRANSIENT_MARKERS)
+
+    async def chat(
+        self,
+        messages: list[Any],
+        **kwargs: Any,
+    ) -> "ProviderResponse":
+        """Chat with automatic failover across the chain."""
+        last_error: Exception | None = None
+        for provider in self._providers:
+            try:
+                response = await provider.chat(messages, **kwargs)
+                self._last_provider = provider
+                return response
+            except Exception as exc:
+                last_error = exc
+                text = str(exc)
+                if self._is_transient(text):
+                    self._failover_count += 1
+                    logger.warning(
+                        "Provider %s failed (%s); failing over",
+                        getattr(provider, "PROVIDER_NAME", provider.__class__.__name__),
+                        text[:120],
+                    )
+                    continue
+                # Non-transient error: raise immediately
+                raise
+        raise RuntimeError(
+            f"All providers in chain failed. Last error: {last_error}"
+        ) from last_error
+
+    def __repr__(self) -> str:
+        names = [
+            getattr(p, "PROVIDER_NAME", p.__class__.__name__)
+            for p in self._providers
+        ]
+        return f"ProviderChain({names})"

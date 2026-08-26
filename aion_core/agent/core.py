@@ -309,10 +309,27 @@ class AionHand:
             # 2. Initialize Memory System (Hermes FTS5 + OpenClaw MEMORY.md)
             if self.config.memory_enabled:
                 from aion_core.memory.manager import MemoryManager
+                # NOTE: MemoryManager.max_entries expects a per-layer dict;
+                # AgentConfig.memory_max_entries is a total int. Scale the
+                # default per-layer caps so the total roughly matches.
+                # (Passing the raw int made store() crash with
+                # "'int' object has no attribute 'get'" — memory
+                # persistence was broken until this fix.)
+                from aion_core.memory.manager import DEFAULT_MAX_ENTRIES_PER_LAYER
+                total_cap = int(self.config.memory_max_entries or 0)
+                if total_cap > 0:
+                    default_total = sum(DEFAULT_MAX_ENTRIES_PER_LAYER.values())
+                    scale = max(0.05, total_cap / default_total)
+                    layer_caps = {
+                        layer: max(10, int(cap * scale))
+                        for layer, cap in DEFAULT_MAX_ENTRIES_PER_LAYER.items()
+                    }
+                else:
+                    layer_caps = None
                 self._memory = MemoryManager(
                     memory_dir=self.config.memory_dir,
                     persist=self.config.memory_persist,
-                    max_entries=self.config.memory_max_entries,
+                    max_entries=layer_caps,
                     nudge_interval=self.config.memory_nudge_interval,
                 )
                 await self._memory.initialize()
@@ -445,6 +462,31 @@ class AionHand:
             # Save configuration
             self.config.save()
 
+            # 15. Initialize Session Store (Hermes state.db pattern)
+            try:
+                from aion_core.state import SessionStore
+                self._state = SessionStore(
+                    Path(self.config.data_dir) / "state.db"
+                )
+                self._state.initialize()
+                logger.info("Session store initialized")
+            except Exception as e:
+                self._state = None
+                logger.warning(f"Session store init skipped: {e}")
+
+            # 16. Wire context into Hermes-parity tools (session_search,
+            # delegate_task, cronjob). Called after all subsystems are up.
+            try:
+                if self._tools is not None and hasattr(self._tools, "set_context"):
+                    self._tools.set_context(
+                        agent=self,
+                        session_store=self._state,
+                        cron_scheduler=self._scheduler,
+                    )
+                    logger.info("Tool execution context wired")
+            except Exception as e:
+                logger.warning(f"Tool context wiring skipped: {e}")
+
             self.state = AgentState.IDLE
             logger.info("Aion Hand started successfully (uptime tracking active)")
             return self
@@ -473,15 +515,26 @@ class AionHand:
         start_time = time.time()
 
         try:
+            # Persist the user message to the session store (Hermes state.db)
+            if getattr(self, "_state", None):
+                self._state.record_message(
+                    session_id=session_id or self.session_id,
+                    role="user",
+                    content=message,
+                )
+
             # Get relevant memory context (Hermes FTS5 search)
             memory_context = ""
             if self._memory:
                 memory_context = await self._memory.search_relevant(message)
 
             # Check for skill matches (Hermes skill routing)
+            # NOTE: find_relevant is a SYNC method — awaiting it raised
+            # "object list can't be used in 'await' expression" and broke
+            # every chat turn when skills were enabled.
             skill_context = ""
             if self._skills:
-                skill_context = await self._skills.find_relevant(message)
+                skill_context = self._skills.find_relevant(message)
 
             # Run the agent loop (Hermes-inspired control loop)
             result = await self._loop.run(
@@ -489,6 +542,15 @@ class AionHand:
                 system_context=f"{self.personality}\n\n{memory_context}\n{skill_context}",
                 session_id=session_id or self.session_id,
             )
+
+            # Persist the assistant response to the session store
+            if getattr(self, "_state", None):
+                self._state.record_message(
+                    session_id=session_id or self.session_id,
+                    role="assistant",
+                    content=result.get("content", ""),
+                    tools_used=result.get("tools_used", []),
+                )
 
             # Persist to memory (OpenClaw MEMORY.md + Hermes FTS5)
             if self._memory and self.config.memory_persist:
@@ -499,12 +561,18 @@ class AionHand:
                 )
 
             # Check for skill creation opportunity (Hermes learning loop)
+            # NOTE: the engine method is evaluate_auto_create(task, outcome,
+            # tokens_used) — the old call to a non-existent
+            # 'evaluate_for_creation' broke every chat turn.
             if self._skills and self.config.skills_auto_create:
-                await self._skills.evaluate_for_creation(
-                    conversation=message,
-                    response=result.get("content", ""),
-                    tools_used=result.get("tools_used", []),
-                )
+                try:
+                    self._skills.evaluate_auto_create(
+                        task=message,
+                        outcome=result.get("content", ""),
+                        tokens_used=result.get("tokens", 0),
+                    )
+                except Exception as exc:
+                    logger.debug("Skill auto-create evaluation skipped: %s", exc)
 
             elapsed = time.time() - start_time
             result["metadata"]["elapsed_seconds"] = elapsed
@@ -578,6 +646,100 @@ class AionHand:
             raise RuntimeError("Memory system not initialized")
 
         return await self._memory.search(query, limit=limit)
+
+    def search_sessions(self, query: str, limit: int = 10) -> list[dict]:
+        """Full-text search across ALL past conversations (Hermes session_search).
+
+        Searches the persistent session store — every message the agent has
+        ever exchanged on any platform (cli, gateway, api) — without an LLM
+        call, in ~20 ms via SQLite FTS5.
+        """
+        store = getattr(self, "_state", None)
+        if store is None:
+            return []
+        return store.search(query, limit=limit)
+
+    def list_sessions(self, limit: int = 20) -> list[dict]:
+        """List most recently active persisted sessions."""
+        store = getattr(self, "_state", None)
+        if store is None:
+            return []
+        return store.list_sessions(limit=limit)
+
+    async def run_goal_loop(
+        self,
+        goal: str,
+        max_iterations: int = 10,
+        judge_prompt: str | None = None,
+    ) -> dict[str, Any]:
+        """Autonomous goal loop (Hermes /goal, Ralph-style).
+
+        Keeps working on ``goal`` until the pipeline critic judges it
+        complete or ``max_iterations`` is reached. Each iteration:
+
+        1. Sends a continuation prompt to the agent loop.
+        2. Scores the accumulated output with the pipeline verifier.
+        3. Stops when the score clears the quality bar.
+        """
+        iterations: list[dict[str, Any]] = []
+        transcript = ""
+        for i in range(1, max_iterations + 1):
+            if i == 1:
+                prompt = (
+                    f"GOAL: {goal}\n\nWork autonomously until the goal is met. "
+                    "Use tools as needed and report concrete progress."
+                )
+            else:
+                prompt = (
+                    f"GOAL (still in progress): {goal}\n\n"
+                    f"Progress so far:\n{transcript[:4000]}\n\n"
+                    "Continue working toward the goal. Do not repeat work "
+                    "already done."
+                )
+
+            result = await self.chat(prompt)
+            content = result.get("content", "")
+            transcript += f"\n[iteration {i}] {content}"
+            iterations.append(
+                {
+                    "iteration": i,
+                    "content": content,
+                    "tools_used": result.get("tools_used", []),
+                }
+            )
+
+            # Judge via the pipeline verifier (Aion's critic advantage).
+            # verify_output() runs ONLY the verification stage — no
+            # re-planning, no re-generation.
+            try:
+                if self._pipeline:
+                    verdict = await self._pipeline.verify_output(
+                        task=goal, output=transcript
+                    )
+                    score = float(verdict.get("score", 0.0))
+                    iterations[-1]["verification"] = {
+                        "score": score,
+                        "passed_count": verdict.get("passed_count"),
+                        "total": verdict.get("total"),
+                        "issues": verdict.get("issues", [])[:5],
+                    }
+                    if verdict.get("passed") or score >= 0.8:
+                        return {
+                            "goal": goal,
+                            "achieved": True,
+                            "iterations": iterations,
+                            "final_score": score,
+                        }
+            except Exception as exc:
+                logger.debug("Goal-loop verification skipped: %s", exc)
+
+        return {
+            "goal": goal,
+            "achieved": False,
+            "iterations": iterations,
+            "final_score": None,
+            "note": f"Stopped at max_iterations={max_iterations}",
+        }
 
     async def execute_pipeline(self, task: str) -> dict[str, Any]:
         """Execute a task through the full pipeline engine.
@@ -675,32 +837,40 @@ class AionHand:
         self.state = AgentState.SHUTTING_DOWN
         logger.info("Shutting down Aion Hand...")
 
-        # Shutdown subsystems (reverse order, skip those without shutdown)
-        shutdown_tasks = []
-        if self._dynamic and hasattr(self._dynamic, 'shutdown'):
-            shutdown_tasks.append(self._dynamic.shutdown())
-        if self._knowledge and hasattr(self._knowledge, 'shutdown'):
-            shutdown_tasks.append(self._knowledge.shutdown())
-        if self._mcp_bridge and hasattr(self._mcp_bridge, 'shutdown'):
-            shutdown_tasks.append(self._mcp_bridge.shutdown())
-        if self._mcp_client and hasattr(self._mcp_client, 'shutdown'):
-            shutdown_tasks.append(self._mcp_client.shutdown())
-        if self._pipeline and hasattr(self._pipeline, 'shutdown'):
-            shutdown_tasks.append(self._pipeline.shutdown())
-        if self._messenger:
-            shutdown_tasks.append(self._messenger.shutdown())
-        if self._scheduler:
-            shutdown_tasks.append(self._scheduler.shutdown())
-        if self._orchestrator:
-            shutdown_tasks.append(self._orchestrator.shutdown())
-        if self._loop:
-            shutdown_tasks.append(self._loop.shutdown())
-        if self._skills:
-            if hasattr(self._skills, "shutdown"): shutdown_tasks.append(self._skills.shutdown())
-        if self._tools:
-            if hasattr(self._tools, "shutdown"): shutdown_tasks.append(self._tools.shutdown())
-        if self._memory:
-            if hasattr(self._memory, "shutdown"): shutdown_tasks.append(self._memory.shutdown())
+        # Shutdown subsystems (reverse order). Some shutdown() methods are
+        # sync (KnowledgeManager) and some async — a plain gather crashed
+        # with TypeError whenever a sync shutdown was appended.
+        def _schedule(subsystem: Any, name: str) -> None:
+            if subsystem is None or not hasattr(subsystem, "shutdown"):
+                return
+            try:
+                result = subsystem.shutdown()
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(f"{name}.shutdown() raised: {exc}")
+                return
+            if asyncio.iscoroutine(result) or asyncio.isfuture(result):
+                shutdown_tasks.append(result)
+
+        shutdown_tasks: list = []
+        _schedule(self._dynamic, "dynamic")
+        _schedule(self._knowledge, "knowledge")
+        _schedule(self._mcp_bridge, "mcp_bridge")
+        _schedule(self._mcp_client, "mcp_client")
+        _schedule(self._pipeline, "pipeline")
+        _schedule(self._messenger, "messenger")
+        _schedule(self._scheduler, "scheduler")
+        _schedule(self._orchestrator, "orchestrator")
+        _schedule(self._loop, "loop")
+        _schedule(self._skills, "skills")
+        _schedule(self._tools, "tools")
+        _schedule(self._memory, "memory")
+
+        # Close the session store (flushes WAL + releases the SQLite handle)
+        if getattr(self, "_state", None):
+            try:
+                self._state.close()
+            except Exception as e:
+                logger.warning(f"Session store close failed: {e}")
 
         await asyncio.gather(*shutdown_tasks, return_exceptions=True)
 

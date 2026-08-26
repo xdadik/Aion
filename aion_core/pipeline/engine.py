@@ -354,6 +354,53 @@ class PipelineEngine:
         return result
 
     # ----------------------------------------------------------------
+    # Verification-only pass (for goal loops / external judges)
+    # ----------------------------------------------------------------
+
+    async def verify_output(
+        self,
+        task: str,
+        output: str,
+        mission: MissionAnalysis | None = None,
+    ) -> dict[str, Any]:
+        """Run ONLY the verification stage against an existing output.
+
+        Used by the autonomous goal loop (``agent.run_goal_loop``) to judge
+        whether accumulated work satisfies the goal — without re-running
+        planning or generation. Aggregates all applicable verifiers into a
+        single score in ``[0, 1]``.
+
+        Args:
+            task:   The goal / task description to verify against.
+            output: The produced output text to be judged.
+            mission: Optional pre-computed mission analysis.
+
+        Returns:
+            Dict with ``passed``, ``score`` (mean verifier confidence),
+            ``passed_count``, ``total`` and per-verifier ``issues``.
+        """
+        results = await self._verifier.verify(task, output, mission=mission)
+        total = len(results)
+        if total == 0:
+            return {"passed": True, "score": 1.0, "passed_count": 0, "total": 0, "issues": []}
+
+        confidences = [max(0.0, min(1.0, float(r.confidence))) for r in results]
+        passed_count = sum(1 for r in results if r.passed)
+        score = sum(confidences) / total
+        issues: list[str] = []
+        for r in results:
+            issues.extend(getattr(r, "issues", None) or [])
+
+        return {
+            "passed": passed_count == total,
+            "score": round(score, 4),
+            "passed_count": passed_count,
+            "total": total,
+            "issues": issues[:20],
+            "verifiers": [getattr(r, "checked_by", "") for r in results],
+        }
+
+    # ----------------------------------------------------------------
     # Simple (light) pipeline
     # ----------------------------------------------------------------
 

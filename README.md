@@ -46,6 +46,8 @@ Combining the best of OpenClaw, Hermes Agent, NullClaw, CrewAI, AutoGPT & LangGr
 
 ### 🧠 Intelligence & Memory
 - 🧠 **6-Layer Memory System** — Working → Session → Episodic → Semantic → Procedural → UserProfile (Hermes FTS5 + OpenClaw MEMORY.md)
+- 💾 **Session Persistence** — Every conversation turn (all platforms) archived to SQLite (`state.db`); nothing is ever lost on restart
+- 🔎 **Cross-Session Search** — `session_search` tool + `/search` command: FTS5 recall of ANY past conversation in ~20 ms without an LLM call
 - 📚 **Self-Improving Skills** — Hermes-compatible learning loop with auto-creation & refinement
 - 🔍 **Full-Text Search** — SQLite FTS5 powered semantic memory retrieval
 - 💡 **Memory Nudging** — Periodic background consolidation of working memory
@@ -53,7 +55,10 @@ Combining the best of OpenClaw, Hermes Agent, NullClaw, CrewAI, AutoGPT & LangGr
 - 👤 **User Profile Learning** — Automatically tracks preferences, patterns & identity
 
 ### 🔧 Tools & Actions
-- 🔧 **25+ Built-in Tools** — MCP-compatible tool registry with schema validation
+- 🔧 **29 Built-in Tools** — MCP-compatible tool registry with schema validation
+- ⏪ **Checkpoints & Rollback** — Every `file_write` auto-snapshots; `/rollback` restores prior content and removes files the operation created
+- 🤝 **`delegate_task` Tool** — LLM-callable subagent delegation with its own context window, role and tool subset (keeps the main context lean)
+- 🔗 **Tool-RPC Code Execution** — `code_execute(use_tools=True)` injects `call_tool()` so multi-step tool pipelines collapse into one script with zero per-step context cost
 - 🖥️ **Shell Execution** — Sandboxed command execution with approval modes
 - 🌐 **Web Search & Scraping** — Real-time web information retrieval
 - 📁 **File Operations** — Read, write, list, and manage files
@@ -82,7 +87,8 @@ Combining the best of OpenClaw, Hermes Agent, NullClaw, CrewAI, AutoGPT & LangGr
 - 🧩 **Role-Based Agents** — Assign different personalities and tools per agent
 
 ### 🔌 Providers & Integration
-- 🔄 **Provider Agnostic** — NullClaw-inspired: works with any LLM (OpenAI, Anthropic, Ollama, etc.)
+- 🔄 **Provider Agnostic** — NullClaw-inspired: works with any LLM (OpenAI, Anthropic, Ollama, OpenRouter 300+ models, etc.)
+- 🛟 **Provider Fallback Chain** — `ProviderChain` fails over to backup providers on 429/5xx/timeouts automatically
 - 💬 **Streaming Support** — Real-time token streaming for responsive output
 - 📡 **MCP Compatible** — Model Context Protocol for standard tool interfaces
 - 🌐 **OpenAI Function Calling** — Native function-calling schema generation
@@ -90,6 +96,9 @@ Combining the best of OpenClaw, Hermes Agent, NullClaw, CrewAI, AutoGPT & LangGr
 ### 💬 Messaging & Automation
 - 💬 **Messaging Gateway** — OpenClaw-inspired multi-platform messaging (Telegram, Discord, Slack)
 - ⏰ **Cron Scheduler** — Hermes-inspired automated task scheduling
+- 🗣️ **Natural-Language Schedules** — `cronjob` tool understands `30m`, `2h`, `every monday 9am` in addition to 5-field cron
+- 🎯 **Autonomous Goal Loop** — `/goal` keeps working until the pipeline verifier judges the goal complete (verify-only pass, no re-planning)
+- 🔁 **Re-run Loops** — `/loop 10m <prompt>` re-runs any prompt on a timer
 - 🔔 **Platform Routing** — Route tasks to specific messaging platforms
 - 📅 **Recurring Tasks** — Define cron expressions for periodic execution
 
@@ -108,7 +117,7 @@ Combining the best of OpenClaw, Hermes Agent, NullClaw, CrewAI, AutoGPT & LangGr
 - 🎭 **SOUL.md Persona System** — OpenClaw-inspired persona templates; 5 built-in (default, researcher, coder, assistant, analyst); user personas shadow built-ins
 - 📦 **Zero Hard Dependencies** — Core runs on Python stdlib; extras are optional
 - ⚡ **Lightweight Mode** — NullClaw-inspired minimal footprint mode
-- 🧪 **Comprehensive Tests** — 600+ passing tests across 42 test files (pytest + asyncio)
+- 🧪 **Comprehensive Tests** — 634 passing tests across 43 test files (pytest + asyncio)
 - 🎨 **ANSI Colored Output** — Beautiful terminal output everywhere
 - 🔄 **Async Throughout** — Fully async/await architecture
 - 📁 **Pluggable Architecture** — Drop-in custom tools, skills, and providers
@@ -459,6 +468,17 @@ Multi-layer security with three approval modes.
 | `aion-hand update` | ⬆️ Update Aion Hand |
 | `aion-hand info` | ℹ️ Show system information |
 | `aion-hand spawn <task>` | 🤝 Spawn a subagent for a task |
+
+### In-REPL Slash Commands (new)
+
+| Command | Description |
+|:--------|:------------|
+| `/sessions` | 📜 List recent archived sessions (platform, message count) |
+| `/search <query>` | 🔎 Full-text search across ALL past conversations |
+| `/rollback [id]` | ⏪ List checkpoints / restore a file checkpoint |
+| `/goal <description>` | 🎯 Autonomous goal loop — works until the verifier passes |
+| `/loop <30s\|10m\|2h> <prompt>` | 🔁 Re-run a prompt on a timer |
+| `/heartbeat` | 💓 Keep the agent alive with periodic activity |
 
 ---
 

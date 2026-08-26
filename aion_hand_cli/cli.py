@@ -2670,6 +2670,195 @@ class AionHandCLI:
                 f"  Aion Hand version: {Colors.BRIGHT_CYAN}{__version__}{Colors.RESET}\n"
             )
 
+        # ── /goal — autonomous goal loop (Hermes parity) ────────────────
+        elif cmd == "/goal":
+            if not arg:
+                self._print_colored(
+                    f"  {Colors.DIM}Usage: /goal <description of the goal>{Colors.RESET}\n"
+                )
+            elif agent is None:
+                self._print_colored(
+                    f"  {Colors.YELLOW}⚠{Colors.RESET} Agent required for goal loop.\n"
+                )
+            else:
+                self._print_colored(
+                    f"\n  {Colors.BRIGHT_CYAN}▶ Autonomous goal loop{Colors.RESET}\n"
+                    f"  {Colors.DIM}Working until the goal is judged complete...{Colors.RESET}\n",
+                    Colors.CYAN,
+                )
+                try:
+                    result = await agent.run_goal_loop(arg, max_iterations=10)
+                    status = (
+                        f"{Colors.GREEN}✔ ACHIEVED{Colors.RESET}"
+                        if result.get("achieved")
+                        else f"{Colors.YELLOW}● MAX ITERATIONS{Colors.RESET}"
+                    )
+                    self._print_colored(
+                        f"\n  {status} after "
+                        f"{len(result.get('iterations', []))} iteration(s).\n\n"
+                    )
+                except Exception as exc:
+                    self._print_colored(f"  {Colors.RED}Goal loop error: {exc}{Colors.RESET}\n\n")
+
+        # ── /loop — re-run a prompt on a timer (Hermes parity) ──────────
+        elif cmd == "/loop":
+            import re as _re
+
+            m = _re.match(r"(\d+[smh])\s+(.*)", arg)
+            if not m or agent is None:
+                self._print_colored(
+                    f"  {Colors.DIM}Usage: /loop <30s|10m|2h> <prompt to re-run>{Colors.RESET}\n"
+                )
+            else:
+                interval_str, prompt = m.group(1), m.group(2)
+                mult = {"s": 1, "m": 60, "h": 3600}
+                interval = int(interval_str[:-1]) * mult[interval_str[-1]]
+                self._print_colored(
+                    f"\n  {Colors.BRIGHT_CYAN}▶ Loop{Colors.RESET}: every "
+                    f"{interval_str} — {prompt[:60]}\n"
+                    f"  {Colors.DIM}(Ctrl+C to stop){Colors.RESET}\n\n",
+                    Colors.CYAN,
+                )
+                try:
+                    while True:
+                        result = await agent.chat(prompt)
+                        content = result.get("content", "")
+                        self._print_colored(
+                            f"  {Colors.BRIGHT_MAGENTA}Aion:{Colors.RESET} "
+                            f"{content[:300]}\n\n"
+                        )
+                        await asyncio.sleep(interval)
+                except KeyboardInterrupt:
+                    self._print_colored(f"  {Colors.DIM}Loop stopped.{Colors.RESET}\n\n")
+
+        # ── /heartbeat — recurring in-session pulse (Hermes parity) ─────
+        elif cmd == "/heartbeat":
+            import re as _re
+
+            m = _re.match(r"(\d+[smh])\s*(.*)", arg)
+            if not m or agent is None:
+                self._print_colored(
+                    f"  {Colors.DIM}Usage: /heartbeat <30s|10m|2h> [what to check on]{Colors.RESET}\n"
+                )
+            else:
+                interval_str, topic = m.group(1), (m.group(2) or "anything new").strip()
+                mult = {"s": 1, "m": 60, "h": 3600}
+                interval = int(interval_str[:-1]) * mult[interval_str[-1]]
+                self._print_colored(
+                    f"\n  {Colors.BRIGHT_CYAN}▶ Heartbeat{Colors.RESET}: every "
+                    f"{interval_str}, watching: {topic}\n"
+                    f"  {Colors.DIM}(Ctrl+C to stop){Colors.RESET}\n\n",
+                    Colors.CYAN,
+                )
+                try:
+                    while True:
+                        await asyncio.sleep(interval)
+                        result = await agent.chat(
+                            f"[heartbeat] Check on: {topic}. "
+                            "Report only if something changed."
+                        )
+                        content = result.get("content", "")
+                        if content and "nothing" not in content.lower()[:60]:
+                            self._print_colored(
+                                f"  {Colors.BRIGHT_MAGENTA}♥{Colors.RESET} "
+                                f"{content[:300]}\n\n"
+                            )
+                except KeyboardInterrupt:
+                    self._print_colored(f"  {Colors.DIM}Heartbeat stopped.{Colors.RESET}\n\n")
+
+        # ── /sessions — browse past conversations (Hermes parity) ───────
+        elif cmd == "/sessions":
+            try:
+                from aion_core.state import SessionStore
+
+                store = SessionStore()
+                store.initialize()
+                sessions = store.list_sessions(limit=15)
+                self._print_colored(
+                    f"\n  {Colors.BOLD}Recent Sessions{Colors.RESET}\n", Colors.CYAN
+                )
+                self._print_colored("  " + "─" * 52 + "\n", Colors.DIM)
+                if not sessions:
+                    self._print_colored(f"  {Colors.DIM}No sessions yet.{Colors.RESET}\n")
+                for s in sessions:
+                    self._print_colored(
+                        f"  {Colors.BRIGHT_CYAN}{s['id']}{Colors.RESET} "
+                        f"[{s.get('platform', '?')}] {s.get('message_count', 0)} msgs — "
+                        f"{Colors.DIM}{(s.get('updated_at') or '')[:16]}{Colors.RESET}\n"
+                    )
+                self._print_colored("\n")
+            except Exception as exc:
+                self._print_colored(f"  {Colors.RED}Sessions error: {exc}{Colors.RESET}\n\n")
+
+        # ── /search — search ALL past conversations (Hermes parity) ─────
+        elif cmd == "/search":
+            if not arg:
+                self._print_colored(
+                    f"  {Colors.DIM}Usage: /search <query across all past conversations>{Colors.RESET}\n"
+                )
+            else:
+                try:
+                    from aion_core.state import SessionStore
+
+                    store = SessionStore()
+                    store.initialize()
+                    hits = store.search(arg, limit=10)
+                    self._print_colored(
+                        f"\n  {Colors.BOLD}Session Search: '{arg}'{Colors.RESET} "
+                        f"— {len(hits)} hit(s)\n",
+                        Colors.CYAN,
+                    )
+                    self._print_colored("  " + "─" * 52 + "\n", Colors.DIM)
+                    for h in hits:
+                        self._print_colored(
+                            f"  [{h.get('platform', '?')}] "
+                            f"{Colors.BRIGHT_GREEN if h.get('role') == 'user' else Colors.BRIGHT_MAGENTA}"
+                            f"{(h.get('content') or '')[:90]}{Colors.RESET}\n"
+                            f"  {Colors.DIM}{(h.get('created_at') or '')[:16]} "
+                            f"— session {h.get('session_id')}{Colors.RESET}\n"
+                        )
+                    self._print_colored("\n")
+                except Exception as exc:
+                    self._print_colored(f"  {Colors.RED}Search error: {exc}{Colors.RESET}\n\n")
+
+        # ── /rollback — undo file changes (Hermes parity) ───────────────
+        elif cmd == "/rollback":
+            try:
+                from aion_core.checkpoints import CheckpointManager
+
+                mgr = CheckpointManager()
+                if not arg:
+                    checkpoints = mgr.list_checkpoints(limit=10)
+                    self._print_colored(
+                        f"\n  {Colors.BOLD}Checkpoints{Colors.RESET}\n", Colors.CYAN
+                    )
+                    self._print_colored("  " + "─" * 52 + "\n", Colors.DIM)
+                    if not checkpoints:
+                        self._print_colored(f"  {Colors.DIM}No checkpoints yet.{Colors.RESET}\n")
+                    for c in checkpoints:
+                        self._print_colored(
+                            f"  {Colors.BRIGHT_CYAN}{c['id']}{Colors.RESET} "
+                            f"{len(c.get('files', []))} file(s) — "
+                            f"{Colors.DIM}{c.get('reason', '')[:50]}{Colors.RESET}\n"
+                        )
+                    self._print_colored(
+                        f"\n  {Colors.DIM}Usage: /rollback <checkpoint_id>{Colors.RESET}\n\n"
+                    )
+                else:
+                    result = mgr.rollback(arg.strip())
+                    if result.get("success"):
+                        self._print_colored(
+                            f"  {Colors.GREEN}✔{Colors.RESET} Restored "
+                            f"{len(result.get('restored', []))} file(s), "
+                            f"removed {len(result.get('removed_new_files', []))} new file(s).\n\n"
+                        )
+                    else:
+                        self._print_colored(
+                            f"  {Colors.RED}{result.get('error', 'Rollback failed')}{Colors.RESET}\n\n"
+                        )
+            except Exception as exc:
+                self._print_colored(f"  {Colors.RED}Rollback error: {exc}{Colors.RESET}\n\n")
+
         # ── Unknown ───────────────────────────────────────────────────────
         else:
             self._print_colored(
@@ -2724,6 +2913,15 @@ class AionHandCLI:
         {Colors.CYAN}  /moa{Colors.RESET}                            Enable mixture-of-agents for next turn
         {Colors.CYAN}  /version{Colors.RESET}                       Show version
         {Colors.CYAN}  /quit{Colors.RESET} or /exit                 Exit the session
+
+        {Colors.BOLD}  Memory & Recovery{Colors.RESET}
+        {Colors.DIM}  ───────────────────────────────────────────────────────────────{Colors.RESET}
+        {Colors.CYAN}  /sessions{Colors.RESET}                       Browse past sessions (all platforms)
+        {Colors.CYAN}  /search{Colors.RESET} <query>                 Search ALL past conversations
+        {Colors.CYAN}  /rollback{Colors.RESET} [id]                  List/restore file checkpoints
+        {Colors.CYAN}  /goal{Colors.RESET} <description>             Autonomous goal loop
+        {Colors.CYAN}  /loop{Colors.RESET} <30s|10m|2h> <prompt>     Re-run a prompt on a timer
+        {Colors.CYAN}  /heartbeat{Colors.RESET}                      Keep the agent alive periodically
 
         {Colors.DIM}  ───────────────────────────────────────────────────────────────{Colors.RESET}
         {Colors.DIM}  Input: Type your message, press Enter on empty line to submit.{Colors.RESET}
