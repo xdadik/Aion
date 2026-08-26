@@ -103,6 +103,9 @@ Combining the best of OpenClaw, Hermes Agent, NullClaw, CrewAI, AutoGPT & LangGr
 - 📅 **Recurring Tasks** — Define cron expressions for periodic execution
 
 ### 🛡️ Security & Control
+- 🛡️ **Enforced Security Layer** — CommandValidator blacklist on every shell command, credential-store read protection (config.json/SSH keys/.env), agent-write protection on its own auto-loaded dirs, and exec sandbox-escape prevention — all wired into the live tool paths
+- 🔐 **Hardened HTTP API** — binds 127.0.0.1 by default, requires a Bearer token to expose on a network, deep recursive secret redaction, path-guarded restore
+- 🚪 **Fail-Closed Gateway** — only allowlisted users can talk to the agent; each gateway user gets an isolated session
 - 🛡️ **Security Sandbox** — Command validation, whitelists, and approval modes
 - ✅ **Three Approval Modes** — Auto, Ask (prompt user), Deny
 - 🚫 **Command Whitelisting** — Restrict allowed shell commands
@@ -111,13 +114,13 @@ Combining the best of OpenClaw, Hermes Agent, NullClaw, CrewAI, AutoGPT & LangGr
 - ⏱️ **Per-Tool Timeouts** — Prevent runaway tool executions
 
 ### 🖥️ Interface & Developer Experience
-- 📊 **Web Dashboard** — Next.js + Tailwind CSS real-time monitoring UI (verified to build cleanly)
+- 📊 **Web Dashboard** — Next.js + Tailwind CSS real-time monitoring UI (verified to build cleanly); backed by the hardened local API
 - 🎨 **Rich TUI** — beautiful interactive terminal UI with markdown rendering, tool-call panels, command palette (`/help`, `/memory`, `/skills`, `/tools`, `/persona`, `/benchmark`, …)
 - 🖥️ **Full CLI with REPL** — Hermes-style TUI with colors, spinners, and readline history
 - 🎭 **SOUL.md Persona System** — OpenClaw-inspired persona templates; 5 built-in (default, researcher, coder, assistant, analyst); user personas shadow built-ins
 - 📦 **Zero Hard Dependencies** — Core runs on Python stdlib; extras are optional
 - ⚡ **Lightweight Mode** — NullClaw-inspired minimal footprint mode
-- 🧪 **Comprehensive Tests** — 634 passing tests across 43 test files (pytest + asyncio)
+- 🧪 **Comprehensive Tests** — 660 passing tests across 44 test files (pytest + asyncio)
 - 🎨 **ANSI Colored Output** — Beautiful terminal output everywhere
 - 🔄 **Async Throughout** — Fully async/await architecture
 - 📁 **Pluggable Architecture** — Drop-in custom tools, skills, and providers

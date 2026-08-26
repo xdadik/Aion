@@ -542,6 +542,22 @@ class MessagingGateway:
         self._running: bool = False
         self._receive_tasks: dict[str, asyncio.Task] = {}
 
+        # Sender allowlist (fail-closed). Sources, in priority order:
+        #   1. gateway config "allowed_users" (per-gateway override)
+        #   2. agent.config.allowed_users (AgentConfig field)
+        # An empty allowlist blocks ALL incoming messages.
+        self._allowed_users: set[str] = set()
+        gw_cfg = {}
+        if isinstance(platforms, dict):
+            gw_cfg = platforms.get("gateway", {}) or {}
+        if isinstance(gw_cfg, dict):
+            self._allowed_users.update(
+                str(u) for u in gw_cfg.get("allowed_users", []) or []
+            )
+        agent_cfg = getattr(agent, "config", None)
+        agent_allowed = getattr(agent_cfg, "allowed_users", None) or []
+        self._allowed_users.update(str(u) for u in agent_allowed)
+
         # Instantiate adapters from the registry
         for name, config in platforms.items():
             adapter_cls = _ADAPTER_REGISTRY.get(name)
@@ -709,11 +725,43 @@ class MessagingGateway:
 
         logger.info("[%s] Dispatch loop stopped", platform_name)
 
+    def _sender_allowed(self, message: Message) -> bool:
+        """Return True iff the sender is allowlisted (fail-closed).
+
+        Matching is by user id (exact, string-compared). An empty
+        allowlist rejects everyone — gateway operators must explicitly
+        list the users who may drive the agent.
+        """
+        if not self._allowed_users:
+            return False
+        uid = str(getattr(message, "user_id", "") or "")
+        return uid in self._allowed_users
+
     async def _handle_incoming(self, message: Message) -> None:
-        """Delegate an incoming message to the agent's chat interface."""
+        """Delegate an incoming message to the agent's chat interface.
+
+        Security: the sender must be in the configured allowlist. The check
+        is fail-closed — an empty allowlist rejects everyone (previously
+        ANY user who found the bot could drive the agent, including its
+        shell/file tools).
+        """
+        if not self._sender_allowed(message):
+            logger.warning(
+                "[%s] REJECTED message from unauthorized user %s "
+                "(allowlist: %s)",
+                message.platform,
+                message.user_id,
+                self._allowed_users or "(empty - all rejected)",
+            )
+            return
         # Build agent context from the message
         if hasattr(self._agent, "chat"):
-            response = await self._agent.chat(message.content)
+            # Per-platform-user session id keeps gateway users' contexts
+            # isolated from each other (and from the owner's CLI session).
+            session_id = f"{message.platform}:{message.user_id}"
+            response = await self._agent.chat(
+                message.content, session_id=session_id
+            )
             reply_content = response.get("content", "")
 
             # Send the reply back to the same platform / user

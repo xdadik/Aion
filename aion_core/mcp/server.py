@@ -100,8 +100,14 @@ class MCPServer:
         if self._tool_registry is not None:
             return self._tool_registry
         try:
+            from aion_core.agent.core import AgentConfig
             from aion_core.tools.registry import ToolRegistry
-            self._tool_registry = ToolRegistry()
+            # ToolRegistry REQUIRES a config argument — the previous
+            # bare ToolRegistry() call raised TypeError, which was
+            # swallowed, leaving the MCP server permanently tool-less.
+            self._tool_registry = ToolRegistry(
+                config=AgentConfig(), approval_mode="auto"
+            )
             return self._tool_registry
         except Exception as exc:  # noqa: BLE001
             logger.error(f"Could not create default ToolRegistry: {exc}")

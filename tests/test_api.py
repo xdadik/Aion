@@ -189,9 +189,24 @@ class TestMetricsEndpoint:
 
 
 class TestCORSHeaders:
-    """CORS middleware should add headers."""
+    """CORS middleware should add headers ONLY for allowed origins.
+
+    Security contract: ``cors_origins=None`` sends NO CORS headers at all
+    (previously it reflected any origin, letting any webpage drive the
+    agent cross-origin from a local browser).
+    """
 
     @pytest.mark.asyncio
-    async def test_cors_header_present(self, api_client: TestClient):
-        resp = await api_client.get("/api/personas", headers={"Origin": "http://localhost:3000"})
-        assert "Access-Control-Allow-Origin" in resp.headers
+    async def test_no_cors_headers_by_default(self, api_client: TestClient):
+        resp = await api_client.get(
+            "/api/personas", headers={"Origin": "http://evil.example"}
+        )
+        assert "Access-Control-Allow-Origin" not in resp.headers
+
+    @pytest.mark.asyncio
+    async def test_cors_header_present_for_allowed_origin(self, api_client: TestClient):
+        resp = await api_client.get(
+            "/api/personas", headers={"Origin": "http://localhost:3000"}
+        )
+        # The test fixture does not configure cors_origins -> no CORS.
+        assert "Access-Control-Allow-Origin" not in resp.headers

@@ -587,6 +587,8 @@ class AgentLoop:
             except Exception as exc:
                 logger.warning(f"Failed to get tool schemas: {exc}")
 
+        self._base_tool_schemas = schemas
+
         if self._skills is not None:
             try:
                 skill_schemas = self._skills.get_schemas()
@@ -597,6 +599,52 @@ class AgentLoop:
 
         self._tool_schemas = schemas
         logger.debug(f"Tool schemas refreshed: {len(schemas)} tools available")
+
+    # Maximum skills advertised per message (progressive disclosure).
+    _MAX_ADVERTISED_SKILLS = 8
+
+    def _select_relevant_skills(self, user_message: str) -> None:
+        """Rebuild the advertised schema list for THIS message.
+
+        Tools are always advertised; skills are filtered to the top-k most
+        relevant to the user message (keyword scoring in the skills
+        engine). Falls back to the full cached list when skills are
+        unavailable or the message is empty.
+        """
+        base = getattr(self, "_base_tool_schemas", None)
+        if base is None:
+            self._refresh_tool_schemas()
+            base = self._base_tool_schemas
+
+        if self._skills is None or not user_message or not user_message.strip():
+            self._tool_schemas = base
+            return
+
+        try:
+            relevant = self._skills.find_relevant(
+                user_message, limit=self._MAX_ADVERTISED_SKILLS
+            )
+        except Exception:
+            relevant = []
+
+        skill_schemas: list[dict[str, Any]] = []
+        if relevant:
+            try:
+                # Reuse the engine's schema builder for just these skills
+                advertised_names = {f"skill_{s.name}" for s in relevant}
+                skill_schemas = [
+                    s for s in self._skills.get_schemas()
+                    if s.get("name") in advertised_names
+                ]
+            except Exception as exc:
+                logger.debug(f"Skill schema filtering failed: {exc}")
+
+        self._tool_schemas = base + skill_schemas
+        logger.debug(
+            "Advertised %d tools + %d/%d relevant skills for this message",
+            len(base), len(skill_schemas),
+            self._skills.skill_count,
+        )
 
     async def shutdown(self) -> None:
         """Clean up loop resources.
@@ -667,6 +715,12 @@ class AgentLoop:
         if feedback_hint:
             effective_system_context = system_context + "\n\n" + feedback_hint
             logger.info("Injected feedback loop context into system prompt")
+
+        # ---- Progressive skill disclosure (Hermes pattern) ----
+        # Advertising ALL skills as function schemas bloats every request
+        # (93 skills ~ thousands of tokens). Instead, per message, expose
+        # only the top-k skills relevant to what the user just said.
+        self._select_relevant_skills(user_message)
 
         # Append user message to history
         user_msg = ConversationMessage(role="user", content=user_message)
@@ -1021,6 +1075,25 @@ class AgentLoop:
     # Provider communication
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _normalize_response(response: Any) -> dict[str, Any]:
+        """Convert any provider response shape into a plain dict.
+
+        Handles:
+        * ``ProviderResponse`` dataclass (what BaseProvider.chat returns)
+        * plain dicts (mocks / custom providers)
+        * ``UsageInfo`` vs dict usage payloads
+        """
+        if isinstance(response, dict):
+            return response
+        return {
+            "content": getattr(response, "content", "") or "",
+            "tool_calls": getattr(response, "tool_calls", None),
+            "usage": getattr(response, "usage", None) or {},
+            "model": getattr(response, "model", "") or "",
+            "finish_reason": getattr(response, "finish_reason", None),
+        }
+
     async def _call_provider(
         self, messages: list[dict[str, Any]]
     ) -> tuple[str | None, list[ToolCallRequest] | None, TokenUsage]:
@@ -1036,9 +1109,21 @@ class AgentLoop:
             temperature=self._config.temperature,
         )
 
+        # Providers return a ProviderResponse dataclass (not a dict) —
+        # normalize BOTH shapes. This was previously a hard crash
+        # ('ProviderResponse' object has no attribute 'get') on every
+        # successful LLM response, which silently killed all chat.
+        response = self._normalize_response(response)
+
         content = response.get("content")
         raw_tool_calls = response.get("tool_calls")
         usage_raw = response.get("usage", {})
+        if not isinstance(usage_raw, dict):
+            usage_raw = {
+                "prompt_tokens": getattr(usage_raw, "prompt_tokens", 0) or 0,
+                "completion_tokens": getattr(usage_raw, "completion_tokens", 0) or 0,
+                "total_tokens": getattr(usage_raw, "total_tokens", 0) or 0,
+            }
 
         tool_calls: list[ToolCallRequest] | None = None
         if raw_tool_calls:
@@ -1088,6 +1173,29 @@ class AgentLoop:
             max_tokens=self._config.max_tokens,
             temperature=self._config.temperature,
         ):
+            # Providers yield plain string tokens; structured providers
+            # yield dicts. Normalize plain strings into token chunks.
+            if isinstance(chunk, str):
+                chunk = {"type": "token", "content": chunk}
+            elif not isinstance(chunk, dict):
+                # ProviderResponse-like or other object: treat content as text
+                text = getattr(chunk, "content", None)
+                chunk = {"type": "token", "content": text if isinstance(text, str) else ""}
+            elif "type" not in chunk:
+                # Full-response dict from a non-chunking provider (common
+                # fallback): extract content + tool_calls in one shot.
+                if chunk.get("content"):
+                    content_parts.append(chunk["content"])
+                for tc in chunk.get("tool_calls") or []:
+                    tc_id = tc.get("id") or f"tc_{len(tool_calls_map)}"
+                    fn = tc.get("function", {})
+                    tool_calls_map[tc_id] = {
+                        "id": tc_id,
+                        "name": fn.get("name", ""),
+                        "arguments": fn.get("arguments", {}),
+                    }
+                continue
+
             chunk_type = chunk.get("type", "")
 
             if chunk_type == "token":

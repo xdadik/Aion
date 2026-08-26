@@ -2,6 +2,7 @@
 
 import sys
 import json
+import os
 import time
 import signal
 import logging
@@ -115,7 +116,11 @@ class AgentConfig:
     streaming_enabled: bool = True
 
     def save(self) -> None:
-        """Save configuration to disk."""
+        """Save configuration to disk.
+
+        The file is chmod'd to 0600 — it contains provider API keys and
+        platform tokens, which must not be world-readable.
+        """
         self.config_file.parent.mkdir(parents=True, exist_ok=True)
         config_dict = {
             k: str(v) if isinstance(v, Path) else v
@@ -123,6 +128,11 @@ class AgentConfig:
         }
         with open(self.config_file, "w") as f:
             json.dump(config_dict, f, indent=2, default=str)
+        # Restrict permissions on the secrets-bearing config file.
+        try:
+            os.chmod(self.config_file, 0o600)
+        except OSError:
+            pass  # e.g. Windows / exotic filesystems
         logger.info(f"Configuration saved to {self.config_file}")
 
     @classmethod
@@ -351,6 +361,33 @@ class AionHand:
                 self._skills = SkillEngine(
                     storage_dir=self.config.skills_dir,
                 )
+                # Actually LOAD skills (previously the engine was constructed
+                # but load() was never called — 0 skills at boot, and the
+                # 93 bundled library skills were invisible).
+                loaded = self._skills.load()
+                # Seed the user's skill dir with the bundled library on
+                # first run so the shipped skills are actually usable.
+                try:
+                    bundled = Path(__file__).resolve().parents[2] / "skills" / "library"
+                    user_dir = Path(self.config.skills_dir)
+                    if bundled.exists():
+                        import shutil as _shutil
+
+                        user_dir.mkdir(parents=True, exist_ok=True)
+                        seeded = 0
+                        for md_file in bundled.glob("*.md"):
+                            dest = user_dir / md_file.name
+                            if not dest.exists():
+                                _shutil.copy2(md_file, dest)
+                                seeded += 1
+                        if seeded:
+                            loaded += self._skills.load()
+                            logger.info(
+                                "Seeded %d bundled skills into %s",
+                                seeded, user_dir,
+                            )
+                except Exception as e:
+                    logger.warning(f"Bundled skill seeding skipped: {e}")
                 logger.info(f"Skills engine initialized ({self._skills.skill_count} skills)")
 
             # 5. Initialize Agent Loop (Hermes-inspired control loop)
@@ -482,6 +519,7 @@ class AionHand:
                         agent=self,
                         session_store=self._state,
                         cron_scheduler=self._scheduler,
+                        protected_paths=[str(self.config.config_file)],
                     )
                     logger.info("Tool execution context wired")
             except Exception as e:

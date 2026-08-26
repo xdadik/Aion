@@ -627,7 +627,7 @@ class AionHandCLI:
             help="Start the HTTP API server",
             description="Run the Aion HTTP API server for the web UI and external clients.",
         )
-        serve_p.add_argument("--host", default="0.0.0.0", help="Bind host (default: 0.0.0.0)")
+        serve_p.add_argument("--host", default="127.0.0.1", help="Bind host (default: 127.0.0.1; set AION_API_TOKEN to expose safely)")
         serve_p.add_argument("--port", type=int, default=8000, help="Bind port (default: 8000)")
         serve_p.add_argument("--log-level", default="INFO", help="Log level (default: INFO)")
         serve_p.set_defaults(func=self._cmd_serve)

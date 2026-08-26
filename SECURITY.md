@@ -215,7 +215,9 @@ trigger the planner's `replan()` repair flow.
 - `command_whitelist` — list of regex patterns; when non-empty, only
   whitelisted commands are allowed.
 - `allowed_users` — list of user identifiers permitted to use the agent
-  (used by the messaging gateway).
+  (enforced per-message by the messaging gateway, **fail-closed**: an
+  empty list rejects every incoming message; each gateway user also
+  gets an isolated session id `platform:user_id`).
 - `tool_approval_mode` — default mode for the `ApprovalManager`.
 
 ### 3.6 MCP tool safety
@@ -388,6 +390,29 @@ Items verified before every release. Run `make test` to execute
 ---
 
 ## Hardened Deployment (quick recipe)
+
+> **v0.4.0 hardening notes** — the following are now enforced at runtime
+> (previously documented but not wired):
+>
+> * HTTP API binds `127.0.0.1` by default; a non-loopback bind REFUSES to
+>   start without a bearer token (`AION_API_TOKEN` env or `api_token`
+>   config). All `/api/*` routes require `Authorization: Bearer <token>`
+>   when a token is set; `cors_origins=None` now means NO CORS (no more
+>   reflecting arbitrary origins).
+> * `shell_command` runs every command through the `CommandValidator`
+>   blacklist (rm -rf /, curl|bash, shutdown, ...) before spawning.
+> * `file_read` refuses credential stores (the agent's own config.json,
+>   SSH keys, .env files, /etc/shadow, /etc/sudoers).
+> * `file_write` refuses the agent's auto-loaded dirs
+>   (~/.aion-hand/{plugins,tools,personas,skills}) — the agent can no
+>   longer plant code that auto-executes on next boot.
+> * `code_execute(use_tools=True)` rejects sandbox-escape source patterns
+>   (`__subclasses__`, `__globals__`, ...).
+> * `GET /api/config` deep-redacts secrets recursively (nested provider
+>   api_keys and platform tokens).
+> * Config files are written with mode 0600.
+> * Marketplace-installed skills land as DRAFT (not advertised to the LLM
+>   until a human activates them); local skills load ACTIVE.
 
 ```dockerfile
 FROM python:3.12-slim AS aion-hand-hardened

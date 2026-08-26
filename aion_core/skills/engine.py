@@ -268,12 +268,22 @@ class Skill:
                 if tags_str.lower() != "none":
                     tags = [t.strip() for t in tags_str.split(",")]
 
+        # Status: honor an explicit frontmatter status; default ACTIVE for
+        # local files. The skills directory is human-curated (and the agent
+        # is blocked from writing there), so local skills are trusted to
+        # be advertised to the LLM. Marketplace installs override to DRAFT.
+        status = SkillStatus.ACTIVE
+        raw_status = str(front_matter.get("status", "")).lower().strip()
+        if raw_status in ("draft", "active", "archived"):
+            status = SkillStatus(raw_status)
+
         return cls(
             name=name,
             description=description,
             content=content,
             tags=tags,
             metadata=metadata,
+            status=status,
         )
 
 
@@ -571,7 +581,12 @@ class SkillEngine:
         return count
 
     def load(self, directory: Path | None = None) -> int:
-        """Load skills from JSON files."""
+        """Load skills from JSON *and* markdown (SKILL.md) files.
+
+        The bundled library ships 93 ``*.md`` skills with YAML frontmatter;
+        user-created and marketplace skills may be ``*.json``. Both formats
+        are loaded — markdown via :meth:`Skill.from_markdown`.
+        """
         load_dir = directory or self._storage_dir
         if not load_dir.exists():
             return 0
@@ -583,6 +598,17 @@ class SkillEngine:
                 self._skills[skill.skill_id] = skill
                 count += 1
             except (json.JSONDecodeError, KeyError, TypeError) as e:
+                logger.warning(f"Failed to load skill from {filepath}: {e}")
+        for filepath in sorted(load_dir.glob("*.md")):
+            try:
+                skill = Skill.from_markdown(filepath.read_text())
+                if skill.name and skill.name != "unnamed":
+                    # Prefer a stable id derived from the filename so
+                    # reloading doesn't duplicate skills.
+                    skill.skill_id = filepath.stem[:32]
+                    self._skills[skill.skill_id] = skill
+                    count += 1
+            except Exception as e:
                 logger.warning(f"Failed to load skill from {filepath}: {e}")
         logger.info(f"Loaded {count} skills from {load_dir}")
         return count

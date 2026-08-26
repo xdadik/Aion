@@ -227,7 +227,11 @@ class SkillMarketplace:
         # Write to disk
         dest = self.skills_dir / f"{skill.name}.md"
         dest.write_text(text, encoding="utf-8")
-        skill.status = SkillStatus.ACTIVE
+        # Security: remote content is UNTRUSTED — install as DRAFT so it is
+        # NOT advertised to the LLM until the human reviews and activates it
+        # (previously any URL/git install became an active system-prompt
+        # injection payload immediately).
+        skill.status = SkillStatus.DRAFT
 
         # Register in engine
         self.engine._skills[skill.skill_id] = skill

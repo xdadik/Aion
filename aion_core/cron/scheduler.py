@@ -29,10 +29,12 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import logging
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -226,13 +228,23 @@ class CronScheduler:
         await scheduler.shutdown()
     """
 
-    def __init__(self, agent: Any = None, timezone: str = "UTC") -> None:
+    def __init__(
+        self,
+        agent: Any = None,
+        timezone: str = "UTC",
+        persist_path: str | Path | None = None,
+    ) -> None:
         self._tasks: dict[str, ScheduledTask] = {}
         self._agent = agent
         self._timezone = timezone
         self._running: bool = False
         self._tick_task: asyncio.Task | None = None
         self._tick_interval: int = 60  # seconds between evaluation passes
+        # Optional JSON persistence so scheduled tasks survive restarts
+        # (Hermes jobs.json parity — previously tasks vanished on restart).
+        if persist_path is None:
+            persist_path = Path.home() / ".aion-hand" / "data" / "cron_jobs.json"
+        self._persist_path = Path(persist_path)
 
         logger.info(
             "CronScheduler created (timezone=%s, tick=%ds, agent=%s)",
@@ -240,6 +252,69 @@ class CronScheduler:
             self._tick_interval,
             "provided" if agent else "none (log-only mode)",
         )
+
+    # ------------------------------------------------------------------
+    # Persistence
+    # ------------------------------------------------------------------
+
+    def _task_to_dict(self, t: ScheduledTask) -> dict[str, Any]:
+        return {
+            "id": t.id,
+            "task": t.task,
+            "schedule": t.schedule,
+            "platforms": t.platforms,
+            "enabled": t.enabled,
+            "last_run": t.last_run.isoformat() if t.last_run else None,
+            "run_count": t.run_count,
+            "created_at": t.created_at.isoformat(),
+        }
+
+    def save_tasks(self) -> None:
+        """Persist all tasks to JSON. Silent on failure by design."""
+        try:
+            self._persist_path.parent.mkdir(parents=True, exist_ok=True)
+            payload = {
+                "tasks": [self._task_to_dict(t) for t in self._tasks.values()]
+            }
+            self._persist_path.write_text(json.dumps(payload, indent=2))
+        except OSError as exc:
+            logger.warning("Cron persistence save failed: %s", exc)
+
+    def load_tasks(self) -> int:
+        """Restore previously persisted tasks. Returns count restored."""
+        if not self._persist_path.exists():
+            return 0
+        try:
+            payload = json.loads(self._persist_path.read_text())
+            restored = 0
+            for entry in payload.get("tasks", []):
+                try:
+                    task = ScheduledTask(
+                        id=entry["id"],
+                        task=entry.get("task", ""),
+                        schedule=entry.get("schedule", "* * * * *"),
+                        platforms=entry.get("platforms", []),
+                        enabled=entry.get("enabled", True),
+                        run_count=entry.get("run_count", 0),
+                    )
+                    last = entry.get("last_run")
+                    task.last_run = (
+                        datetime.fromisoformat(last) if last else None
+                    )
+                    created = entry.get("created_at")
+                    if created:
+                        task.created_at = datetime.fromisoformat(created)
+                    task.validate_and_compute()
+                    self._tasks[task.id] = task
+                    restored += 1
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("Skipping corrupt cron entry: %s", exc)
+            if restored:
+                logger.info("Restored %d cron task(s) from %s", restored, self._persist_path)
+            return restored
+        except (json.JSONDecodeError, OSError) as exc:
+            logger.warning("Cron persistence load failed: %s", exc)
+            return 0
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -250,6 +325,9 @@ class CronScheduler:
         if self._running:
             logger.warning("CronScheduler is already running")
             return
+
+        # Restore persisted tasks before the loop starts.
+        self.load_tasks()
 
         self._running = True
         self._tick_task = asyncio.create_task(self._tick_loop(), name="cron-tick")
@@ -262,6 +340,8 @@ class CronScheduler:
             self._tick_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await self._tick_task
+        # Persist tasks so they survive restarts.
+        self.save_tasks()
         logger.info(
             "CronScheduler shut down (%d tasks unregistered)", len(self._tasks)
         )

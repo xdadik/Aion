@@ -377,6 +377,7 @@ class _ToolExecutionContext:
         self.agent: Any = None
         self.session_store: Any = None
         self.cron_scheduler: Any = None
+        self.protected_paths: set[str] = set()
 
 
 _TOOL_CONTEXT = _ToolExecutionContext()
@@ -624,6 +625,19 @@ async def _run_python_with_tool_rpc(code: str, timeout: int) -> dict[str, Any]:
             "exit_code": -1,
         }
 
+    # Security: reject the classic restricted-builtins escape chains
+    # (verified exploitable: `().__class__.__base__.__subclasses__()` gave
+    # full access to 527 classes). A source scan kills the trivial bypass.
+    rejection = _scan_exec_source(code)
+    if rejection:
+        return {
+            "success": False,
+            "error": rejection,
+            "output": "",
+            "rpc_calls": [],
+            "exit_code": -1,
+        }
+
     captured = io.StringIO()
     rpc_calls: list[dict[str, Any]] = []
     done = threading.Event()
@@ -786,6 +800,118 @@ async def _handle_code_execute(
     }
 
 
+# -- Security gate (wires aion_core.security into the hot paths) -----------
+
+
+def _security_gate() -> tuple[Any, Any]:
+    """Lazily build (CommandValidator, FileSafetyChecker).
+
+    Both live in aion_core.security and were previously dead code —
+    built, tested, documented... and never invoked by any tool handler.
+    """
+    try:
+        from aion_core.security.sandbox import CommandValidator
+        from aion_core.security.filesafety import FileSafetyChecker
+
+        return CommandValidator(), FileSafetyChecker()
+    except Exception:  # pragma: no cover - security modules always present
+        return None, None
+
+
+_COMMAND_VALIDATOR: Any = None
+_FILE_SAFETY: Any = None
+_SECURITY_READY = False
+
+
+def _check_command(command: str) -> str | None:
+    """Return a rejection reason if the command is blacklisted, else None."""
+    global _COMMAND_VALIDATOR, _FILE_SAFETY, _SECURITY_READY
+    if not _SECURITY_READY:
+        _COMMAND_VALIDATOR, _FILE_SAFETY = _security_gate()
+        _SECURITY_READY = True
+    if _COMMAND_VALIDATOR is None:
+        return None
+    try:
+        is_safe, reason = _COMMAND_VALIDATOR.validate(command)
+        return None if is_safe else reason
+    except Exception:  # never block tools on validator errors
+        return None
+
+
+def _check_path(path: str, operation: str) -> str | None:
+    """Return a rejection reason if the path operation is unsafe, else None."""
+    global _COMMAND_VALIDATOR, _FILE_SAFETY, _SECURITY_READY
+    if not _SECURITY_READY:
+        _COMMAND_VALIDATOR, _FILE_SAFETY = _security_gate()
+        _SECURITY_READY = True
+    if _FILE_SAFETY is not None:
+        try:
+            result = _FILE_SAFETY.validate_operation(path, operation)
+            if getattr(result, "allowed", True) is False:
+                return getattr(result, "reason", "path not allowed")
+        except Exception:  # never block tools on checker errors
+            pass
+    if operation == "read":
+        # Read-specific protections: the agent must not read its own
+        # credentials (a chat reply quoting them = instant exfiltration to
+        # whoever is talking to the agent, including remote gateway users).
+        try:
+            resolved = Path(path).expanduser().resolve()
+            home = Path.home()
+            agent_cfg = (home / ".aion-hand" / "config.json").resolve()
+            deny_exact = {
+                agent_cfg,
+                home / ".ssh" / "id_rsa",
+                home / ".ssh" / "id_ed25519",
+                home / ".ssh" / "authorized_keys",
+                home / ".env",
+                Path("/etc/shadow"),
+                Path("/etc/sudoers"),
+            }
+            # Plus the LIVE agent's own config file, wherever it lives
+            # (populated by AionHand.start() via set_context()).
+            for p in getattr(_TOOL_CONTEXT, "protected_paths", ()):
+                deny_exact.add(Path(p))
+            for d in deny_exact:
+                try:
+                    if resolved == (d.resolve() if d.exists() else d):
+                        return (
+                            f"BLOCKED: reading {d} is not permitted — it "
+                            "contains secrets that must not enter the "
+                            "conversation."
+                        )
+                except OSError:
+                    continue
+            # Any .env anywhere
+            if resolved.name == ".env":
+                return "BLOCKED: .env files contain secrets and cannot be read."
+        except Exception:
+            pass
+    return None
+
+
+# Source patterns that trivially break restricted-builtins exec sandboxes.
+_EXEC_ESCAPE_PATTERNS = (
+    "__subclasses__", "__bases__", "__base__", "__globals__",
+    "__builtins__", "__import__", "__loader__", "__spec__",
+    "system(", "popen(", "subprocess", "os.exec", "eval(", "exec(",
+    "compile(", "getattr(sys", "breakpoint(",
+)
+
+
+def _scan_exec_source(code: str) -> str | None:
+    """Reject code that attempts the classic sandbox-escape chains."""
+    lowered = code.lower()
+    for pattern in _EXEC_ESCAPE_PATTERNS:
+        if pattern.lower() in lowered:
+            return (
+                f"Code rejected: contains forbidden pattern {pattern!r} "
+                "(sandbox escape prevention). Use call_tool() to invoke "
+                "tools instead."
+            )
+    return None
+
+
 async def _handle_shell_command(
     command: str,
     working_dir: str = "",
@@ -793,6 +919,17 @@ async def _handle_shell_command(
 ) -> dict[str, Any]:
     """Execute a shell command."""
     logger.info(f"shell_command: command={command!r}, cwd={working_dir!r}")
+    # Security gate: blacklist check before spawning anything.
+    rejection = _check_command(command)
+    if rejection:
+        return {
+            "success": False,
+            "command": command,
+            "stdout": "",
+            "stderr": f"BLOCKED by security policy: {rejection}",
+            "exit_code": -1,
+            "working_dir": working_dir or os.getcwd(),
+        }
     cwd = working_dir or None
     try:
         proc = await asyncio.wait_for(
@@ -846,6 +983,10 @@ async def _handle_file_read(
 ) -> dict[str, Any]:
     """Read the contents of a file."""
     logger.info(f"file_read: path={path!r}")
+    # Security gate: credential stores / system paths are off-limits.
+    rejection = _check_path(path, "read")
+    if rejection:
+        return {"success": False, "error": f"BLOCKED by security policy: {rejection}"}
     try:
         p = Path(path).expanduser().resolve()
         if not p.exists():
@@ -875,6 +1016,36 @@ async def _handle_file_write(
     """Write content to a file. Snapshots the existing file first
     so /rollback can undo the write (Hermes checkpoints parity)."""
     logger.info(f"file_write: path={path!r}, content_len={len(content)}")
+    # Security gate: block writes to credential stores, system config,
+    # and the agent's own auto-loaded dirs (plugin/skill persistence).
+    rejection = _check_path(path, "write")
+    if rejection:
+        return {"success": False, "error": f"BLOCKED by security policy: {rejection}"}
+    agent_home = Path.home() / ".aion-hand"
+    try:
+        target_resolved = Path(path).expanduser().resolve()
+        protected_dirs = [
+            agent_home / "plugins",
+            agent_home / "tools",
+            agent_home / "personas",
+            agent_home / "skills",
+        ]
+        for d in protected_dirs:
+            try:
+                target_resolved.relative_to(d)
+                return {
+                    "success": False,
+                    "error": (
+                        f"BLOCKED: {path} is inside {d} — the agent may not "
+                        "write its own auto-loaded code/config (persistence "
+                        "risk). Create the file manually if you really "
+                        "intend this."
+                    ),
+                }
+            except ValueError:
+                continue
+    except Exception:
+        pass
     try:
         p = Path(path).expanduser().resolve()
         if create_dirs:
@@ -2537,12 +2708,14 @@ class ToolRegistry:
         agent: Any = None,
         session_store: Any = None,
         cron_scheduler: Any = None,
+        protected_paths: list[str] | None = None,
     ) -> None:
         """Inject live services for the context-aware Hermes-parity tools.
 
         Powers ``session_search`` (session archive), ``delegate_task``
-        (subagent orchestration) and ``cronjob`` (scheduler management).
-        Called by AionHand.start() after subsystems are up.
+        (subagent orchestration), ``cronjob`` (scheduler management) and
+        the credential-read protection (protected_paths). Called by
+        AionHand.start() after subsystems are up.
         """
         if agent is not None:
             _TOOL_CONTEXT.agent = agent
@@ -2550,6 +2723,10 @@ class ToolRegistry:
             _TOOL_CONTEXT.session_store = session_store
         if cron_scheduler is not None:
             _TOOL_CONTEXT.cron_scheduler = cron_scheduler
+        if protected_paths:
+            _TOOL_CONTEXT.protected_paths.update(
+                str(Path(p).expanduser().resolve()) for p in protected_paths
+            )
 
     # ------------------------------------------------------------------
     # Dunder methods

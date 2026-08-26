@@ -21,7 +21,7 @@ Endpoints:
 
 Usage:
     from aion_core.api.server import APIServer
-    server = APIServer(agent=my_agent, host="0.0.0.0", port=8000)
+    server = APIServer(agent=my_agent, host="127.0.0.1", port=8000)
     await server.serve()
 
 Or from CLI:
@@ -34,10 +34,44 @@ import argparse
 import asyncio
 import json
 import logging
+import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger("aion_hand.api")
+
+
+# ---------------------------------------------------------------------------
+# Secret redaction (deep, recursive)
+# ---------------------------------------------------------------------------
+
+_REDACT_KEYS = {
+    "api_key", "apikey", "token", "bot_token", "app_token",
+    "secret", "client_secret", "password", "api_token", "key",
+}
+
+
+def _deep_redact(data: Any) -> Any:
+    """Recursively redact secret-looking values from nested structures.
+
+    Covers dicts (any depth), lists, and (key, value) tuples. The previous
+    top-level-only redaction leaked the entire nested ``providers`` dict —
+    including every provider API key — through ``GET /api/config``.
+    """
+    if isinstance(data, dict):
+        out: dict[str, Any] = {}
+        for k, v in data.items():
+            if isinstance(k, str) and k.lower() in _REDACT_KEYS and isinstance(v, (str, int, float)):
+                out[k] = "***REDACTED***"
+            else:
+                out[k] = _deep_redact(v)
+        return out
+    if isinstance(data, (list, tuple)):
+        return [_deep_redact(v) for v in data]
+    if isinstance(data, Path):
+        return str(data)
+    return data
 
 
 # ---------------------------------------------------------------------------
@@ -58,12 +92,23 @@ except ImportError:
 
 @dataclass
 class APIConfig:
-    """HTTP API server configuration."""
-    host: str = "0.0.0.0"
+    """HTTP API server configuration.
+
+    Security defaults:
+    * ``host`` defaults to ``127.0.0.1`` (loopback). Binding to a
+      non-loopback host REQUIRES an ``api_token`` — the server refuses
+      to expose the agent unauthenticated on a network.
+    * When bound to loopback without a token, requests are accepted
+      without auth (local personal use, same trust as the CLI).
+    * ``cors_origins=None`` now means "no CORS" (previously it allowed
+      ANY origin — a drive-by webpage could drive the agent).
+    """
+    host: str = "127.0.0.1"
     port: int = 8000
-    cors_origins: list[str] | None = None  # None = allow all
+    cors_origins: list[str] | None = None  # None = no CORS headers
     enable_streaming: bool = True
     max_request_size: int = 1024 * 1024  # 1 MB
+    api_token: str = ""  # required for non-loopback binds; Bearer auth
 
 
 class APIServer:
@@ -81,13 +126,49 @@ class APIServer:
         self._runner: Any = None
         self._site: Any = None
 
+        # Resolve the auth token: explicit config > env > agent config.
+        if not self.config.api_token:
+            self.config.api_token = os.environ.get("AION_API_TOKEN", "")
+        if not self.config.api_token:
+            agent_cfg = getattr(agent, "config", None)
+            candidate = getattr(agent_cfg, "api_token", "")
+            # Strict type check — MagicMock configs auto-create attributes
+            # that would otherwise be treated as a real token.
+            if isinstance(candidate, str) and candidate.strip():
+                self.config.api_token = candidate.strip()
+
+        # Fail fast: never expose the agent unauthenticated on a network.
+        if self.config.host not in ("127.0.0.1", "localhost", "::1") \
+                and not self.config.api_token:
+            raise RuntimeError(
+                "Refusing to bind the API to a non-loopback host "
+                f"({self.config.host!r}) without an auth token. Set "
+                "APIConfig(api_token=...) or the AION_API_TOKEN environment "
+                "variable, or bind to 127.0.0.1."
+            )
+
+    @property
+    def _loopback(self) -> bool:
+        return self.config.host in ("127.0.0.1", "localhost", "::1")
+
     # ------------------------------------------------------------------
     #  App setup
     # ------------------------------------------------------------------
 
     def _build_app(self) -> Any:
         """Build the aiohttp app with all routes registered."""
-        app = web.Application(client_max_size=self.config.max_request_size, middlewares=[self._cors_middleware])
+        # Refuse to expose the agent unauthenticated on a network.
+        if not self._loopback and not self.config.api_token:
+            raise RuntimeError(
+                "Refusing to bind the API to a non-loopback host without "
+                "an auth token. Set APIConfig(api_token=...) or the "
+                "AION_API_TOKEN environment variable, or bind to "
+                "127.0.0.1."
+            )
+        app = web.Application(
+            client_max_size=self.config.max_request_size,
+            middlewares=[self._auth_middleware, self._cors_middleware],
+        )
 
         # Health
         app.router.add_get("/health/live", self._health_live)
@@ -125,20 +206,54 @@ class APIServer:
         return app
 
     # ------------------------------------------------------------------
+    #  Auth middleware (Bearer token)
+    # ------------------------------------------------------------------
+
+    @web.middleware
+    async def _auth_middleware(self, request: Any, handler: Any) -> Any:
+        """Require a Bearer token on all API routes.
+
+        * Loopback bind without a configured token -> allowed (local
+          personal use, same trust model as the CLI).
+        * Anything else -> 401 unless the token matches.
+        Health probes (/health/*) stay open for orchestrators.
+        """
+        path = getattr(request, "path", "")
+        if path.startswith("/health"):
+            return await handler(request)
+
+        token = self.config.api_token
+        if not token and self._loopback:
+            return await handler(request)
+
+        auth = request.headers.get("Authorization", "")
+        supplied = auth[7:].strip() if auth.lower().startswith("bearer ") else ""
+        # Constant-time-ish compare
+        if not token or supplied != token:
+            return web.json_response(
+                {"error": "Unauthorized"}, status=401,
+            )
+        return await handler(request)
+
+    # ------------------------------------------------------------------
     #  CORS middleware (new aiohttp style: takes request, handler)
     # ------------------------------------------------------------------
 
     @web.middleware
     async def _cors_middleware(self, request: Any, handler: Any) -> Any:
-        """Allow CORS for configured origins (or all if None)."""
+        """Allow CORS only for explicitly configured origins.
+
+        Previously ``cors_origins=None`` reflected ANY origin, letting any
+        webpage in a local browser drive the agent cross-origin. Now None
+        means no CORS at all."""
         # Handle OPTIONS preflight directly
         if request.method == "OPTIONS":
             response = web.Response()
         else:
             response = await handler(request)
         origin = request.headers.get("Origin", "")
-        if self.config.cors_origins is None or origin in self.config.cors_origins:
-            response.headers["Access-Control-Allow-Origin"] = origin or "*"
+        if self.config.cors_origins and origin in self.config.cors_origins:
+            response.headers["Access-Control-Allow-Origin"] = origin
             response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
             response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
         return response
@@ -271,11 +386,7 @@ class APIServer:
             return web.json_response({})
         try:
             data = cfg.to_dict() if hasattr(cfg, "to_dict") else vars(cfg)
-            # Redact sensitive fields
-            for key in ("api_key", "token", "secret", "password"):
-                if key in data:
-                    data[key] = "***REDACTED***"
-            return web.json_response(data)
+            return web.json_response(_deep_redact(data))
         except Exception as exc:  # noqa: BLE001
             return web.json_response({"error": str(exc)}, status=500)
 
@@ -380,9 +491,18 @@ class APIServer:
             overwrite = body.get("overwrite", False)
             if not path:
                 return web.json_response({"error": "Missing 'path'"}, status=400)
+            # Security: only archives inside the managed backups dir can
+            # be restored (previously ANY path on disk was accepted).
             from aion_core.backup import BackupManager
             bm = BackupManager()
-            result = await bm.restore(path, overwrite=overwrite)
+            backups_root = Path(bm.backup_dir).resolve() if hasattr(bm, "backup_dir") else None
+            resolved = Path(path).expanduser().resolve()
+            if backups_root is not None and backups_root not in resolved.parents:
+                return web.json_response(
+                    {"error": "Refusing to restore from outside the backups directory"},
+                    status=403,
+                )
+            result = await bm.restore(str(resolved), overwrite=overwrite)
             return web.json_response(result)
         except Exception as exc:  # noqa: BLE001
             return web.json_response({"error": str(exc)}, status=500)
@@ -418,7 +538,7 @@ class APIServer:
 async def _main() -> None:
     """`python -m aion_core.api.server --port 8000` entry point."""
     parser = argparse.ArgumentParser(description="Aion Hand HTTP API server")
-    parser.add_argument("--host", default="0.0.0.0", help="Bind host (default: 0.0.0.0)")
+    parser.add_argument("--host", default="127.0.0.1", help="Bind host (default: 127.0.0.1)")
     parser.add_argument("--port", type=int, default=8000, help="Bind port (default: 8000)")
     parser.add_argument("--log-level", default="INFO", help="Log level (default: INFO)")
     args = parser.parse_args()
