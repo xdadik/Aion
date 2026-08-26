@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import Any
 
 from aion_core.skills.engine import Skill, SkillEngine, SkillStatus
+from aion_core.skills.scanner import ScanReport, SkillSecurityScanner, Verdict
 
 logger = __import__("logging").getLogger("aion_hand.skills.marketplace")
 
@@ -77,10 +78,13 @@ class SkillMarketplace:
         self,
         skills_dir: Path | str | None = None,
         engine: SkillEngine | None = None,
+        scanner: SkillSecurityScanner | None = None,
     ) -> None:
         self.skills_dir = Path(skills_dir) if skills_dir else Path.home() / ".aion-hand" / "skills"
         self.skills_dir.mkdir(parents=True, exist_ok=True)
+        self.quarantine_dir = self.skills_dir / "quarantine"
         self.engine = engine or SkillEngine(storage_dir=self.skills_dir)
+        self.scanner = scanner or SkillSecurityScanner()
         self._catalog: list[CatalogEntry] = list(self.DEFAULT_CATALOG)
 
     # ------------------------------------------------------------------
@@ -212,7 +216,15 @@ class SkillMarketplace:
         return None
 
     def _install_from_text(self, text: str, *, name: str | None = None, source: str = "") -> Skill | None:
-        """Validate and install a SKILL.md from its text content."""
+        """Validate, security-scan, and install a SKILL.md from its text.
+
+        Security pipeline (mirrors Hermes skills-hub hardening):
+        1. Parse the markdown (frontmatter + body).
+        2. Run :class:`SkillSecurityScanner` over the full text.
+        3. BLOCK verdict  -> quarantine the file, refuse to install.
+        4. REVIEW/CLEAN   -> install as DRAFT (never auto-active), with
+           the scan report attached to ``skill.metadata['security_scan']``.
+        """
         try:
             skill = Skill.from_markdown(text)
         except Exception as exc:  # noqa: BLE001
@@ -223,6 +235,26 @@ class SkillMarketplace:
         if not skill.name:
             logger.error("SKILL.md has no name — skipping")
             return None
+
+        # ── Security scan ────────────────────────────────────────────
+        report: ScanReport = self.scanner.scan_text(text, skill_name=skill.name)
+        skill.metadata["security_scan"] = report.to_dict()
+
+        if report.verdict == Verdict.BLOCK:
+            self._quarantine(text, skill.name, source, report)
+            for f in report.findings:
+                if f.severity.value in ("critical", "high"):
+                    logger.warning(
+                        "SECURITY: skill '%s' quarantined [%s] %s (evidence: %s)",
+                        skill.name, f.category, f.message, f.evidence[:80],
+                    )
+            return None
+
+        if report.verdict == Verdict.REVIEW:
+            logger.warning(
+                "Skill '%s' installed as DRAFT with %d security finding(s): %s",
+                skill.name, len(report.findings), report.summary,
+            )
 
         # Write to disk
         dest = self.skills_dir / f"{skill.name}.md"
@@ -235,8 +267,31 @@ class SkillMarketplace:
 
         # Register in engine
         self.engine._skills[skill.skill_id] = skill
-        logger.info(f"Installed skill '{skill.name}' from {source}")
+        logger.info(f"Installed skill '{skill.name}' from {source} [{report.summary}]")
         return skill
+
+    def _quarantine(
+        self, text: str, name: str, source: str, report: ScanReport
+    ) -> Path:
+        """Move a blocked skill into the quarantine dir with its report."""
+        self.quarantine_dir.mkdir(parents=True, exist_ok=True)
+        safe_name = name.replace("/", "_").replace("\\", "_")
+        qfile = self.quarantine_dir / f"{safe_name}.md.QUARANTINED"
+        qfile.write_text(text, encoding="utf-8")
+        (self.quarantine_dir / f"{safe_name}.report.json").write_text(
+            __import__("json").dumps(
+                {**report.to_dict(), "source": source, "quarantined_file": qfile.name},
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        return qfile
+
+    def list_quarantined(self) -> list[Path]:
+        """List quarantined skill files (blocked by the security scanner)."""
+        if not self.quarantine_dir.is_dir():
+            return []
+        return sorted(self.quarantine_dir.glob("*.md.QUARANTINED"))
 
     # ------------------------------------------------------------------
     #  Uninstall
