@@ -216,7 +216,7 @@ class TestAionConfigDefaults(unittest.TestCase):
     def test_default_name_and_version(self):
         cfg = AionConfig()
         self.assertEqual(cfg.name, "Aion Hand")
-        self.assertEqual(cfg.version, "0.3.0")
+        self.assertEqual(cfg.version, "0.4.0")
 
     def test_default_log_level(self):
         cfg = AionConfig()

@@ -13,7 +13,7 @@ class TestAgentConfigDefaults(unittest.TestCase):
     def test_default_config_values(self):
         cfg = AgentConfig()
         self.assertEqual(cfg.name, "Aion Hand")
-        self.assertEqual(cfg.version, "0.3.0")
+        self.assertEqual(cfg.version, "0.4.0")
         self.assertEqual(cfg.default_provider, "openai")
         self.assertEqual(cfg.default_model, "gpt-4o")
         self.assertEqual(cfg.max_turns, 50)

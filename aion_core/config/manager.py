@@ -585,7 +585,7 @@ class AionConfig:
 
     # Identity
     name: str = "Aion Hand"
-    version: str = "0.3.0"
+    version: str = "0.4.0"
 
     # Paths (resolved at load time)
     home_dir: str = ""

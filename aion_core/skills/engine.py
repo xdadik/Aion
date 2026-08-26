@@ -342,6 +342,32 @@ class SkillEngine:
             skills = [s for s in skills if tag.lower() in [t.lower() for t in s.tags]]
         return sorted(skills, key=lambda s: s.name)
 
+    def get_schemas(self) -> list[dict]:
+        """Return skills as OpenAI function-calling schemas.
+
+        The agent loop advertises skills to the LLM alongside tools so the
+        model can decide to invoke them; this method provides the schema
+        entries for that (see ``agent/loop.py``).
+        """
+        schemas: list[dict] = []
+        for skill in self.list_skills():
+            if skill.status == SkillStatus.ACTIVE:
+                schemas.append({
+                    "name": f"skill_{skill.name}",
+                    "description": (skill.description or skill.name)[:1024],
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "input": {
+                                "type": "string",
+                                "description": f"Input for skill '{skill.name}'",
+                            },
+                        },
+                        "required": ["input"],
+                    },
+                })
+        return schemas
+
     def delete_skill(self, skill_id: str) -> bool:
         """Delete a skill by ID."""
         if skill_id in self._skills:

@@ -46,7 +46,7 @@ class AgentConfig:
 
     # Identity
     name: str = "Aion Hand"
-    version: str = "0.3.0"
+    version: str = "0.4.0"
 
     # Paths
     home_dir: Path = field(default_factory=lambda: Path.home() / ".aion-hand")
@@ -276,12 +276,35 @@ class AionHand:
         try:
             # 1. Initialize Provider (NullClaw-inspired provider agnosticism)
             from aion_core.providers.factory import ProviderFactory
-            self._provider = ProviderFactory.create(
-                self.config.default_provider,
-                self.config.providers.get(self.config.default_provider, {}),
-                default_model=self.config.default_model,
-            )
-            logger.info(f"Provider '{self.config.default_provider}' initialized")
+            try:
+                self._provider = ProviderFactory.create(
+                    self.config.default_provider,
+                    self.config.providers.get(self.config.default_provider, {}),
+                    default_model=self.config.default_model,
+                )
+                logger.info(f"Provider '{self.config.default_provider}' initialized")
+            except ValueError as provider_err:
+                # Missing credentials must not make the whole agent unusable:
+                # tools, memory, skills, cron and the web UI all work without
+                # an LLM. Fall back to the local (keyless) Ollama provider so
+                # `AionHand().start()` still boots; chat() will surface a clear
+                # error only if Ollama isn't running either.
+                if self.config.default_provider == "ollama":
+                    raise
+                logger.warning(
+                    "Provider '%s' unavailable (%s). Falling back to the local "
+                    "'ollama' provider - start Ollama (https://ollama.com) or set "
+                    "an API key in ~/.aion-hand/config.json to enable chat.",
+                    self.config.default_provider,
+                    provider_err,
+                )
+                self.config.default_provider = "ollama"
+                self._provider = ProviderFactory.create(
+                    "ollama",
+                    self.config.providers.get("ollama", {}),
+                    default_model=self.config.default_model or "llama3",
+                )
+                logger.info("Provider 'ollama' initialized (local fallback)")
 
             # 2. Initialize Memory System (Hermes FTS5 + OpenClaw MEMORY.md)
             if self.config.memory_enabled:
@@ -424,6 +447,7 @@ class AionHand:
 
             self.state = AgentState.IDLE
             logger.info("Aion Hand started successfully (uptime tracking active)")
+            return self
 
         except Exception as e:
             self.state = AgentState.ERROR
