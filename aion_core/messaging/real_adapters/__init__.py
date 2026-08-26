@@ -566,21 +566,31 @@ def create_real_adapter(platform: str, **config: Any) -> RealAdapter:
     """Create a real adapter by platform name.
 
     Supported platforms:
-        - "telegram" → RealTelegramAdapter
-        - "discord"  → RealDiscordAdapter
-        - "slack"    → RealSlackAdapter
-        - "webhook"  → RealWebhookAdapter
+        - "telegram"    → RealTelegramAdapter (long-poll receive + REST send)
+        - "discord"     → RealDiscordAdapter (webhook send only)
+        - "discord_bot" → RealDiscordBotAdapter (full gateway bot: WebSocket
+                           receive + REST send; needs MESSAGE_CONTENT intent)
+        - "slack"       → RealSlackAdapter
+        - "webhook"     → RealWebhookAdapter
     """
     platform = platform.lower().strip()
     if platform == "telegram":
         return RealTelegramAdapter(**config)
     if platform == "discord":
         return RealDiscordAdapter(**config)
+    if platform == "discord_bot":
+        from aion_core.messaging.real_adapters.discord_gateway import (
+            RealDiscordBotAdapter,
+        )
+        return RealDiscordBotAdapter(**config)
     if platform == "slack":
         return RealSlackAdapter(**config)
     if platform == "webhook":
         return RealWebhookAdapter(**config)
-    raise ValueError(f"Unknown platform: {platform}. Supported: telegram, discord, slack, webhook")
+    raise ValueError(
+        f"Unknown platform: {platform}. "
+        "Supported: telegram, discord, discord_bot, slack, webhook"
+    )
 
 
 __all__ = [

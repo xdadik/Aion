@@ -94,7 +94,7 @@ Combining the best of OpenClaw, Hermes Agent, NullClaw, CrewAI, AutoGPT & LangGr
 - 🌐 **OpenAI Function Calling** — Native function-calling schema generation
 
 ### 💬 Messaging & Automation
-- 💬 **Messaging Gateway** — OpenClaw-inspired multi-platform messaging (Telegram, Discord, Slack)
+- 💬 **Messaging Gateway** — OpenClaw-inspired multi-platform messaging (Telegram, Discord bot, Slack, webhooks). The Discord adapter is a REAL gateway bot: stdlib-only WebSocket client (RFC 6455) with identify/heartbeat/MESSAGE_CREATE dispatch + REST replies, live-verified against Discord's production gateway.
 - ⏰ **Cron Scheduler** — Hermes-inspired automated task scheduling
 - 🗣️ **Natural-Language Schedules** — `cronjob` tool understands `30m`, `2h`, `every monday 9am` in addition to 5-field cron
 - 🎯 **Autonomous Goal Loop** — `/goal` keeps working until the pipeline verifier judges the goal complete (verify-only pass, no re-planning)
@@ -120,7 +120,7 @@ Combining the best of OpenClaw, Hermes Agent, NullClaw, CrewAI, AutoGPT & LangGr
 - 🎭 **SOUL.md Persona System** — OpenClaw-inspired persona templates; 5 built-in (default, researcher, coder, assistant, analyst); user personas shadow built-ins
 - 📦 **Zero Hard Dependencies** — Core runs on Python stdlib; extras are optional
 - ⚡ **Lightweight Mode** — NullClaw-inspired minimal footprint mode
-- 🧪 **Comprehensive Tests** — 660 passing tests across 44 test files (pytest + asyncio)
+- 🧪 **Comprehensive Tests** — 771 passing tests across 47 test files (pytest + asyncio)
 - 🎨 **ANSI Colored Output** — Beautiful terminal output everywhere
 - 🔄 **Async Throughout** — Fully async/await architecture
 - 📁 **Pluggable Architecture** — Drop-in custom tools, skills, and providers
@@ -247,7 +247,7 @@ Every row is a feature you can verify in this repo today.
 9. **Computer use** — screen/mouse/keyboard with multi-backend. Hermes has computer-use; OpenClaw doesn't.
 10. **Plugin system** — drop Python files into `~/.aion-hand/plugins/` to add tools, skills, personas, providers, cron tasks at runtime. Neither Hermes nor OpenClaw has this.
 11. **Background memory consolidation** — real async task that promotes durable facts, extracts user attributes, updates MEMORY.md/USER.md, triggers skill auto-creation every 5 minutes.
-12. **20+ messaging adapters** — Telegram, Discord, Slack, WhatsApp, Signal, Teams, WeChat, QQ, Feishu, WeixinWork, Yuanbao, Matrix, IRC, Mattermost, Line, GoogleChat, DingTalk, Email, Ntfy, Webhook.
+12. **Messaging adapters** — Telegram (real long-poll), Discord (real gateway bot + webhook mode), Slack (Socket Mode pattern + webhooks), generic webhooks. Other platforms remain simulated stubs.
 13. **Knowledge graph + entity/relation reasoner** — structured world knowledge neither Hermes nor OpenClaw has.
 14. **Model router with cost/latency optimiser** — auto-pick the cheapest model that meets a quality bar.
 15. **Zero hard dependencies** — the core runs on the Python stdlib; rich/aiohttp are all optional.
