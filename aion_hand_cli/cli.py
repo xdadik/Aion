@@ -206,6 +206,10 @@ _KNOWN_PROVIDERS = [
     ("anthropic",        "claude-haiku-4-20250414",  True),
     ("google",           "gemini-2.5-pro",      True),
     ("google",           "gemini-2.5-flash",     True),
+    ("openrouter",       "meta-llama/llama-4-scout",       True),
+    ("openrouter",       "deepseek/deepseek-chat",         True),
+    ("openrouter",       "anthropic/claude-sonnet-5",      True),
+    ("openrouter",       "openai/gpt-5.6-terra-pro",       True),
     ("ollama",           "llama3",               False),
     ("ollama",           "mistral",              False),
     ("ollama",           "codellama",            False),
@@ -1804,7 +1808,7 @@ class AionHandCLI:
                 checks.append((f"{provider} API key in config", "exposed", "warn"))
 
         # Check for secrets in environment
-        for env_var in ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY"]:
+        for env_var in ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "OPENROUTER_API_KEY"]:
             if os.environ.get(env_var):
                 checks.append((f"{env_var}", "set in env", "ok"))
 
@@ -2217,12 +2221,12 @@ class AionHandCLI:
             checks_failed += 1
 
         # Check 7: API key (any provider)
-        has_key = any(os.environ.get(k) for k in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GROQ_API_KEY"))
+        has_key = any(os.environ.get(k) for k in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "OPENROUTER_API_KEY"))
         if has_key:
             self._print_colored(f"  {Colors.GREEN}✔{Colors.RESET} LLM API key found in env\n")
             checks_passed += 1
         else:
-            self._print_colored(f"  {Colors.YELLOW}⚠{Colors.RESET} no LLM API key in env (set OPENAI_API_KEY etc.)\n")
+            self._print_colored(f"  {Colors.YELLOW}⚠{Colors.RESET} no LLM API key in env (set OPENAI_API_KEY, OPENROUTER_API_KEY, etc.)\n")
             warnings += 1
 
         # Summary

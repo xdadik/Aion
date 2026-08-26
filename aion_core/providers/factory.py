@@ -608,7 +608,10 @@ class OpenAIProvider(BaseProvider):
 
     def _parse_response(self, raw: dict[str, Any], model: str) -> ProviderResponse:
         """Parse the OpenAI API response into a ProviderResponse."""
-        choice = raw.get("choices", [{}])[0]
+        # NB: `or [{}]` (not `get` default) — providers can return an EMPTY
+        # choices list (content filter / safety refusal) which would crash
+        # with IndexError otherwise.
+        choice = (raw.get("choices") or [{}])[0]
         message = choice.get("message", {})
         usage_data = raw.get("usage", {})
 
@@ -1192,7 +1195,8 @@ class OpenRouterProvider(BaseProvider):
         self, raw: dict[str, Any], model: str
     ) -> ProviderResponse:
         """Parse OpenAI-format response (shared by OpenRouter)."""
-        choice = raw.get("choices", [{}])[0]
+        # `or [{}]`: an empty choices list (content filter) must not crash.
+        choice = (raw.get("choices") or [{}])[0]
         message = choice.get("message", {})
         usage_data = raw.get("usage", {})
 

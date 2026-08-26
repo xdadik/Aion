@@ -72,6 +72,13 @@ PROVIDERS = {
         "default_model": "gemini-1.5-flash",
         "install_hint": "Get a key at https://aistudio.google.com/apikey",
     },
+    "openrouter": {
+        "name": "OpenRouter (400+ models, 1 key)",
+        "description": "One key unlocks GPT, Claude, Gemini, Llama, DeepSeek, Qwen, Mistral and more — including free models. Best value for a single credential.",
+        "needs_key": True,
+        "default_model": "meta-llama/llama-4-scout",
+        "install_hint": "Get a key at https://openrouter.ai/keys (free models available)",
+    },
 }
 
 # ── Input helpers ─────────────────────────────────────────────────────────

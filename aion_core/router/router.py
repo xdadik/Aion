@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import logging
+import urllib.request
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -174,6 +176,103 @@ _DEFAULT_PROFILES: list[dict[str, Any]] = [
         ],
         "avg_latency_ms": 1000.0,
     },
+    # ── OpenRouter models (one key → 300+ models; live-verified 2026-08) ──
+    {
+        "name": "meta-llama/llama-4-scout",
+        "provider": "openrouter",
+        "tier": "budget",
+        "cost_per_1k_input": 0.0001,
+        "cost_per_1k_output": 0.0003,
+        "max_context": 1310720,
+        "capabilities": ["chat", "json", "function_calling", "vision"],
+        "avg_latency_ms": 350.0,
+    },
+    {
+        "name": "mistralai/mistral-small-2603",
+        "provider": "openrouter",
+        "tier": "budget",
+        "cost_per_1k_input": 0.0001,
+        "cost_per_1k_output": 0.0006,
+        "max_context": 262144,
+        "capabilities": ["chat", "json", "function_calling"],
+        "avg_latency_ms": 320.0,
+    },
+    {
+        "name": "google/gemini-3.7-flash",
+        "provider": "openrouter",
+        "tier": "budget",
+        "cost_per_1k_input": 0.0004,
+        "cost_per_1k_output": 0.0019,
+        "max_context": 1048576,
+        "capabilities": ["chat", "json", "function_calling", "vision"],
+        "avg_latency_ms": 280.0,
+    },
+    {
+        "name": "qwen/qwen3.8-27b",
+        "provider": "openrouter",
+        "tier": "standard",
+        "cost_per_1k_input": 0.0004,
+        "cost_per_1k_output": 0.0026,
+        "max_context": 1000000,
+        "capabilities": ["chat", "json", "function_calling"],
+        "avg_latency_ms": 450.0,
+    },
+    {
+        "name": "deepseek/deepseek-chat",
+        "provider": "openrouter",
+        "tier": "standard",
+        "cost_per_1k_input": 0.0014,
+        "cost_per_1k_output": 0.0056,
+        "max_context": 131072,
+        "capabilities": ["chat", "json", "function_calling", "code"],
+        "avg_latency_ms": 500.0,
+    },
+    {
+        "name": "openai/gpt-4o",
+        "provider": "openrouter",
+        "tier": "standard",
+        "cost_per_1k_input": 0.0025,
+        "cost_per_1k_output": 0.0100,
+        "max_context": 128000,
+        "capabilities": ["chat", "json", "function_calling", "vision"],
+        "avg_latency_ms": 600.0,
+    },
+    {
+        "name": "anthropic/claude-sonnet-5",
+        "provider": "openrouter",
+        "tier": "premium",
+        "cost_per_1k_input": 0.0020,
+        "cost_per_1k_output": 0.0100,
+        "max_context": 1000000,
+        "capabilities": [
+            "chat", "json", "function_calling", "vision", "extended_thinking"
+        ],
+        "avg_latency_ms": 700.0,
+    },
+    {
+        "name": "anthropic/claude-opus-5-fast",
+        "provider": "openrouter",
+        "tier": "premium",
+        "cost_per_1k_input": 0.0100,
+        "cost_per_1k_output": 0.0500,
+        "max_context": 1000000,
+        "capabilities": [
+            "chat", "json", "function_calling", "vision", "nuanced_reasoning"
+        ],
+        "avg_latency_ms": 900.0,
+    },
+    {
+        "name": "openai/gpt-5.6-terra-pro",
+        "provider": "openrouter",
+        "tier": "premium",
+        "cost_per_1k_input": 0.0020,
+        "cost_per_1k_output": 0.0120,
+        "max_context": 1050000,
+        "capabilities": [
+            "chat", "json", "function_calling", "vision", "code_interpreter"
+        ],
+        "avg_latency_ms": 850.0,
+    },
 ]
 
 
@@ -292,6 +391,115 @@ class ModelRouter:
                     "avg_latency_ms": p.avg_latency_ms,
                 })
         return result
+
+    # ── OpenRouter live hydration ────────────────────────────────────
+    #: Vendor prefixes considered "curated" when hydrating from the live
+    #: OpenRouter catalog (417+ models at time of writing).
+    OPENROUTER_CURATED_PREFIXES = (
+        "openai/", "anthropic/", "google/", "meta-llama/",
+        "deepseek/", "qwen/", "mistralai/", "x-ai/", "cohere/",
+        "microsoft/", "amazon/", "nvidia/",
+    )
+    OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models"
+
+    def hydrate_from_openrouter(
+        self,
+        max_models: int = 150,
+        include_free: bool = True,
+        timeout: float = 20.0,
+    ) -> int:
+        """Fetch the live OpenRouter catalog and register real models.
+
+        OpenRouter's ``/api/v1/models`` endpoint is public (no key needed)
+        and reports per-token pricing plus context length for 400+ models.
+        This turns a single ``OPENROUTER_API_KEY`` into a fully-hydrated,
+        current model registry — closing the "45+ providers" gap with one
+        credential.
+
+        Tiering by output price (USD / 1k tokens):
+        - ``:free`` variants and $0 output  -> budget
+        - output < $0.005                  -> budget
+        - output < $0.02                   -> standard
+        - else                             -> premium
+
+        ``:batch`` variants are skipped (same model, async delivery).
+        Returns the number of newly-registered models.
+        """
+        try:
+            req = urllib.request.Request(
+                self.OPENROUTER_MODELS_URL,
+                headers={"User-Agent": "aion-hand-router"},
+            )
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+        except Exception as exc:  # noqa: BLE001 - hydration is best-effort
+            logger.warning("OpenRouter hydration failed (offline?): %s", exc)
+            return 0
+
+        existing = {m["name"] for m in self.list_models()}
+        added = 0
+        for entry in data.get("data", []):
+            model_id = entry.get("id", "")
+            if not model_id or model_id.endswith(":batch"):
+                continue
+            if not model_id.startswith(self.OPENROUTER_CURATED_PREFIXES):
+                continue
+            if model_id not in existing and added >= max_models:
+                break
+
+            pricing = entry.get("pricing", {}) or {}
+            try:
+                per_token_in = float(pricing.get("prompt") or 0.0)
+                per_token_out = float(pricing.get("completion") or 0.0)
+            except (TypeError, ValueError):
+                continue
+            cost_in = round(per_token_in * 1000, 6)
+            cost_out = round(per_token_out * 1000, 6)
+            if cost_in < 0 or cost_out < 0:  # negative = unsupported modality
+                continue
+
+            is_free = model_id.endswith(":free") or (cost_in == 0 and cost_out == 0)
+            if is_free and not include_free:
+                continue
+            if is_free or cost_out < 0.005:
+                tier = "budget"
+            elif cost_out < 0.02:
+                tier = "standard"
+            else:
+                tier = "premium"
+
+            supported = entry.get("supported_parameters", []) or []
+            caps = ["chat"]
+            if "response_format" in supported or "structured_outputs" in supported:
+                caps.append("json")
+            if "tools" in supported or "tool_choice" in supported:
+                caps.append("function_calling")
+            if (entry.get("architecture", {}) or {}).get(
+                "input_modalities", ["text"]
+            ) != ["text"]:
+                caps.append("vision")
+            if entry.get("reasoning"):
+                caps.append("extended_thinking")
+
+            profile = ModelProfile(
+                name=model_id,
+                provider="openrouter",
+                tier=tier,
+                cost_per_1k_input=cost_in,
+                cost_per_1k_output=cost_out,
+                max_context=int(entry.get("context_length") or 8192),
+                capabilities=caps,
+                avg_latency_ms=500.0,
+            )
+            self.add_model(profile)
+            if model_id not in existing:
+                added += 1
+        if added:
+            logger.info(
+                "OpenRouter hydration: +%d models (catalog: %d)",
+                added, len(data.get("data", [])),
+            )
+        return added
 
     def add_model(self, profile: ModelProfile) -> None:
         """Register a new model profile.  Replaces existing entry with same name."""
