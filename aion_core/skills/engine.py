@@ -583,7 +583,7 @@ class SkillEngine:
     def load(self, directory: Path | None = None) -> int:
         """Load skills from JSON *and* markdown (SKILL.md) files.
 
-        The bundled library ships 93 ``*.md`` skills with YAML frontmatter;
+        The bundled library ships 149 ``*.md`` skills with YAML frontmatter;
         user-created and marketplace skills may be ``*.json``. Both formats
         are loaded — markdown via :meth:`Skill.from_markdown`.
         """

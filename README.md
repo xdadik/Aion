@@ -256,7 +256,7 @@ Every row is a feature you can verify in this repo today.
 
 ### Where Aion can still improve (honest gaps)
 
-- **Skill ecosystem depth** — Hermes has 200+ community-published skills with deep domain expertise (ComfyUI workflows, MLOps integrations). Aion's 93 skills are well-curated but smaller.
+- **Skill ecosystem depth** — Hermes has 200+ community-published skills. Aion's 149 skills include a curated full-stack engineering stack (architecture, React/Next.js/TypeScript, PostgreSQL/Prisma/Redis, security, testing, DevOps, AI-agent design) sourced and audited from the Claude Code community.
 - **Real RLHF fine-tuning** — Aion ships a working RL training loop (GAE advantage estimation + PPO-style updates via prompt engineering; see `aion_core/rl/`), but it does not yet perform actual weight updates. Integration with HuggingFace TRL for true RLHF is on the v0.6.0 roadmap.
 - **Discord community** — Discord invite link is "coming soon"; governance and issue templates are in place but the live server is not yet launched.
 
